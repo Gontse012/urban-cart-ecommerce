@@ -35,6 +35,13 @@ app.post('/api/orders', async (req, res, next) => {
     await conn.commit(); res.status(201).json({ orderId: order.insertId, total, currency: 'ZAR', message: 'Order created. Continue to PayFast to complete payment.' });
   } catch (e) { await conn.rollback(); res.status(e.status || 500).json({ error: e.status ? e.message : 'Could not create your order.' }); } finally { conn.release(); }
 });
+app.get('/', (req, res) => {
+  res.send('urban-cart API is running - use /api/products');
+});
+app.get('/api', (req, res) => {
+  res.json({ message: 'API working', status: 'ok' });
+});
+
 app.get('/api/orders/mine', auth, async (req, res, next) => { try { const [rows] = await pool.execute('SELECT id,total,status,payment_method,created_at FROM orders WHERE customer_id=? ORDER BY created_at DESC', [req.user.id]); res.json(rows); } catch (e) { next(e); } });
 app.get('/api/admin/orders', auth, adminOnly, async (_req, res, next) => { try { const [rows] = await pool.query('SELECT id,customer_name,email,total,status,created_at FROM orders ORDER BY created_at DESC LIMIT 200'); res.json(rows); } catch (e) { next(e); } });
 app.post('/api/admin/products', auth, adminOnly, async (req, res, next) => { try { const { name, description='', price, image_url='', stock=0, category_id=null } = req.body || {}; if (!String(name || '').trim() || !Number.isFinite(Number(price)) || Number(price) < 0 || !Number.isInteger(Number(stock)) || Number(stock) < 0) return res.status(400).json({ error: 'Provide a name, valid price and non-negative whole-number stock.' }); const [r] = await pool.execute('INSERT INTO products(name,description,price,image_url,stock,category_id) VALUES(?,?,?,?,?,?)', [String(name).trim(), String(description), money(price), String(image_url), Number(stock), category_id ? Number(category_id) : null]); res.status(201).json({ id: r.insertId }); } catch (e) { next(e); } });
