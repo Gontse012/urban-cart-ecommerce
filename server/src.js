@@ -11,7 +11,20 @@ const app = express();
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }));
 app.use(express.json({ limit: '100kb' }));
-const pool = mysql.createPool({ host: process.env.DB_HOST || 'localhost', port: Number(process.env.DB_PORT || 3306), user: process.env.DB_USER || 'root', password: process.env.DB_PASSWORD || '', database: process.env.DB_NAME || 'urban_cart', waitForConnections: true, connectionLimit: 10, decimalNumbers: true });
+
+const pool = mysql.createPool({
+  host: process.env.DB_HOST || 'localhost',
+  port: Number(process.env.DB_PORT || 3306),
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'urban_cart',
+  waitForConnections: true,
+  connectionLimit: 10,
+  decimalNumbers: true,
+  ssl: process.env.DB_HOST?.includes('clever-cloud.com') ? { rejectUnauthorized: false } : undefined,
+  enableKeepAlive: true
+});
+
 const money = n => Math.round(Number(n) * 100) / 100;
 const signToken = user => jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role }, process.env.JWT_SECRET || 'dev-only-change-this-secret', { expiresIn: '2h' });
 function auth(req, res, next) { const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, ''); try { if (!token) throw new Error('missing'); req.user = jwt.verify(token, process.env.JWT_SECRET || 'dev-only-change-this-secret'); next(); } catch { res.status(401).json({ error: 'Please sign in again.' }); } }
