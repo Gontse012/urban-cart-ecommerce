@@ -21,7 +21,7 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   decimalNumbers: true,
-  ssl: process.env.DB_HOST?.includes('clever-cloud.com') ? { rejectUnauthorized: false } : undefined,
+  ssl: { rejectUnauthorized: false },
   enableKeepAlive: true
 });
 
