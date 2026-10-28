@@ -21,6 +21,17 @@ function App(){
  const [form,setForm]=useState({customer_name:'',email:'',phone:'',address:'',city:'',province:'Gauteng',postal_code:''});
  const [authForm,setAuthForm]=useState({name:'',email:'',password:''});
  const categories=['All','Tech','Home','Lifestyle','Accessories'];
+ useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('payment') === 'return') {
+    setCart([]); // Now clear cart after successful payment
+    localStorage.removeItem('lastOrderId');
+    setNotice('Payment successful! Order #' + params.get('order'));
+  }
+  if (params.get('payment') === 'cancel') {
+    setNotice('Payment cancelled - your cart is still saved');
+  }
+}, []);
  useEffect(()=>{localStorage.setItem('uc_cart',JSON.stringify(cart));},[cart]);
  useEffect(()=>{api('/products').then(setProducts).catch(()=>{}).finally(()=>setLoading(false));},[]);
  useEffect(()=>{if(user){setForm(f=>({...f,customer_name:f.customer_name||user.name,email:f.email||user.email}));api('/orders/mine').then(setOrders).catch(()=>{});}},[user]);
@@ -32,7 +43,48 @@ function App(){
  function changeQty(id,d){setCart(old=>old.map(p=>p.id===id?{...p,quantity:p.quantity+d}:p).filter(p=>p.quantity>0));}
  async function submitAuth(e){e.preventDefault();setBusy(true);try{const data=await api(`/auth/${authMode}`,{method:'POST',body:JSON.stringify(authForm)});localStorage.setItem('uc_token',data.token);localStorage.setItem('uc_user',JSON.stringify(data.user));setUser(data.user);setAccountOpen(false);setNotice(`Welcome${data.user.name?`, ${data.user.name.split(' ')[0]}`:''}!`);}catch(e){setNotice(e.message);}finally{setBusy(false);}}
  function logout(){localStorage.removeItem('uc_token');localStorage.removeItem('uc_user');setUser(null);setOrders([]);setAdminOpen(false);setNotice('You have signed out.');}
- async function placeOrder(e){e.preventDefault();setBusy(true);try{const order=await api('/orders',{method:'POST',body:JSON.stringify({...form,items:cart.map(p=>({id:p.id,quantity:p.quantity}))})});const pay=await api('/payfast/checkout',{method:'POST',body:JSON.stringify({orderId:order.orderId})});setCart([]);setCheckoutOpen(false);const formEl=document.createElement('form');formEl.method='POST';formEl.action=pay.action;Object.entries(pay.fields).forEach(([name,value])=>{const input=document.createElement('input');input.type='hidden';input.name=name;input.value=value;formEl.appendChild(input);});document.body.appendChild(formEl);formEl.submit();}catch(e){setNotice(e.message);}finally{setBusy(false);}}
+ async function placeOrder(e) {
+  e.preventDefault();
+  setBusy(true);
+  setNotice('');
+  try {
+    // 1. Create order in your Clever Cloud DB
+    const order = await api('/orders', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...form,
+        items: cart.map(p => ({ id: p.id, quantity: p.quantity }))
+      })
+    });
+    // 2. Get PayFast checkout data from your Render backend
+    const pay = await api('/payfast/checkout', {
+      method: 'POST',
+      body: JSON.stringify({ orderId: order.orderId })
+    });
+    if (!pay.action || !pay.fields) throw new Error('PayFast not configured');
+    // 3. Save orderId so you can recover cart if they cancel
+    localStorage.setItem('lastOrderId', order.orderId);
+    // 4. Build and submit hidden form to PayFast
+    const formEl = document.createElement('form');
+    formEl.method = 'POST';
+    formEl.action = pay.action; // sandbox.payfast.co.za or www.payfast.co.za
+    Object.entries(pay.fields).forEach(([name, value]) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = name;
+      input.value = String(value ?? '');
+      formEl.appendChild(input);
+    });
+    document.body.appendChild(formEl);
+    // Don't clear cart yet — clear after PayFast return
+    setCheckoutOpen(false);
+    formEl.submit();
+  } catch (err) {
+    setNotice(err.message || 'Could not start PayFast checkout');
+  } finally {
+    setBusy(false);
+  }
+}
  async function showAdmin(){try{const data=await api('/admin/orders');setAdminOrders(data);setAdminOpen(true);}catch(e){setNotice(e.message);}}
  async function updateStatus(id,status){try{await api(`/admin/orders/${id}/status`,{method:'PATCH',body:JSON.stringify({status})});setAdminOrders(old=>old.map(o=>o.id===id?{...o,status}:o));}catch(e){setNotice(e.message);}}
  useEffect(()=>{const params=new URLSearchParams(location.search);if(params.get('payment')==='return')setNotice(`Thanks! Order #${params.get('order')} was sent to PayFast. Payment is confirmed only after server-side verification.`);if(params.get('payment')==='cancel')setNotice('Payment cancelled. Your order may remain pending.');},[]);
