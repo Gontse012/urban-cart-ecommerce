@@ -16,31 +16,84 @@ const fallbackProducts = [
 ];
 const fmt = n => new Intl.NumberFormat('en-ZA',{style:'currency',currency:'ZAR',maximumFractionDigits:2}).format(Number(n||0));
 async function api(path, options={}) { const token=localStorage.getItem('uc_token'); const res=await fetch(`${API}${path}`,{...options,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`} : {}),...(options.headers||{})}}); const data=await res.json().catch(()=>({})); if(!res.ok) throw new Error(data.error||'Something went wrong.'); return data; }
+
+function ProductPage({ product, onClose, onAdd, onOpenCart }) {
+  const [qty, setQty] = useState(1);
+  if (!product) return null;
+  return (
+    <div className="wrap product-page" style={{paddingTop:'24px', paddingBottom:'60px'}}>
+      <button className="btn btn-outline" onClick={onClose} style={{marginBottom:24, display:'inline-flex', alignItems:'center', gap:8}}>
+        <X size={16}/> Back to shop
+      </button>
+      <div style={{display:'grid', gridTemplateColumns:'1.2fr 1fr', gap:'32px'}} className="product-page-grid">
+        <div className="product-image-wrap" style={{height:'520px', borderRadius:'16px', overflow:'hidden'}}>
+          <img src={product.image_url} alt={product.name} style={{width:'100%', height:'100%', objectFit:'cover'}}/>
+        </div>
+        <div>
+          <div className="eyebrow"><span className="eyebrow-line"/> {String(product.category||'EVERYDAY').toUpperCase()}</div>
+          <h1 style={{fontSize:'42px', margin:'12px 0', lineHeight:'1.1'}}>{product.name}</h1>
+          <p style={{opacity:.7, marginBottom:16, lineHeight:'1.6'}}>{product.description}</p>
+          <strong style={{fontSize:'28px', display:'block', marginBottom:24}}>{fmt(product.price)}</strong>
+          <div style={{display:'flex', alignItems:'center', gap:12, marginBottom:24}}>
+            <span>Qty:</span>
+            <div className="quantity" style={{display:'inline-flex', alignItems:'center', gap:8, border:'1px solid #ddd', borderRadius:20, padding:'6px 12px'}}>
+              <button onClick={()=>setQty(q=>Math.max(1,q-1))} aria-label="Decrease"><Minus size={13}/></button>
+              <span style={{minWidth:20, textAlign:'center'}}>{qty}</span>
+              <button onClick={()=>setQty(q=>Math.min(99,q+1))} aria-label="Increase"><Plus size={13}/></button>
+            </div>
+            <small style={{opacity:.6}}>{product.stock} in stock</small>
+          </div>
+          <button className="btn btn-primary full" onClick={()=>{
+            for(let i=0;i<qty;i++) onAdd(product);
+            onClose();
+            onOpenCart();
+          }}>
+            Add {qty} to bag · {fmt(product.price * qty)} <ShoppingBag size={16}/>
+          </button>
+          <div style={{marginTop:32, display:'grid', gap:12}}>
+            <div style={{display:'flex', gap:8, alignItems:'center'}}><Truck size={18}/> <strong>Delivery across SA</strong> <small>· Tracked to your door</small></div>
+            <div style={{display:'flex', gap:8, alignItems:'center'}}><ShieldCheck size={18}/> <strong>Secure checkout</strong> <small>· PayFast</small></div>
+            <div style={{display:'flex', gap:8, alignItems:'center'}}><RotateCcw size={18}/> <strong>Easy returns</strong> <small>· Here when you need us</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function App(){
- const [products,setProducts]=useState(fallbackProducts),[category,setCategory]=useState('All'),[search,setSearch]=useState(''),[cart,setCart]=useState(()=>JSON.parse(localStorage.getItem('uc_cart')||'[]')),[cartOpen,setCartOpen]=useState(false),[checkoutOpen,setCheckoutOpen]=useState(false),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[menuOpen,setMenuOpen]=useState(false),[accountOpen,setAccountOpen]=useState(false),[authMode,setAuthMode]=useState('login'),[user,setUser]=useState(()=>JSON.parse(localStorage.getItem('uc_user')||'null')),[orders,setOrders]=useState([]),[adminOpen,setAdminOpen]=useState(false),[adminOrders,setAdminOrders]=useState([]),[busy,setBusy]=useState(false);
+ const [products,setProducts]=useState(fallbackProducts),[category,setCategory]=useState('All'),[search,setSearch]=useState(''),[cart,setCart]=useState(()=>JSON.parse(localStorage.getItem('uc_cart')||'[]')),[cartOpen,setCartOpen]=useState(false),[checkoutOpen,setCheckoutOpen]=useState(false),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[menuOpen,setMenuOpen]=useState(false),[accountOpen,setAccountOpen]=useState(false),[authMode,setAuthMode]=useState('login'),[user,setUser]=useState(()=>JSON.parse(localStorage.getItem('uc_user')||'null')),[orders,setOrders]=useState([]),[adminOpen,setAdminOpen]=useState(false),[adminOrders,setAdminOrders]=useState([]),[busy,setBusy]=useState(false),[selectedProduct,setSelectedProduct]=useState(null);
  const [form,setForm]=useState({customer_name:'',email:'',phone:'',address:'',city:'',province:'Gauteng',postal_code:''});
  const [authForm,setAuthForm]=useState({name:'',email:'',password:''});
  const categories=['All','Tech','Home','Lifestyle','Accessories'];
- useEffect(() => {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('payment') === 'return') {
-    setCart([]); // Now clear cart after successful payment
-    localStorage.removeItem('lastOrderId');
-    setNotice('Payment successful! Order #' + params.get('order'));
-  }
-  if (params.get('payment') === 'cancel') {
-    setNotice('Payment cancelled - your cart is still saved');
-  }
-}, []);
+ useEffect(()=>{
+    const params=new URLSearchParams(window.location.search);
+    if(params.get('payment')==='return'){
+      setCart([]);
+      localStorage.removeItem('lastOrderId');
+      setNotice(`Thanks! Order #${params.get('order')} was sent to PayFast. Payment is confirmed only after server-side verification.`);
+    }
+    if(params.get('payment')==='cancel'){
+      setNotice('Payment cancelled. Your order may remain pending.');
+    }
+    // Open product from URL ?product=2
+    const pid = Number(params.get('product'));
+    if(pid){
+      const found = fallbackProducts.find(p=>p.id===pid);
+      if(found) setSelectedProduct(found);
+    }
+ },[]);
  useEffect(()=>{localStorage.setItem('uc_cart',JSON.stringify(cart));},[cart]);
- useEffect(()=>{api('/products').then(setProducts).catch(()=>{}).finally(()=>setLoading(false));},[]);
+ useEffect(()=>{api('/products').then((rows)=>{ if(Array.isArray(rows) && rows.length) setProducts(rows); }).catch(()=>{}).finally(()=>setLoading(false));},[]);
  useEffect(()=>{if(user){setForm(f=>({...f,customer_name:f.customer_name||user.name,email:f.email||user.email}));api('/orders/mine').then(setOrders).catch(()=>{});}},[user]);
- useEffect(()=>{if(notice){const t=setTimeout(()=>setNotice(''),3500);return()=>clearTimeout(t);}},[notice]);
+ useEffect(()=>{if(notice){const t=setTimeout(()=>setNotice(''),4500);return()=>clearTimeout(t);}},[notice]);
  const visible=useMemo(()=>products.filter(p=>(category==='All'||p.category===category)&&`${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())),[products,category,search]);
  const count=cart.reduce((s,p)=>s+p.quantity,0),total=cart.reduce((s,p)=>s+p.price*p.quantity,0);
  const setField=(k,v)=>setForm(f=>({...f,[k]:v}));
  function add(p){setCart(old=>{const found=old.find(x=>x.id===p.id);return found?old.map(x=>x.id===p.id?{...x,quantity:Math.min(x.quantity+1,99)}:x):[...old,{...p,quantity:1}]});setNotice(`${p.name} added to your bag`);}
  function changeQty(id,d){setCart(old=>old.map(p=>p.id===id?{...p,quantity:p.quantity+d}:p).filter(p=>p.quantity>0));}
+ function openProduct(p){ setSelectedProduct(p); window.scrollTo({top:0, behavior:'smooth'}); window.history.pushState({}, '', `?product=${p.id}`); }
+ function closeProduct(){ setSelectedProduct(null); window.history.pushState({}, '', window.location.pathname); }
  async function submitAuth(e){e.preventDefault();setBusy(true);try{const data=await api(`/auth/${authMode}`,{method:'POST',body:JSON.stringify(authForm)});localStorage.setItem('uc_token',data.token);localStorage.setItem('uc_user',JSON.stringify(data.user));setUser(data.user);setAccountOpen(false);setNotice(`Welcome${data.user.name?`, ${data.user.name.split(' ')[0]}`:''}!`);}catch(e){setNotice(e.message);}finally{setBusy(false);}}
  function logout(){localStorage.removeItem('uc_token');localStorage.removeItem('uc_user');setUser(null);setOrders([]);setAdminOpen(false);setNotice('You have signed out.');}
  async function placeOrder(e) {
@@ -48,7 +101,6 @@ function App(){
   setBusy(true);
   setNotice('');
   try {
-    // 1. Create order in your Clever Cloud DB
     const order = await api('/orders', {
       method: 'POST',
       body: JSON.stringify({
@@ -56,18 +108,15 @@ function App(){
         items: cart.map(p => ({ id: p.id, quantity: p.quantity }))
       })
     });
-    // 2. Get PayFast checkout data from your Render backend
     const pay = await api('/payfast/checkout', {
       method: 'POST',
       body: JSON.stringify({ orderId: order.orderId })
     });
     if (!pay.action || !pay.fields) throw new Error('PayFast not configured');
-    // 3. Save orderId so you can recover cart if they cancel
     localStorage.setItem('lastOrderId', order.orderId);
-    // 4. Build and submit hidden form to PayFast
     const formEl = document.createElement('form');
     formEl.method = 'POST';
-    formEl.action = pay.action; // sandbox.payfast.co.za or www.payfast.co.za
+    formEl.action = pay.action;
     Object.entries(pay.fields).forEach(([name, value]) => {
       const input = document.createElement('input');
       input.type = 'hidden';
@@ -76,7 +125,6 @@ function App(){
       formEl.appendChild(input);
     });
     document.body.appendChild(formEl);
-    // Don't clear cart yet — clear after PayFast return
     setCheckoutOpen(false);
     formEl.submit();
   } catch (err) {
@@ -87,17 +135,24 @@ function App(){
 }
  async function showAdmin(){try{const data=await api('/admin/orders');setAdminOrders(data);setAdminOpen(true);}catch(e){setNotice(e.message);}}
  async function updateStatus(id,status){try{await api(`/admin/orders/${id}/status`,{method:'PATCH',body:JSON.stringify({status})});setAdminOrders(old=>old.map(o=>o.id===id?{...o,status}:o));}catch(e){setNotice(e.message);}}
- useEffect(()=>{const params=new URLSearchParams(location.search);if(params.get('payment')==='return')setNotice(`Thanks! Order #${params.get('order')} was sent to PayFast. Payment is confirmed only after server-side verification.`);if(params.get('payment')==='cancel')setNotice('Payment cancelled. Your order may remain pending.');},[]);
  return <div className="app-shell">
   <div className="announcement"><Sparkles size={13}/> GOOD THINGS, DELIVERED. <span>Free delivery on orders over R1,000</span></div>
-  <header className="header wrap"><button className="icon-btn mobile-menu" aria-label="Open menu" onClick={()=>setMenuOpen(!menuOpen)}><Menu/></button><a className="brand" href="#top" onClick={()=>{setCategory('All');setSearch('')}}><span className="brand-mark">u.</span><span>urban<span className="brand-light">cart</span><small>EVERYDAY, ELEVATED.</small></span></a><nav className={menuOpen?'nav nav-open':'nav'}><a href="#shop" onClick={()=>setMenuOpen(false)}>Shop all</a><a href="#shop" onClick={()=>{setCategory('Tech');setMenuOpen(false)}}>Tech</a><a href="#shop" onClick={()=>{setCategory('Home');setMenuOpen(false)}}>Home & living</a><a href="#story" onClick={()=>setMenuOpen(false)}>Our story</a></nav><div className="header-actions"><label className="search-box"><Search size={17}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search products..." aria-label="Search products"/></label><button className="icon-btn account-btn" aria-label="Account" onClick={()=>setAccountOpen(true)}><UserRound size={19}/></button><button className="bag-btn" onClick={()=>setCartOpen(true)} aria-label={`Shopping bag, ${count} items`}><ShoppingBag size={19}/><span>Bag</span><b>{count}</b></button></div></header>
-  <main id="top"><section className="hero wrap"><div className="hero-copy"><div className="eyebrow"><span className="eyebrow-line"/> THE EVERYDAY EDITION</div><h1>Find your<br/>kind of <em>good.</em></h1><p>Thoughtful finds for the way you live, work and unwind. A little more you, in every detail.</p><div className="hero-buttons"><a className="btn btn-primary" href="#shop">Explore the collection <ArrowUpRight size={17}/></a><a className="text-link" href="#story">Our philosophy <span>↗</span></a></div><div className="hero-note"><div className="avatar-stack"><span>U</span><span>C</span><span>+</span></div><div><strong>Made for everyday living</strong><small>Useful things. Better choices.</small></div></div></div><div className="hero-art"><div className="hero-image" role="img" aria-label="Carefully arranged lifestyle products on a warm neutral background"/><div className="floating-tag"><span>THE NEW STANDARD</span><strong>Little things.<br/>Big difference.</strong><ArrowUpRight size={19}/></div><div className="hero-index">01 <span/> 04</div></div></section>
-  <section className="benefits wrap"><div><Truck/><span><strong>Delivery across SA</strong><small>Tracked to your door</small></span></div><div><ShieldCheck/><span><strong>Secure checkout</strong><small>Payments with PayFast</small></span></div><div><RotateCcw/><span><strong>Easy support</strong><small>Here when you need us</small></span></div><div><PackageCheck/><span><strong>Curated essentials</strong><small>Chosen with intention</small></span></div></section>
-  <section id="shop" className="shop-section wrap"><div className="section-top"><div><div className="eyebrow"><span className="eyebrow-line"/> THE GOOD STUFF</div><h2>Everyday <em>favourites.</em></h2><p>Meet the pieces that make the everyday feel a little better.</p></div><a href="#shop" className="text-link desktop-link" onClick={()=>{setCategory('All');setSearch('')}}>View everything <ArrowUpRight size={16}/></a></div><div className="filters"><div className="category-tabs">{categories.map(c=><button key={c} className={category===c?'category active':'category'} onClick={()=>setCategory(c)}>{c}</button>)}</div><span className="result-count">{visible.length} PRODUCTS <ChevronDown size={14}/></span></div>
-  {loading&&<div className="loading">Getting the good stuff...</div>}{!loading&&!visible.length&&<div className="empty-results">No products found. Try another search.</div>}<div className="product-grid">{visible.map((p,i)=><article className="product-card" key={p.id}><div className="product-image-wrap"><img src={p.image_url} alt={p.name} loading="lazy" onError={e=>{e.currentTarget.src='https://images.unsplash.com/photo-1490312278390-ab64016e0aa9?auto=format&fit=crop&w=900&q=80'}}/><span className="product-label">{i===0?'BESTSELLER':p.category?.toUpperCase()||'EVERYDAY PICK'}</span><button className="quick-add" onClick={()=>add(p)} aria-label={`Add ${p.name} to bag`}><Plus size={19}/></button></div><div className="product-info"><div><h3>{p.name}</h3><p>{p.category||'Everyday essential'}</p></div><strong>{fmt(p.price)}</strong></div></article>)}</div><div className="shop-bottom"><span>GOOD DESIGN. EVERYDAY PRICES.</span><span>SHOWING {visible.length} OF {products.length} ITEMS</span></div></section>
-  <section id="story" className="story wrap"><div className="story-art"><div className="story-image" role="img" aria-label="Sunlit, calm and minimal everyday living space"/><span className="story-stamp">LIVE A LITTLE<br/>MORE INTENTIONALLY</span></div><div className="story-copy"><div className="eyebrow"><span className="eyebrow-line"/> A NOTE FROM US</div><h2>Less noise.<br/>More <em>meaning.</em></h2><p>We believe the things around you should earn their place. That's why Urban Cart brings together practical, well-designed finds that feel good to use and easy to love.</p><p>No endless scrolling for the right thing. Just a thoughtful collection for real life, delivered wherever home is in South Africa.</p><a href="#shop" className="btn btn-outline">Find your favourite <ArrowUpRight size={16}/></a></div></section>
-  <section className="newsletter wrap"><div><div className="eyebrow"><span className="eyebrow-line"/> THE OCCASIONAL GOOD EMAIL</div><h2>A little good in<br/>your <em>inbox.</em></h2></div><form onSubmit={e=>{e.preventDefault();setNotice('Thanks for your interest! Newsletter sign-up will be connected when email service is configured.');e.currentTarget.reset()}}><label htmlFor="newsletter-email">New finds, useful ideas and the occasional treat. No noise.</label><div className="newsletter-input"><input id="newsletter-email" type="email" placeholder="Your email address" required/><button aria-label="Subscribe"><ArrowUpRight/></button></div><small>By subscribing, you agree to receive occasional updates.</small></form></section></main>
-  <footer className="footer"><div className="wrap footer-main"><div className="footer-brand"><a className="brand" href="#top"><span className="brand-mark">u.</span><span>urban<span className="brand-light">cart</span><small>EVERYDAY, ELEVATED.</small></span></a><p>Useful things for living well.<br/>Proudly serving South Africa.</p></div><div><strong>EXPLORE</strong><a href="#shop">Shop all</a><a href="#shop" onClick={()=>setCategory('Tech')}>Tech</a><a href="#shop" onClick={()=>setCategory('Home')}>Home & living</a></div><div><strong>NEED A HAND?</strong><a href="mailto:hello@urbancart.example">Contact us</a><button className="footer-link" onClick={()=>setAccountOpen(true)}>My account</button><button className="footer-link" onClick={()=>user?api('/orders/mine').then(setOrders).catch(e=>setNotice(e.message)):setAccountOpen(true)}>My orders</button></div><div><strong>YOUR DETAILS</strong><span>Prices in South African rand (ZAR)</span><span>PayFast secure checkout</span><span>Delivery across South Africa</span></div></div><div className="wrap footer-bottom"><span>© {new Date().getFullYear()} Urban Cart. All rights reserved.</span><span>MADE FOR THE EVERYDAY <span className="gold-dot">●</span></span></div></footer>
+  <header className="header wrap"><button className="icon-btn mobile-menu" aria-label="Open menu" onClick={()=>setMenuOpen(!menuOpen)}><Menu/></button><a className="brand" href="#top" onClick={()=>{setCategory('All');setSearch('');closeProduct();}}><span className="brand-mark">u.</span><span>urban<span className="brand-light">cart</span><small>EVERYDAY, ELEVATED.</small></span></a><nav className={menuOpen?'nav nav-open':'nav'}><a href="#shop" onClick={()=>{setMenuOpen(false);closeProduct();}}>Shop all</a><a href="#shop" onClick={()=>{setCategory('Tech');setMenuOpen(false);closeProduct();}}>Tech</a><a href="#shop" onClick={()=>{setCategory('Home');setMenuOpen(false);closeProduct();}}>Home & living</a><a href="#story" onClick={()=>{setMenuOpen(false);closeProduct();}}>Our story</a></nav><div className="header-actions"><label className="search-box"><Search size={17}/><input value={search} onChange={e=>{setSearch(e.target.value); if(selectedProduct) closeProduct();}} placeholder="Search products..." aria-label="Search products"/></label><button className="icon-btn account-btn" aria-label="Account" onClick={()=>setAccountOpen(true)}><UserRound size={19}/></button><button className="bag-btn" onClick={()=>setCartOpen(true)} aria-label={`Shopping bag, ${count} items`}><ShoppingBag size={19}/><span>Bag</span><b>{count}</b></button></div></header>
+  <main id="top">
+    {selectedProduct ? (
+      <ProductPage product={selectedProduct} onClose={closeProduct} onAdd={add} onOpenCart={()=>setCartOpen(true)} />
+    ) : (
+      <>
+        <section className="hero wrap"><div className="hero-copy"><div className="eyebrow"><span className="eyebrow-line"/> THE EVERYDAY EDITION</div><h1>Find your<br/>kind of <em>good.</em></h1><p>Thoughtful finds for the way you live, work and unwind. A little more you, in every detail.</p><div className="hero-buttons"><a className="btn btn-primary" href="#shop">Explore the collection <ArrowUpRight size={17}/></a><a className="text-link" href="#story">Our philosophy <span>↗</span></a></div><div className="hero-note"><div className="avatar-stack"><span>U</span><span>C</span><span>+</span></div><div><strong>Made for everyday living</strong><small>Useful things. Better choices.</small></div></div></div><div className="hero-art"><div className="hero-image" role="img" aria-label="Carefully arranged lifestyle products on a warm neutral background"/><div className="floating-tag"><span>THE NEW STANDARD</span><strong>Little things.<br/>Big difference.</strong><ArrowUpRight size={19}/></div><div className="hero-index">01 <span/> 04</div></div></section>
+        <section className="benefits wrap"><div><Truck/><span><strong>Delivery across SA</strong><small>Tracked to your door</small></span></div><div><ShieldCheck/><span><strong>Secure checkout</strong><small>Payments with PayFast</small></span></div><div><RotateCcw/><span><strong>Easy support</strong><small>Here when you need us</small></span></div><div><PackageCheck/><span><strong>Curated essentials</strong><small>Chosen with intention</small></span></div></section>
+        <section id="shop" className="shop-section wrap"><div className="section-top"><div><div className="eyebrow"><span className="eyebrow-line"/> THE GOOD STUFF</div><h2>Everyday <em>favourites.</em></h2><p>Meet the pieces that make the everyday feel a little better.</p></div><a href="#shop" className="text-link desktop-link" onClick={()=>{setCategory('All');setSearch('')}}>View everything <ArrowUpRight size={16}/></a></div><div className="filters"><div className="category-tabs">{categories.map(c=><button key={c} className={category===c?'category active':'category'} onClick={()=>setCategory(c)}>{c}</button>)}</div><span className="result-count">{visible.length} PRODUCTS <ChevronDown size={14}/></span></div>
+        {loading&&<div className="loading">Getting the good stuff...</div>}{!loading&&!visible.length&&<div className="empty-results">No products found. Try another search.</div>}<div className="product-grid">{visible.map((p,i)=><article className="product-card" key={p.id} onClick={()=>openProduct(p)} style={{cursor:'pointer'}}><div className="product-image-wrap"><img src={p.image_url} alt={p.name} loading="lazy" onError={e=>{e.currentTarget.src='https://images.unsplash.com/photo-1490312278390-ab64016e0aa9?auto=format&fit=crop&w=900&q=80'}}/><span className="product-label">{i===0?'BESTSELLER':p.category?.toUpperCase()||'EVERYDAY PICK'}</span><button className="quick-add" onClick={(e)=>{e.stopPropagation(); add(p);}} aria-label={`Add ${p.name} to bag`}><Plus size={19}/></button></div><div className="product-info"><div><h3>{p.name}</h3><p>{p.category||'Everyday essential'}</p></div><strong>{fmt(p.price)}</strong></div></article>)}</div><div className="shop-bottom"><span>GOOD DESIGN. EVERYDAY PRICES.</span><span>SHOWING {visible.length} OF {products.length} ITEMS</span></div></section>
+        <section id="story" className="story wrap"><div className="story-art"><div className="story-image" role="img" aria-label="Sunlit, calm and minimal everyday living space"/><span className="story-stamp">LIVE A LITTLE<br/>MORE INTENTIONALLY</span></div><div className="story-copy"><div className="eyebrow"><span className="eyebrow-line"/> A NOTE FROM US</div><h2>Less noise.<br/>More <em>meaning.</em></h2><p>We believe the things around you should earn their place. That's why Urban Cart brings together practical, well-designed finds that feel good to use and easy to love.</p><p>No endless scrolling for the right thing. Just a thoughtful collection for real life, delivered wherever home is in South Africa.</p><a href="#shop" className="btn btn-outline">Find your favourite <ArrowUpRight size={16}/></a></div></section>
+        <section className="newsletter wrap"><div><div className="eyebrow"><span className="eyebrow-line"/> THE OCCASIONAL GOOD EMAIL</div><h2>A little good in<br/>your <em>inbox.</em></h2></div><form onSubmit={e=>{e.preventDefault();setNotice('Thanks for your interest! Newsletter sign-up will be connected when email service is configured.');e.currentTarget.reset()}}><label htmlFor="newsletter-email">New finds, useful ideas and the occasional treat. No noise.</label><div className="newsletter-input"><input id="newsletter-email" type="email" placeholder="Your email address" required/><button aria-label="Subscribe"><ArrowUpRight/></button></div><small>By subscribing, you agree to receive occasional updates.</small></form></section>
+      </>
+    )}
+  </main>
+  <footer className="footer"><div className="wrap footer-main"><div className="footer-brand"><a className="brand" href="#top"><span className="brand-mark">u.</span><span>urban<span className="brand-light">cart</span><small>EVERYDAY, ELEVATED.</small></span></a><p>Useful things for living well.<br/>Proudly serving South Africa.</p></div><div><strong>EXPLORE</strong><a href="#shop" onClick={closeProduct}>Shop all</a><a href="#shop" onClick={()=>{setCategory('Tech');closeProduct();}}>Tech</a><a href="#shop" onClick={()=>{setCategory('Home');closeProduct();}}>Home & living</a></div><div><strong>NEED A HAND?</strong><a href="mailto:hello@urbancart.example">Contact us</a><button className="footer-link" onClick={()=>setAccountOpen(true)}>My account</button><button className="footer-link" onClick={()=>user?api('/orders/mine').then(setOrders).catch(e=>setNotice(e.message)):setAccountOpen(true)}>My orders</button></div><div><strong>YOUR DETAILS</strong><span>Prices in South African rand (ZAR)</span><span>PayFast secure checkout</span><span>Delivery across South Africa</span></div></div><div className="wrap footer-bottom"><span>© {new Date().getFullYear()} Urban Cart. All rights reserved.</span><span>MADE FOR THE EVERYDAY <span className="gold-dot">●</span></span></div></footer>
   {notice&&<div className="toast" role="status"><Check size={17}/>{notice}<button onClick={()=>setNotice('')} aria-label="Dismiss"><X size={15}/></button></div>}
   {cartOpen&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setCartOpen(false)}}><aside className="drawer"><div className="drawer-head"><div><span className="eyebrow">YOUR PICKS</span><h2>Your bag <span>({count})</span></h2></div><button className="icon-btn" onClick={()=>setCartOpen(false)} aria-label="Close bag"><X/></button></div>{!cart.length?<div className="cart-empty"><ShoppingBag size={36}/><h3>Your bag is taking a breather.</h3><p>Find something good for your everyday.</p><button className="btn btn-primary" onClick={()=>{setCartOpen(false);document.querySelector('#shop')?.scrollIntoView({behavior:'smooth'})}}>Explore products <ArrowUpRight size={16}/></button></div>:<><div className="cart-items">{cart.map(p=><div className="cart-item" key={p.id}><img src={p.image_url} alt={p.name}/><div className="cart-item-details"><h3>{p.name}</h3><strong>{fmt(p.price)}</strong><div className="quantity"><button onClick={()=>changeQty(p.id,-1)} aria-label="Decrease quantity"><Minus size={13}/></button><span>{p.quantity}</span><button onClick={()=>changeQty(p.id,1)} aria-label="Increase quantity"><Plus size={13}/></button></div></div><button className="remove-item" onClick={()=>setCart(old=>old.filter(x=>x.id!==p.id))}>Remove</button></div>)}</div><div className="cart-summary"><div><span>Subtotal</span><strong>{fmt(total)}</strong></div><small>Delivery calculated at checkout. Final stock and prices are verified by the server.</small><button className="btn btn-primary full" onClick={()=>{setCartOpen(false);setCheckoutOpen(true)}}>Continue to checkout <ArrowUpRight size={16}/></button><button className="continue-shopping" onClick={()=>setCartOpen(false)}>Continue shopping</button></div></>}</aside></div>}
   {checkoutOpen&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setCheckoutOpen(false)}}><section className="modal checkout-modal"><div className="drawer-head"><div><span className="eyebrow">ALMOST YOURS</span><h2>Checkout</h2></div><button className="icon-btn" onClick={()=>setCheckoutOpen(false)} aria-label="Close checkout"><X/></button></div><div className="checkout-total"><span>{count} item(s)</span><strong>{fmt(total)}</strong></div><p className="form-hint">Delivery details · South Africa</p><form className="checkout-form" onSubmit={placeOrder}><label>Full name<input required value={form.customer_name} onChange={e=>setField('customer_name',e.target.value)} autoComplete="name"/></label><label>Email address<input type="email" required value={form.email} onChange={e=>setField('email',e.target.value)} autoComplete="email"/></label><label>Phone number<input type="tel" required value={form.phone} onChange={e=>setField('phone',e.target.value)} autoComplete="tel"/></label><label className="wide">Street address<input required value={form.address} onChange={e=>setField('address',e.target.value)} autoComplete="street-address"/></label><label>City / town<input required value={form.city} onChange={e=>setField('city',e.target.value)} autoComplete="address-level2"/></label><label>Province<select required value={form.province} onChange={e=>setField('province',e.target.value)}>{['Eastern Cape','Free State','Gauteng','KwaZulu-Natal','Limpopo','Mpumalanga','Northern Cape','North West','Western Cape'].map(p=><option key={p}>{p}</option>)}</select></label><label>Postal code<input required value={form.postal_code} onChange={e=>setField('postal_code',e.target.value)} autoComplete="postal-code"/></label><div className="payment-note wide"><ShieldCheck size={19}/><span><strong>Pay securely with PayFast</strong><small>You'll continue to PayFast to complete payment. Live payment confirmation requires verified server notifications.</small></span></div><button className="btn btn-primary full wide" disabled={busy||!cart.length}>{busy?'Preparing checkout…':`Continue to PayFast · ${fmt(total)}`}<ArrowUpRight size={16}/></button><small className="wide fine-print">Your order is checked against current product prices and stock before it is created.</small></form></section></div>}
