@@ -9,7 +9,17 @@ import crypto from 'node:crypto';
 
 const app = express();
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173' }));
+
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://urban-cart-ecommerce.vercel.app',
+    'https://urban-cart-ecommerce-gontses-projects.vercel.app'
+  ],
+  credentials: true
+}));
+
 app.use(express.json({ limit: '100kb' }));
 
 const pool = mysql.createPool({
