@@ -107,7 +107,19 @@ function App(){
  function changeQty(id,d){setCart(old=>old.map(p=>p.id===id?{...p,quantity:p.quantity+d}:p).filter(p=>p.quantity>0));}
  function openProduct(p){ setSelectedProduct(p); setShowAll(false); window.scrollTo({top:0, behavior:'smooth'}); }
  function closeProduct(){ setSelectedProduct(null); setShowAll(false); }
- async function submitAuth(e){e.preventDefault();setBusy(true);try{const data=await api(`/auth/${authMode}`,{method:'POST',body:JSON.stringify(authForm)});localStorage.setItem('uc_token',data.token);localStorage.setItem('uc_user',JSON.stringify(data.user));setUser(data.user);setAccountOpen(false);setNotice(`Welcome${data.user.name?`, ${data.user.name.split(' ')[0]}`:''}!`); setAuthForm({name:'',email:'',password:''});}catch(e){setNotice(e.message);}finally{setBusy(false);}}
+ async function submitAuth(e){
+  e.preventDefault();
+  setBusy(true);
+  try{const data=await api(`/auth/${authMode}`,{method:'POST',body:JSON.stringify(authForm)});
+  localStorage.setItem('uc_token',data.token);localStorage.setItem('uc_user',JSON.stringify(data.user));
+  setUser(data.user);setAccountOpen(false);
+  setNotice(`Welcome${data.user.name?`, ${data.user.name.split(' ')[0]}`:''}!`); 
+  setAuthForm({name:'',email:'',password:''});
+}
+catch(e){setNotice(e.message);}finally{setBusy(false);
+
+}}
+
  function logout(){localStorage.removeItem('uc_token');localStorage.removeItem('uc_user');setUser(null);setOrders([]);setAdminOpen(false);setNotice('You have signed out.');}
  async function placeOrder(e) {
   e.preventDefault();

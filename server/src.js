@@ -12,15 +12,13 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
 app.use(cors({ 
   origin: [
-    process.env.CLIENT_URL || 'http://localhost:5173',
-    'http://localhost:5173',
-    'http://localhost:3000',
     'https://urban-cart-ecommerce.vercel.app',
     'https://urban-cart-ecommerce-gontsewamodise02-7329.vercel.app',
-    'https://urban-cart-ecommerce-6um0gpmb4-gontsewamodise02-7329.vercel.app'
+    /.*\.vercel\.app$/  // <-- allows ALL preview URLs
   ], 
   credentials: true 
 }));
+
 app.use(express.json({ limit: '100kb' }));
 
 const pool = mysql.createPool({
