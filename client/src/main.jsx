@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Search, ShoppingBag, ArrowUpRight, Plus, Minus, X, Menu, Check, ChevronDown, ShieldCheck, Truck, RotateCcw, Sparkles, UserRound, PackageCheck } from 'lucide-react';
+import { Search, ShoppingBag, ArrowUpRight, Plus, Minus, X, Menu, Check, ShieldCheck, Truck, RotateCcw, PackageCheck } from 'lucide-react';
 import './styles.css';
 const RAW = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
 const API = RAW.includes('/api') ? RAW : RAW + '/api';
@@ -30,10 +30,7 @@ function App(){
  const categories=['All','Tech','Home','Lifestyle','Accessories'];
  useEffect(()=>{
     const params=new URLSearchParams(window.location.search);
-    if(params.get('payment')==='return'){
-      setCart([]); localStorage.removeItem('lastOrderId');
-      setNotice(`Payment successful! Order #${params.get('order')} received.`);
-    }
+    if(params.get('payment')==='return'){ setCart([]); localStorage.removeItem('lastOrderId'); setNotice(`Payment successful! Order #${params.get('order')} received.`); }
     if(params.get('payment')==='cancel'){ setNotice('Payment cancelled - your cart is saved.'); }
  },[]);
  useEffect(()=>{localStorage.setItem('uc_cart',JSON.stringify(cart));},[cart]);
@@ -43,7 +40,7 @@ function App(){
  const visible=useMemo(()=>products.filter(p=>(category==='All'|| (p.category||'').toLowerCase()===category.toLowerCase())&& `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())),[products,category,search]);
  const count=cart.reduce((s,p)=>s+p.quantity,0),total=cart.reduce((s,p)=>s+p.price*p.quantity,0);
  const setField=(k,v)=>setForm(f=>({...f,[k]:v}));
- function add(p){setCart(old=>{const found=old.find(x=>x.id===p.id);return found?old.map(x=>x.id===p.id?{...x,quantity:Math.min(x.quantity+1,99)}:x):[...old,{...p,quantity:1}]});setNotice(`${p.name} added`);}
+ function add(p){setCart(old=>{const found=old.find(x=>x.id===p.id);return found?old.map(x=>x.id===p.id?{...x,quantity:Math.min(x.quantity+1,99)}:x):[...old,{...p,quantity:1}]});setNotice(`${p.name} added to bag`);}
  function changeQty(id,d){setCart(old=>old.map(p=>p.id===id?{...p,quantity:p.quantity+d}:p).filter(p=>p.quantity>0));}
  function openProduct(p){ setSelectedProduct(p); setShowAll(false); window.scrollTo({top:0, behavior:'smooth'}); }
  function closeProduct(){ setSelectedProduct(null); }
@@ -56,9 +53,7 @@ function App(){
  function logout(){localStorage.removeItem('uc_token');localStorage.removeItem('uc_user');setUser(null);setOrders([]);setAdminOpen(false);setNotice('You have signed out.');}
  async function placeOrder(e) {
   e.preventDefault();
-  if(!form.customer_name.trim()||!form.email.trim()||!form.phone.trim()||!form.address.trim()||!form.city.trim()||!form.postal_code.trim()){
-    setNotice('Please fill in all delivery fields.'); return;
-  }
+  if(!form.customer_name.trim()||!form.email.trim()||!form.phone.trim()||!form.address.trim()||!form.city.trim()||!form.postal_code.trim()){ setNotice('Please fill in all delivery fields.'); return; }
   setBusy(true); setNotice('');
   try {
     const order = await api('/orders',{method:'POST',body:JSON.stringify({...form,items: cart.map(p => ({ id: p.id, quantity: p.quantity }))})});
@@ -72,6 +67,7 @@ function App(){
 }
  async function showAdmin(){try{const data=await api('/admin/orders');setAdminOrders(data);setAdminOpen(true);}catch(e){setNotice(e.message);}}
  async function updateStatus(id,status){try{await api(`/admin/orders/${id}/status`,{method:'PATCH',body:JSON.stringify({status})});setAdminOrders(old=>old.map(o=>o.id===id?{...o,status}:o));}catch(e){setNotice(e.message);}}
+ const isHome = !selectedProduct && !showAll;
  return <div className="app">
   <div className="ticker"><div className="ticker-track"><span>● FREE DELIVERY OVER R1,000 ● SECURE PAYFAST ● CURATED IN SA ● EVERYDAY ELEVATED ●</span><span>● FREE DELIVERY OVER R1,000 ● SECURE PAYFAST ● CURATED IN SA ● EVERYDAY ELEVATED ●</span></div></div>
   <header className="header">
@@ -81,7 +77,8 @@ function App(){
         <span className="brand-mark">U</span> URBAN CART <i>®</i>
       </a>
       <nav className={menuOpen?'nav open':'nav'}>
-        <a onClick={()=>{setShowAll(true); closeProduct(); setMenuOpen(false);}}>INDEX</a>
+        <a onClick={()=>{setShowAll(false); closeProduct(); setCategory('All'); setMenuOpen(false); window.scrollTo(0,0)}}>HOME</a>
+        <a onClick={()=>{setShowAll(true); closeProduct(); setMenuOpen(false); window.scrollTo(0,0)}}>INDEX</a>
         <a onClick={()=>{setCategory('Tech');closeProduct();setShowAll(false);setMenuOpen(false)}}>TECH</a>
         <a onClick={()=>{setCategory('Home');closeProduct();setShowAll(false);setMenuOpen(false)}}>HOME</a>
         <a href="#story" onClick={()=>setMenuOpen(false)}>MANIFESTO</a>
@@ -106,7 +103,11 @@ function App(){
           <p className="desc">{selectedProduct.description}</p>
           <div className="price-row"><strong>{fmt(selectedProduct.price)}</strong><span>ZAR • VAT INCL.</span></div>
           <div className="buy-row">
-            <button className="btn-black" onClick={()=>{add(selectedProduct); closeProduct(); setCartOpen(true);}}>ADD TO BAG — {fmt(selectedProduct.price)} <ArrowUpRight size={16}/></button>
+            {/* FIXED: does NOT redirect, stays on page */}
+            <button className="btn-black" onClick={()=>{add(selectedProduct);}}>
+              ADD TO BAG — {fmt(selectedProduct.price)} <ArrowUpRight size={16}/>
+            </button>
+            <button className="btn-ghost" onClick={()=>setCartOpen(true)}>View bag ({count})</button>
           </div>
           <div className="micro-badges">
             <span><Truck size={14}/> 2-4 DAY DELIVERY</span>
@@ -115,8 +116,26 @@ function App(){
           </div>
         </div>
       </div>
+    ) : showAll ? (
+      <>
+        <section className="shop">
+          <div className="shop-head">
+            <h2>FULL INDEX <span>({visible.length})</span></h2>
+            <button className="btn-ghost" onClick={()=>{setShowAll(false); window.scrollTo(0,0)}}><X size={14}/> BACK TO HOME</button>
+          </div>
+          <div className="grid all-mode">
+            {visible.map((p)=>
+              <article key={p.id} className="card" onClick={()=>openProduct(p)}>
+                <div className="card-img"><img src={p.image_url} alt={p.name} loading="lazy"/><span className="tag">{p.category}</span><button className="add" onClick={e=>{e.stopPropagation(); add(p);}}><Plus size={16}/></button></div>
+                <div className="card-info"><div><h3>{p.name}</h3><small>{p.category}</small></div><b>{fmt(p.price)}</b></div>
+              </article>
+            )}
+          </div>
+        </section>
+      </>
     ) : (
       <>
+        {/* HERO ONLY ON HOME */}
         <section className="hero-grid">
           <div className="hero-manifesto">
             <div className="eyebrow">EDITION 01 / 2026 — SOWETO • JHB</div>
@@ -148,7 +167,7 @@ function App(){
           </div>
           {loading&&<div className="loading">LOADING INDEX...</div>}
           {!loading&&!visible.length&&<div className="empty">NO RESULTS FOR "{search}" <button onClick={()=>{setSearch('');setCategory('All')}}>CLEAR</button></div>}
-          <div className={showAll?"grid all-mode":"grid"}>
+          <div className="grid">
             {visible.map((p,i)=>
               <article key={p.id} className={i===0?"card big":"card"} onClick={()=>openProduct(p)}>
                 <div className="card-img"><img src={p.image_url} alt={p.name} loading="lazy"/><span className="tag">{i===0?'BESTSELLER':p.category}</span><button className="add" onClick={e=>{e.stopPropagation(); add(p);}}><Plus size={16}/></button></div>
