@@ -128,47 +128,49 @@ app.post('/api/auth/login', async (req, res, next) => {
 
 app.get('/api/auth/me', auth, (req, res) => res.json({ user: req.user }));
 
-app.post('/api/orders', async (req, res, next) => {
-  const { customer_name, email, phone, address, city, province, postal_code, items } = req.body || {};
-  if (![customer_name,email,phone,address,city,province,postal_code].every(v => typeof v === 'string' && v.trim()) || !Array.isArray(items) || items.length < 1 || items.length > 50) 
-    return res.status(400).json({ error: 'Complete all delivery details and add at least one item.' });
-  
-  const quantities = new Map(); 
-  for (const item of items) { 
-    const id = Number(item.id), qty = Number(item.quantity); 
-    if (!Number.isInteger(id) || id < 1 || !Number.isInteger(qty) || qty < 1 || qty > 99) 
-      return res.status(400).json({ error: 'One or more cart items are invalid.' }); 
-    quantities.set(id, (quantities.get(id) || 0) + qty); 
-  }
-
+app.post('/api/orders', async (req, res) => {
+  console.log('ORDER BODY:', req.body);
   const conn = await pool.getConnection();
   try {
-    await conn.beginTransaction(); 
-    const normalizedItems = []; 
+    const { customer_name, email, phone, address, city, province, postal_code, items } = req.body;
+    if (!items || !items.length) {
+      return res.status(400).json({ error: 'Cart is empty' });
+    }
+    // Get products from DB to verify price/stock
+    const [products] = await conn.query('SELECT * FROM products WHERE id IN (?)', [items.map(i => i.id)]);
+    console.log('FOUND PRODUCTS:', products.length);
     let total = 0;
-    for (const [id, quantity] of quantities) { 
-      const [rows] = await conn.execute('SELECT id,name,price,stock FROM products WHERE id=? FOR UPDATE', [id]); 
-      if (!rows.length) throw Object.assign(new Error('A product is no longer available.'), { status: 400 }); 
-      const p = rows[0]; 
-      if (p.stock < quantity) throw Object.assign(new Error(`Not enough stock for ${p.name}.`), { status: 409 }); 
-      total += Number(p.price) * quantity; 
-      normalizedItems.push({ ...p, quantity }); 
+    for (const item of items) {
+      const p = products.find(pr => pr.id == item.id);
+      if (!p) {
+        console.log('Product not found:', item.id);
+        return res.status(400).json({ error: `Product ${item.id} not found` });
+      }
+      total += Number(p.price) * item.quantity;
     }
-    total = money(total); 
-    const [order] = await conn.execute(
-      'INSERT INTO orders(customer_id,customer_name,email,phone,address,city,province,postal_code,total,status) VALUES(?,?,?,?,?,?,?,?,?,"pending")', 
-      [req.user?.id || null, customer_name.trim(), email.trim().toLowerCase(), phone.trim(), address.trim(), city.trim(), province.trim(), postal_code.trim(), total]
+    console.log('TOTAL:', total);
+    const [orderResult] = await conn.query(
+      'INSERT INTO orders (customer_name, email, phone, address, city, province, postal_code, total, status) VALUES (?,?,?,?,?,?,?,?,?)',
+      [customer_name, email, phone, address, city, province, postal_code, total, 'pending']
     );
-    for (const p of normalizedItems) { 
-      await conn.execute('INSERT INTO order_items(order_id,product_id,quantity,price) VALUES(?,?,?,?)', [order.insertId, p.id, p.quantity, p.price]); 
-      await conn.execute('UPDATE products SET stock=stock-? WHERE id=?', [p.quantity, p.id]); 
+    const orderId = orderResult.insertId;
+    console.log('ORDER CREATED:', orderId);
+    for (const item of items) {
+      const p = products.find(pr => pr.id == item.id);
+      await conn.query(
+        'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?,?,?,?)',
+        [orderId, item.id, item.quantity, p.price]
+      );
     }
-    await conn.commit(); 
-    res.status(201).json({ orderId: order.insertId, total, currency: 'ZAR', message: 'Order created. Continue to PayFast to complete payment.' });
-  } catch (e) { 
-    await conn.rollback(); 
-    res.status(e.status || 500).json({ error: e.status ? e.message : 'Could not create your order.' }); 
-  } finally { conn.release(); }
+    await conn.commit?.() || null;
+    res.json({ orderId, total });
+  } catch (err) {
+    console.error('ORDER ERROR FULL:', err); // THIS WILL NOW SHOW IN RENDER LOGS
+    console.error(err.stack);
+    res.status(500).json({ error: 'Could not create your order: ' + err.message });
+  } finally {
+    conn.release();
+  }
 });
 
 app.get('/api/orders/mine', auth, async (req, res, next) => { 
