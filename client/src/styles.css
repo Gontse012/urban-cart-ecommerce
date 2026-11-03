@@ -120,41 +120,36 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
   .shop{padding:16px 10px 60px}
 }
 
-/* ===== MOBILE FIX: REMOVE NEW STANDARD, BUTTON UNDER HEADER ===== */
+
+/* ===== MOBILE: REMOVE 3 BOXES + CHECKOUT RESPONSIVE ===== */
 @media(max-width:900px){
-  /* 1. REMOVE the new standard white boxes */
+
+  /* --- REMOVE 3 BOXES FROM HERO ON MOBILE --- */
   .hero-small-cards,
   .mini-card,
   .card-stack,
-  .hero-small-cards *,
-  [class*="new-standard"],
-  [class*="NEW STANDARD"]{
+  .hero-manifesto p,           /* Not another store box */
+  .hero-manifesto .stat,       /* 8 objects curated */
+  .hero-manifesto [class*="stat"],
+  .hero-stat{
     display:none !important;
-    height:0 !important;
-    width:0 !important;
-    opacity:0 !important;
-    pointer-events:none !important;
   }
 
   .hero-grid{
     position:relative !important;
-    height:88vh !important;
-    min-height:640px !important;
-    max-height:820px !important;
+    height:84vh !important;
+    min-height:580px !important;
     display:block !important;
     overflow:hidden !important;
     border-bottom:2px solid var(--ink) !important;
-    background:#e8e6e1 !important;
   }
   .hero-cards{
     position:absolute !important;
     inset:0 !important;
     z-index:0 !important;
-    display:block !important;
     width:100% !important;
     height:100% !important;
     border:0 !important;
-    margin:0 !important;
   }
   .hero-big-card{
     position:absolute !important;
@@ -167,7 +162,7 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
     width:100% !important;
     height:100% !important;
     object-fit:cover !important;
-    object-position:center 35% !important;
+    object-position:center 40% !important;
   }
 
   .hero-manifesto{
@@ -176,77 +171,102 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
     background:transparent !important;
     border:0 !important;
     height:100% !important;
-    width:100% !important;
     display:flex !important;
     flex-direction:column !important;
-    justify-content:flex-start !important;
-    padding:0 18px 22px !important;
+    justify-content:flex-end !important;
+    padding:24px 18px !important;
+    gap:18px !important;
   }
-
-  /* BREAK the hero-actions so we can order button vs stat separately */
+  .hero-manifesto h1{
+    font-size:58px !important;
+    line-height:.86 !important;
+    margin:0 !important;
+  }
+  /* SHOP button under header look - now at bottom, clean */
   .hero-actions{
-    display:contents !important;
+    display:flex !important;
     background:transparent !important;
     border:0 !important;
+    padding:0 !important;
+    margin:0 !important;
   }
-
-  /* BUTTON - UNDER HEADER - FULL WIDTH BAR */
-  .hero-manifesto .btn,
-  .hero-manifesto a.btn,
-  .hero-manifesto button.btn{
-    order:1 !important;
-    width:calc(100% + 36px) !important;
-    margin:0 -18px 0 -18px !important;
-    height:50px !important;
-    border:0 !important;
-    border-bottom:2px solid var(--ink) !important;
-    border-radius:0 !important;
-    background:var(--ink) !important;
-    color:var(--paper) !important;
-    font-size:12px !important;
-    letter-spacing:1.2px !important;
-    display:flex !important;
-    align-items:center !important;
-    justify-content:center !important;
-    gap:8px !important;
-  }
-
-  /* FIND YOUR KIND - stays on image */
-  .hero-manifesto h1{
-    order:2 !important;
-    margin-top:22px !important;
-    font-size:60px !important;
-    line-height:.88 !important;
-    letter-spacing:-2px !important;
-  }
-
-  /* NOT ANOTHER STORE - box at bottom over image */
-  .hero-manifesto p{
-    order:3 !important;
-    margin-top:auto !important;
-    margin-bottom:14px !important;
-    background:var(--paper) !important;
-    border:1.5px solid var(--ink) !important;
-    padding:12px 14px !important;
+  .hero-actions .btn{
+    width:100% !important;
+    height:56px !important;
     font-size:13px !important;
-    line-height:1.45 !important;
-    max-width:92% !important;
-    box-shadow:2px 2px 0 var(--ink) !important;
   }
 
-  /* 8 OBJECTS CURATED - stays with p at bottom */
-  .hero-manifesto .stat,
-  .hero-manifesto [class*="stat"],
-  .hero-manifesto .hero-stat{
-    order:4 !important;
-    background:var(--paper) !important;
-    border:1.5px solid var(--ink) !important;
-    padding:8px 14px !important;
-    height:52px !important;
-    display:inline-flex !important;
-    align-items:center !important;
+  /* --- CHECKOUT / CART RESPONSIVE --- */
+  .cart-page,
+  .checkout-page,
+  .checkout-container{
+    padding:16px !important;
+    width:100% !important;
+    overflow-x:hidden !important;
+  }
+  .checkout-grid,
+  .cart-grid,
+  .checkout-layout{
+    display:flex !important;
+    flex-direction:column !important;
+    gap:24px !important;
+    grid-template-columns:1fr !important;
+  }
+  .cart-table,
+  .checkout-table{
+    display:block !important;
+    width:100% !important;
+    overflow-x:auto !important;
+    -webkit-overflow-scrolling:touch !important;
+  }
+  .cart-table thead{
+    display:none !important;
+  }
+  .cart-table tbody,
+  .cart-table tr{
+    display:flex !important;
+    flex-direction:column !important;
+    width:100% !important;
     gap:12px !important;
-    width:fit-content !important;
-    box-shadow:2px 2px 0 var(--ink) !important;
+  }
+  .cart-table tr{
+    border:1.5px solid var(--ink) !important;
+    padding:12px !important;
+    background:var(--paper) !important;
+    margin-bottom:12px !important;
+  }
+  .cart-item,
+  .checkout-item{
+    display:flex !important;
+    flex-direction:row !important;
+    gap:12px !important;
+    align-items:flex-start !important;
+  }
+  .cart-item img,
+  .checkout-item img{
+    width:80px !important;
+    height:80px !important;
+    object-fit:cover !important;
+  }
+  .cart-summary,
+  .checkout-summary,
+  .order-summary{
+    width:100% !important;
+    position:static !important;
+    border:2px solid var(--ink) !important;
+    padding:16px !important;
+  }
+  .checkout-form input,
+  .checkout-form select,
+  .checkout-form textarea{
+    width:100% !important;
+    font-size:16px !important; /* prevents iOS zoom */
+  }
+  .checkout-actions{
+    flex-direction:column !important;
+    gap:12px !important;
+  }
+  .checkout-actions .btn{
+    width:100% !important;
   }
 }

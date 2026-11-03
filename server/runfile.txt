@@ -1,3 +1,3 @@
 git add .
-git commit -m "fixing the layout"
+git commit -m "fixing the hero"
 git push
