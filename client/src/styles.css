@@ -81,17 +81,41 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
 .order-line{display:flex;justify-content:space-between;padding:10px 0;border-bottom:2px solid var(--ink);font-size:11px;font-weight:600;color:var(--ink)}
 .admin-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:2px solid var(--ink);gap:12px}.admin-row b{font-size:11px;color:var(--ink)}.admin-row small{display:block;font-size:10px;color:var(--muted)}
 .loading,.empty{text-align:center;padding:40px;font-weight:700;letter-spacing:1px;color:var(--ink)}
+
 @media(max-width:900px){
-  .header{padding:0 14px}.nav{display:none;position:absolute;top:72px;left:0;right:0;background:var(--paper);border-bottom:2px solid var(--ink);padding:16px;flex-direction:column;z-index:10;border-radius:0}.nav.open{display:flex}.mobile-only{display:grid}.search-pill input{width:80px}
-  /* HERO FIX - NO SEPARATION */
-  .hero-grid{display:flex !important;flex-direction:column !important;min-height:auto !important;grid-template-columns:1fr !important;border-bottom:2px solid var(--ink);border-radius:0 !important;gap:0 !important}
-  .hero-manifesto{border-right:0 !important;border-bottom:2px solid var(--ink) !important;padding:28px 20px !important}
-  .hero-manifesto h1{font-size:62px !important;line-height:.85 !important}
-  .hero-cards{display:flex !important;flex-direction:column !important;grid-template-rows:auto !important;background:var(--paper) !important}
-  .hero-big-card{height:420px !important;min-height:420px !important;border-radius:0 !important}
-  .hero-small-cards{border-top:2px solid var(--ink) !important;display:grid !important;grid-template-columns:1fr 1fr !important}
-  .grid{grid-template-columns:repeat(2,1fr) !important;gap:12px !important}.grid .card,.grid .card.big{grid-column:span 1 !important;grid-row:auto !important}.grid .card.big .card-img{aspect-ratio:.9 !important}
-  .product-view{grid-template-columns:1fr}.product-view-left img{min-height:400px}.product-view-right h1{font-size:38px}
-  .manifesto{grid-template-columns:1fr;border-radius:0}.manifesto h2{font-size:48px}
-  .shop{padding:20px 14px 60px}
+  /* NAV - FIXED */
+  .header{height:56px !important;padding:0 10px !important;display:flex !important;align-items:center !important;justify-content:space-between !important;gap:8px !important;flex-wrap:nowrap !important;overflow:hidden !important}
+  .header-left{flex:1 !important;gap:8px !important;min-width:0 !important;align-items:center !important}
+  .brand{font-size:18px !important;line-height:.9 !important;gap:8px !important;white-space:nowrap !important;flex-shrink:0 !important}
+  .brand-mark{width:28px !important;height:28px !important;font-size:14px !important;flex-shrink:0 !important}
+  .brand div,.brand span{font-size:18px !important;line-height:.9 !important}
+  .brand i{display:none !important} /* hides the @ that was overlapping search */
+  .header-right{gap:6px !important;flex-shrink:0 !important}
+  .search-pill{height:36px !important;padding:0 10px !important;gap:6px !important;flex-shrink:0 !important}
+  .search-pill input{display:none !important} /* icon only on mobile - no overlapping */
+  .search-pill kbd{display:none !important}
+  .search-pill:has(input:focus) input{display:block !important;width:100px !important}
+  .search-pill:has(input:focus){width:auto !important}
+  .circle-btn{width:36px !important;height:36px !important;flex-shrink:0 !important}
+  .bag-pill{height:36px !important;padding:0 12px !important;font-size:10px !important;flex-shrink:0 !important}
+  .bag-pill span{display:none} /* hide text, keep count */
+  .nav{display:none;position:absolute;top:56px;left:0;right:0;background:var(--paper);border-bottom:2px solid var(--ink);padding:16px;flex-direction:column;z-index:20}
+  .nav.open{display:flex}
+  .mobile-only{display:grid !important}
+
+  /* HERO - KEEP STACKED, NO GAP */
+  .hero-grid{display:flex !important;flex-direction:column !important;min-height:auto !important;gap:0 !important;border-bottom:2px solid var(--ink)}
+  .hero-manifesto{border-right:0 !important;border-bottom:2px solid var(--ink) !important;padding:24px 16px !important}
+  .hero-manifesto h1{font-size:54px !important;line-height:.85 !important}
+  .hero-manifesto p{font-size:13px !important;max-width:100% !important}
+  .hero-actions{flex-wrap:wrap !important}
+  .hero-cards{display:flex !important;flex-direction:column !important}
+  .hero-big-card{height:380px !important;min-height:380px !important}
+  .hero-small-cards{display:grid !important;grid-template-columns:1fr 1fr !important;border-top:2px solid var(--ink) !important}
+
+  /* SHOP 2 COL */
+  .grid{grid-template-columns:repeat(2,1fr) !important;gap:10px !important}
+  .grid .card,.grid .card.big{grid-column:span 1 !important;grid-row:auto !important}
+  .product-view{grid-template-columns:1fr}
+  .shop{padding:16px 10px 60px}
 }
