@@ -4,6 +4,9 @@ import { Search, ShoppingBag, ArrowUpRight, Plus, Minus, X, Menu, Check, ShieldC
 import './styles.css';
 const RAW = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
 const API = RAW.includes('/api') ? RAW : RAW + '/api';
+
+const [isMenuOpen, setIsMenuOpen] = useState(false)
+
 const fallbackProducts = [
  {id:1,name:'Studio Wireless Headphones',category:'Tech',description:'Immersive sound, comfortable fit and all-day battery life. Tuned by Urban Cart Studio.',price:1299,image_url:'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=85',stock:25},
  {id:2,name:'Minimal Desk Lamp',category:'Home',description:'A warm, modern lamp for your workspace or bedside table. Concrete base, warm light.',price:649,image_url:'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=900&q=85',stock:18},
