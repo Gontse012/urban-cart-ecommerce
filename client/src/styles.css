@@ -121,73 +121,86 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
 }
 
 
-/* ===== MOBILE ONLY: ONLY H1 - DESKTOP UNTOUCHED ===== */
+/* ===== MOBILE ONLY HERO + CHECKOUT RESPONSIVE + HAMBURGER FIX ===== */
 @media(max-width:900px){
   .header{
-    position:sticky !important;
-    top:0 !important;
-    z-index:9999 !important;
+    position:sticky !important; top:0 !important; z-index:9999 !important;
     background:var(--paper) !important;
   }
-  button, [class*="hamburger"]{
-    cursor:pointer !important;
-    pointer-events:auto !important;
+
+  /* HERO - ONLY H1 */
+  .hero-grid{
+    position:relative !important; height:72vh !important; min-height:520px !important;
+    display:block !important; overflow:hidden !important; border-bottom:2px solid var(--ink) !important;
+  }
+  .hero-cards{position:absolute !important; inset:0 !important; z-index:0 !important; width:100% !important; height:100% !important; border:0 !important; pointer-events:none !important;}
+  .hero-big-card{position:absolute !important; inset:0 !important; width:100% !important; height:100% !important; border:0 !important;}
+  .hero-big-card img{width:100% !important; height:100% !important; object-fit:cover !important;}
+  .hero-small-cards, .hero-manifesto p, .hero-manifesto .stat, .hero-manifesto [class*="stat"], .hero-actions{display:none !important;}
+  .hero-manifesto{position:relative !important; z-index:2 !important; background:transparent !important; border:0 !important; height:100% !important; display:flex !important; align-items:flex-start !important; justify-content:center !important; padding:24px 18px !important;}
+  .hero-manifesto h1{font-size:64px !important; line-height:.86 !important; display:block !important;}
+
+  /* CHECKOUT MODAL RESPONSIVE - FIX YOUR SCREENSHOT */
+  .modal, .checkout-modal, [class*="checkout"][class*="modal"], [class*="modal"][class*="checkout"], .dialog{
+    width:92vw !important;
+    max-width:92vw !important;
+    left:4vw !important;
+    right:4vw !important;
+    margin:0 !important;
+    padding:18px 14px !important;
+    max-height:88vh !important;
+    overflow-y:auto !important;
+    box-sizing:border-box !important;
+  }
+  /* the form grid inside */
+  .checkout-grid, .modal-grid, form, [class*="form-grid"]{
+    display:flex !important;
+    flex-direction:column !important;
+    gap:12px !important;
+    width:100% !important;
+    grid-template-columns:1fr !important;
+  }
+  .checkout-grid > div, .modal-grid > div, form > div{
+    width:100% !important;
+  }
+  /* inputs - stop side by side, make full width */
+  input, select, textarea{
+    width:100% !important;
+    max-width:100% !important;
+    box-sizing:border-box !important;
+    font-size:16px !important;
+  }
+  /* specifically the 2-col rows: Full name + Email, City + Gauteng */
+  .row, [class*="row"], [class*="grid-2"], [style*="grid-template-columns: 1fr 1fr"]{
+    display:flex !important;
+    flex-direction:column !important;
+    gap:12px !important;
+    grid-template-columns:1fr !important;
   }
 
-  .hero-grid{
-    position:relative !important;
-    height:72vh !important;
-    min-height:520px !important;
-    display:block !important;
-    overflow:hidden !important;
-    border-bottom:2px solid var(--ink) !important;
-  }
-  .hero-cards{
-    position:absolute !important;
-    inset:0 !important;
-    z-index:0 !important;
-    width:100% !important;
-    height:100% !important;
-    border:0 !important;
+  /* HAMBURGER MENU - must be above everything */
+  .mobile-menu, .nav-drawer, [class*="mobile-nav"], [class*="mobile-drawer"], [class*="nav-links"]{
+    position:fixed !important;
+    top:54px !important;
+    left:0 !important;
+    width:100vw !important;
+    height:calc(100vh - 54px) !important;
+    background:var(--paper) !important;
+    z-index:9998 !important;
+    display:flex !important;
+    flex-direction:column !important;
+    padding:24px 18px !important;
+    gap:18px !important;
+    transform:translateX(-100%) !important;
+    transition:transform 0.25s ease !important;
     pointer-events:none !important;
   }
-  .hero-big-card{
-    position:absolute !important;
-    inset:0 !important;
-    width:100% !important;
-    height:100% !important;
-    border:0 !important;
+  .mobile-menu.open, .nav-drawer.open, [class*="mobile-nav"].open, .mobile-menu.active{
+    transform:translateX(0) !important;
+    pointer-events:auto !important;
   }
-  .hero-big-card img{
-    width:100% !important;
-    height:100% !important;
-    object-fit:cover !important;
-    object-position:center 35% !important;
-  }
+}
 
-  /* HIDE ONLY ON MOBILE */
-  .hero-small-cards,
-  .hero-manifesto p,
-  .hero-manifesto .stat,
-  .hero-manifesto [class*="stat"],
-  .hero-actions{
-    display:none !important;
-  }
-
-  .hero-manifesto{
-    position:relative !important;
-    z-index:2 !important;
-    background:transparent !important;
-    border:0 !important;
-    height:100% !important;
-    display:flex !important;
-    align-items:flex-start !important;
-    justify-content:center !important;
-    padding:24px 18px !important;
-  }
-  .hero-manifesto h1{
-    font-size:64px !important;
-    line-height:.86 !important;
-    display:block !important;
-  }
+@media(min-width:901px){
+  /* desktop keep 2 boxes */
 }
