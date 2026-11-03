@@ -1,250 +1,60 @@
-/* ===== URBAN CART - FINAL LIGHT SMOOTH FANCY ===== */
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Fraunces:opsz,wght@9..144,300;9..144,400&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Fraunces:opsz,wght@9..144,300&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root{
   --bg: #fdfcf8;
   --bg-soft: #f5efe6;
-  --bg-softer: #efe8dc;
   --card: #ffffff;
   --ink: #1c1c19;
   --ink-soft: #5a5855;
-  --ink-faint: #9a9793;
   --line: #ede6d9;
-  --line-strong: #ddd5c7;
-  --accent: #1c1c19;
-  --accent-hover: #33332f;
-  
   --radius-sm: 14px;
   --radius-md: 22px;
   --radius-lg: 32px;
-  --radius-xl: 40px;
   --radius-full: 9999px;
-
   --font-fancy: 'Instrument Serif', serif;
-  --font-fancy-alt: 'Fraunces', serif;
   --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
-  
   --shadow-soft: 0 8px 32px rgba(28,28,25,0.06);
-  --shadow-medium: 0 12px 48px rgba(28,28,25,0.10);
 }
 
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-html,body{
-  margin:0; padding:0;
-  background:var(--bg);
-  color:var(--ink);
-  font-family:var(--font-body);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overflow-x:hidden;
-}
+html,body{background:var(--bg); color:var(--ink); font-family:var(--font-body);}
 
-/* ===== FANCY TYPOGRAPHY - NO MORE BOLD LONG FONT ===== */
-h1,h2,h3,.fancy-title,.hero-title,.section-title{
+h1,h2,h3,.hero-title{
   font-family: var(--font-fancy) !important;
   font-weight: 400 !important;
   letter-spacing: -0.03em !important;
   line-height: 0.92 !important;
   text-transform: none !important;
-  font-style: normal;
 }
 
-h1{font-size: clamp(40px, 7vw, 84px);}
-h2{font-size: clamp(28px, 4.5vw, 52px);}
-h3{font-size: clamp(18px, 2.5vw, 24px);}
-
-.font-bold-condensed,
-.font-black,
-.tracking-tighter,
-.font-extrabold,
-.font-bold,
-.uppercase{
-  font-family: var(--font-fancy) !important;
-  font-weight: 400 !important;
-  letter-spacing: -0.02em !important;
-  text-transform: none !important;
-}
-
-p, span, a, li, label, input, textarea{
-  font-family: var(--font-body);
-  letter-spacing: -0.01em;
-}
-
-/* ===== HIDE LOCATION TAG ===== */
-.location-tag,
-[class*="EDITION"],
-div:has(> *:contains("SOWETO")),
-div:has(> *:contains("EDITION 01")){
-  display:none !important;
-}
-
-/* Safer hide by text - add data attribute */
-div, span, p {
-  &:where(:contains("EDITION 01 / 2026 — SOWETO • JHB")) {
-    display: none;
-  }
-}
-
-/* ===== LAYOUT ===== */
-.container, .max-w-7xl, .max-w-\[1400px\]{
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 24px;
-}
-
-/* Header */
-header, .site-header, nav{
-  background: rgba(253,252,248,0.85) !important;
-  backdrop-filter: blur(18px) !important;
-  border-bottom: 1px solid var(--line) !important;
-  border-radius: 0 !important;
-}
-
-/* ===== SMOOTH BUTTONS ===== */
-button, .btn, a.btn, [role="button"], .button{
-  border-radius: var(--radius-full) !important;
-  font-family: var(--font-body) !important;
-  font-weight: 500 !important;
-  letter-spacing: -0.01em !important;
-  transition: all 0.3s cubic-bezier(0.16,1,0.3,1) !important;
-  border: 1px solid var(--line) !important;
-}
-
-button:hover, .btn:hover{
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-soft);
-}
-
-button.bg-black, .btn-primary, .bg-\[\#080808\], .bg-black{
-  background: var(--ink) !important;
-  color: var(--bg) !important;
-  border-radius: var(--radius-full) !important;
-}
-
-/* ===== CARDS - SUPER SMOOTH ===== */
-.card, .product-card, .border, .rounded, .rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl, [class*="rounded-"]{
+/* Smooth radius */
+button, .btn, [role="button"]{border-radius: var(--radius-full) !important;}
+.card, .product-card, .rounded, .rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl, .border{
   border-radius: var(--radius-md) !important;
-  border-color: var(--line) !important;
-  background: var(--card) !important;
-  transition: all 0.4s cubic-bezier(0.16,1,0.3,1) !important;
-  overflow: hidden;
 }
+img, .aspect-square, .aspect-\[4\/3\]{border-radius: var(--radius-md) !important; overflow:hidden;}
 
-.card:hover, .product-card:hover{
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-medium);
-  border-color: var(--line-strong) !important;
-}
+input, select, textarea{border-radius: var(--radius-full) !important;}
 
-/* Images */
-img, .img-wrap, .aspect-square, .aspect-\[4\/3\], .aspect-\[3\/4\], [class*="aspect-"]{
-  border-radius: var(--radius-md) !important;
-  overflow: hidden;
-}
+/* Hide EDITION 01 location tag */
+div:has(> span:contains("EDITION")), 
+.marquee-edition,
+.top-bar-edition {display:none !important;}
 
-.product-card img{
-  transition: transform 0.6s cubic-bezier(0.16,1,0.3,1);
-}
-.product-card:hover img{
-  transform: scale(1.04);
-}
+/* Force hide by finding text - we hide via class in main.jsx */
+.edition-badge{display:none !important;}
 
-/* Inputs */
-input, select, textarea{
-  border-radius: var(--radius-full) !important;
-  background: var(--bg-soft) !important;
-  border: 1px solid var(--line) !important;
-  font-family: var(--font-body) !important;
-  padding: 12px 18px !important;
-}
-
-input:focus, select:focus, textarea:focus{
-  outline: none !important;
-  border-color: var(--ink) !important;
-  background: var(--card) !important;
-  box-shadow: 0 0 0 3px rgba(28,28,25,0.06) !important;
-}
-
-/* Product Grid */
-.product-grid, .grid, .all-products-grid, [class*="grid-cols"]{
-  gap: 20px !important;
-}
-
-.grid-cols-2{grid-template-columns: repeat(2, minmax(0,1fr));}
-.grid-cols-3{grid-template-columns: repeat(3, minmax(0,1fr));}
-.grid-cols-4{grid-template-columns: repeat(4, minmax(0,1fr));}
-
-/* Hero */
-.hero, .hero-section{
-  border-radius: var(--radius-xl) !important;
-  overflow: hidden;
-  background: var(--bg-soft) !important;
-}
-
-/* Badges */
-.badge, .pill, [class*="badge"]{
-  border-radius: var(--radius-full) !important;
-  font-family: var(--font-body) !important;
-  font-size: 11px !important;
-  letter-spacing: 0.05em !important;
-  text-transform: uppercase !important;
-}
-
-/* Scrollbar smooth */
-::-webkit-scrollbar{width:6px; height:6px}
-::-webkit-scrollbar-thumb{background: var(--line-strong); border-radius: var(--radius-full)}
-::-webkit-scrollbar-track{background: var(--bg-soft)}
-
-/* ===== MOBILE - 2 COLUMNS FOR ALL PRODUCTS ===== */
+/* Mobile 2 columns */
 @media (max-width: 768px){
-  .container, .max-w-7xl, .max-w-\[1400px\]{
-    padding: 0 14px;
-  }
-  
-  .product-grid,
-  .grid-cols-1,
-  .grid-cols-2,
-  .grid-cols-3,
-  .grid-cols-4,
-  .all-products-grid,
-  .grid{
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 12px !important;
-  }
-
-  h1{font-size: 36px !important;}
-  h2{font-size: 28px !important;}
-
-  button, .btn{
-    padding: 12px 18px !important;
-    font-size: 14px !important;
-  }
+  .grid-cols-1{grid-template-columns: repeat(2, minmax(0,1fr)) !important; gap: 12px !important;}
+  .sm\:grid-cols-2{grid-template-columns: repeat(2, minmax(0,1fr)) !important;}
+  .md\:grid-cols-3{grid-template-columns: repeat(2, minmax(0,1fr)) !important;}
+  .lg\:grid-cols-4{grid-template-columns: repeat(2, minmax(0,1fr)) !important;}
 }
 
 @media (max-width: 480px){
-  .product-grid{
-    gap: 10px !important;
-    padding: 0 2px !important;
-  }
-  .product-card h3{
-    font-size: 13px !important;
-    line-height: 1.2 !important;
-    margin-top: 8px !important;
-  }
-  .product-card p{
-    font-size: 11px !important;
-  }
-}
-
-/* Hide any leftover EDITION text via attribute */
-*:not(script):not(style){
-  &:where([class*="edition"], [class*="soweto"]){
-    text-transform: none;
-  }
-}
-
-/* Force hide if JS still renders it */
-div:contains("EDITION 01"), span:contains("EDITION 01"), p:contains("SOWETO"){
-  display:none !important;
+  .grid-cols-1{grid-template-columns: repeat(2, minmax(0,1fr)) !important; gap: 10px !important;}
 }
