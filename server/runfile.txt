@@ -1,3 +1,3 @@
 git add .
-git commit -m "log order error"
+git commit -m "fixing the layout"
 git push
