@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Search, ShoppingBag, ArrowUpRight, Plus, Minus, X, Menu, Check, ShieldCheck, Truck, RotateCcw, PackageCheck, LayoutDashboard, DollarSign, Box, Users } from 'lucide-react';
+import { Search, ShoppingBag, ArrowUpRight, Plus, Minus, X, Menu, Check, ShieldCheck, Truck, RotateCcw, PackageCheck } from 'lucide-react';
 import './styles.css';
 const RAW = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
 const API = RAW.includes('/api') ? RAW : RAW + '/api';
@@ -20,39 +20,10 @@ async function api(path, options={}) {
   const url = path.startsWith('http') ? path : `${API}${path}`;
   const res=await fetch(url,{...options,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`} : {}),...(options.headers||{})}}); 
   const data=await res.json().catch(()=>({})); 
-  if(!res.ok) throw new Error(data.error||`Request failed: ${res.status}`[STRIPPED 100 bytes]"0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>}
-function AdminPage({ user, onBack }){
-  const [orders,setOrders]=useState([]),[search,setSearch]=useState(''),[filter,setFilter]=useState('all'),[loading,setLoading]=useState(true),[notice,setNotice]=useState('');
-  useEffect(()=>{api('/admin/orders').then(d=>{setOrders(d); setLoading(false)}).catch(e=>{setNotice(e.message); setLoading(false)})},[]);
-  const filtered = useMemo(()=>orders.filter(o=>{
-    const q = `${o.id} ${o.customer_name} ${o.email} ${o.status}`.toLowerCase();
-    return q.includes(search.toLowerCase()) && (filter==='all' || o.status===filter);
-  }),[orders,search,filter]);
-  const stats = useMemo(()=>{
-    const total = orders.reduce((s,o)=>s+Number(o.total||0),0);
-    return {total, count:orders.length, pending:orders.filter(o=>o.status==='pending').length, paid:orders.filter(o=>o.status==='paid'||o.status==='processing').length};
-  },[orders]);
-  async function updateStatus(id,status){
-    try{await api(`/admin/orders/${id}/status`,{method:'PATCH',body:JSON.stringify({status})}); setOrders(old=>old.map(o=>o.id===id?{...o,status}:o)); setNotice(`Order #${id} → ${status}`);}
-    catch(e){setNotice(e.message);}
-  }
-  if(!user || user.role!=='admin'){
-    return <div className="admin-page"><div className="admin-lock"><ShieldCheck size={32}/><h1>Admin only</h1><p>Login as admin to view.</p><button className="btn-black" onClick={()=>window.location.href='/'}>BACK TO STORE</button></div></div>
-  }
-  return <div className="admin-page">
-    <div className="admin-topbar"><div className="admin-brand" onClick={onBack}><div className="brand-mark">U</div> URBAN CART <span>ADMIN</span></div><div className="admin-actions"><button className="btn-ghost" onClick={onBack}><X size={14}/> STORE</button><button className="circle-btn">{user.name[0]}</button></div></div>
-    <div className="admin-wrap">
-      <div className="admin-head"><h1><LayoutDashboard size={28}/> DASHBOARD</h1><p>Live orders from PayFast & direct checkout</p></div>
-      <div className="stats-grid"><div className="stat"><DollarSign size={18}/><div><b>{fmt(stats.total)}</b><span>TOTAL REVENUE</span></div></div><div className="stat"><Box size={18}/><div><b>{stats.count}</b><span>TOTAL ORDERS</span></div></div><div className="stat"><PackageCheck size={18}/><div><b>{stats.paid}</b><span>PAID / PROCESSING</span></div></div><div className="stat"><Users size={18}/><div><b>{stats.pending}</b><span>PENDING</span></div></div></div>
-      <div className="admin-controls"><label className="search-pill"><Search size={14}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="SEARCH ORDER, CUSTOMER"/><kbd>{filtered.length}</kbd></label><div className="tabs">{['all','pending','paid','processing','shipped','cancelled'].map(s=><button key={s} className={filter===s?'active':''} onClick={()=>setFilter(s)}>{s.toUpperCase()}</button>)}</div></div>
-      {loading?<div className="loading">LOADING...</div>:
-      <div className="admin-table"><div className="admin-th"><span>ID</span><span>CUSTOMER</span><span>DATE</span><span>TOTAL</span><span>STATUS</span></div>
-      {filtered.map(o=><div key={o.id} className="admin-row"><span>#{o.id}</span><div><b>{o.customer_name}</b><small>{o.email} • {o.city}</small></div><span>{new Date(o.created_at).toLocaleDateString()}</span><b>{fmt(o.total)}</b><select value={o.status} onChange={e=>updateStatus(o.id,e.target.value)}>{['pending','paid','processing','shipped','cancelled'].map(s=><option key={s} value={s}>{s}</option>)}</select></div>)}</div>}
-    </div>
-    {notice&&<div className="toast"><Check size={14}/>{notice}<button onClick={()=>setNotice('')}><X size={12}/></button></div>}
-  </div>
+  if(!res.ok) throw new Error(data.error||`Request failed: ${res.status}`); 
+  return data; 
 }
-function StoreApp(){
+function App(){
  const [products,setProducts]=useState(fallbackProducts),[category,setCategory]=useState('All'),[search,setSearch]=useState(''),[cart,setCart]=useState(()=>JSON.parse(localStorage.getItem('uc_cart')||'[]')),[cartOpen,setCartOpen]=useState(false),[checkoutOpen,setCheckoutOpen]=useState(false),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[menuOpen,setMenuOpen]=useState(false),[accountOpen,setAccountOpen]=useState(false),[authMode,setAuthMode]=useState('login'),[user,setUser]=useState(()=>JSON.parse(localStorage.getItem('uc_user')||'null')),[orders,setOrders]=useState([]),[adminOpen,setAdminOpen]=useState(false),[adminOrders,setAdminOrders]=useState([]),[busy,setBusy]=useState(false),[selectedProduct,setSelectedProduct]=useState(null),[showAll,setShowAll]=useState(false);
  const [form,setForm]=useState({customer_name:'',email:'',phone:'',address:'',city:'',province:'Gauteng',postal_code:''});
  const [authForm,setAuthForm]=useState({name:'',email:'',password:''});
@@ -96,6 +67,7 @@ function StoreApp(){
 }
  async function showAdmin(){try{const data=await api('/admin/orders');setAdminOrders(data);setAdminOpen(true);}catch(e){setNotice(e.message);}}
  async function updateStatus(id,status){try{await api(`/admin/orders/${id}/status`,{method:'PATCH',body:JSON.stringify({status})});setAdminOrders(old=>old.map(o=>o.id===id?{...o,status}:o));}catch(e){setNotice(e.message);}}
+ const isHome = !selectedProduct && !showAll;
  return <div className="app">
   <div className="ticker"><div className="ticker-track"><span>● FREE DELIVERY OVER R1,000 ● SECURE PAYFAST ● CURATED IN SA ● EVERYDAY ELEVATED ●</span><span>● FREE DELIVERY OVER R1,000 ● SECURE PAYFAST ● CURATED IN SA ● EVERYDAY ELEVATED ●</span></div></div>
   <header className="header">
@@ -110,7 +82,6 @@ function StoreApp(){
         <a onClick={()=>{setCategory('Tech');closeProduct();setShowAll(false);setMenuOpen(false)}}>TECH</a>
         <a onClick={()=>{setCategory('Home');closeProduct();setShowAll(false);setMenuOpen(false)}}>HOME</a>
         <a href="#story" onClick={()=>setMenuOpen(false)}>MANIFESTO</a>
-        {user?.role==='admin'&&<a onClick={()=>window.location.href='/admin'} style={{color:'var(--gold)',fontWeight:800}}>ADMIN</a>}
       </nav>
     </div>
     <div className="header-right">
@@ -122,51 +93,151 @@ function StoreApp(){
   <main>
     {selectedProduct ? (
       <div className="product-view">
-        <div className="product-view-left"><img src={selectedProduct.image_url} alt={selectedProduct.name}/><div className="img-meta"><span>{selectedProduct.category}</span><span>{selectedProduct.stock} IN STOCK</span></div></div>
+        <div className="product-view-left">
+          <img src={selectedProduct.image_url} alt={selectedProduct.name}/>
+          <div className="img-meta"><span>{selectedProduct.category}</span><span>{selectedProduct.stock} IN STOCK</span></div>
+        </div>
         <div className="product-view-right">
           <button className="close-view" onClick={closeProduct}><X size={14}/> CLOSE</button>
           <h1>{selectedProduct.name}</h1>
           <p className="desc">{selectedProduct.description}</p>
           <div className="price-row"><strong>{fmt(selectedProduct.price)}</strong><span>ZAR • VAT INCL.</span></div>
           <div className="buy-row">
-            <button className="btn-black" onClick={()=>{add(selectedProduct);}} >ADD TO BAG — {fmt(selectedProduct.price)} <ArrowUpRight size={16}/></button>
+            {/* FIXED: does NOT redirect, stays on page */}
+            <button className="btn-black" onClick={()=>{add(selectedProduct);}}>
+              ADD TO BAG — {fmt(selectedProduct.price)} <ArrowUpRight size={16}/>
+            </button>
             <button className="btn-ghost" onClick={()=>setCartOpen(true)}>View bag ({count})</button>
           </div>
-          <div className="micro-badges"><span><Truck size={14}/> 2-4 DAY DELIVERY</span><span><ShieldCheck size={14}/> PAYFAST SECURE</span><span><RotateCcw size={14}/> 14-DAY RETURNS</span></div>
+          <div className="micro-badges">
+            <span><Truck size={14}/> 2-4 DAY DELIVERY</span>
+            <span><ShieldCheck size={14}/> PAYFAST SECURE</span>
+            <span><RotateCcw size={14}/> 14-DAY RETURNS</span>
+          </div>
         </div>
       </div>
     ) : showAll ? (
-      <section className="shop"><div className="shop-head"><h2>FULL INDEX <span>({visible.length})</span></h2><button className="btn-ghost" onClick={()=>{setShowAll(false); window.scrollTo(0,0)}}><X size={14}/> BACK TO HOME</button></div><div className="grid all-mode">{visible.map((p)=><article key={p.id} className="card" onClick={()=>openProduct(p)}><div className="card-img"><img src={p.image_url} alt={p.name} loading="lazy"/><span className="tag">{p.category}</span><button className="add" onClick={e=>{e.stopPropagation(); add(p);}}><Plus size={16}/></button></div><div className="card-info"><div><h3>{p.name}</h3><small>{p.category}</small></div><b>{fmt(p.price)}</b></div></article>)}</div></section>
+      <>
+        <section className="shop">
+          <div className="shop-head">
+            <h2>FULL INDEX <span>({visible.length})</span></h2>
+            <button className="btn-ghost" onClick={()=>{setShowAll(false); window.scrollTo(0,0)}}><X size={14}/> BACK TO HOME</button>
+          </div>
+          <div className="grid all-mode">
+            {visible.map((p)=>
+              <article key={p.id} className="card" onClick={()=>openProduct(p)}>
+                <div className="card-img"><img src={p.image_url} alt={p.name} loading="lazy"/><span className="tag">{p.category}</span><button className="add" onClick={e=>{e.stopPropagation(); add(p);}}><Plus size={16}/></button></div>
+                <div className="card-info"><div><h3>{p.name}</h3><small>{p.category}</small></div><b>{fmt(p.price)}</b></div>
+              </article>
+            )}
+          </div>
+        </section>
+      </>
     ) : (
       <>
+        {/* HERO ONLY ON HOME */}
         <section className="hero-grid">
-          <div className="hero-manifesto"><div className="eyebrow">EDITION 01 / 2026 — SOWETO • JHB</div><h1>FIND<br/>YOUR<br/>KIND<br/><em>OF GOOD.</em></h1><p>Not another store. A tight edit of useful, well-made things that earn their place. No filler. No endless scroll.</p><div className="hero-actions"><a href="#shop" className="btn-black">SHOP THE INDEX <ArrowUpRight size={16}/></a><div className="hero-stat"><b>{products.length}</b><span>OBJECTS<br/>CURATED</span></div></div></div>
-          <div className="hero-cards"><div className="hero-big-card"><img src="https://images.unsplash.com/photo-1490312278390-ab64016e0aa9?auto=format&fit=crop&w=1200&q=85" alt=""/><div className="card-overlay"><span>THE NEW STANDARD</span><strong>Little things.<br/>Big difference.</strong></div></div><div className="hero-small-cards"><div className="mini-card"><PackageCheck size={18}/><strong>CURATED</strong><small>Not everything. Just the good stuff.</small></div><div className="mini-card dark"><Truck size={18}/><strong>DELIVERED</strong><small>Tracked across SA. No surprises.</small></div></div></div>
+          <div className="hero-manifesto">
+            <div className="eyebrow">EDITION 01 / 2026 — SOWETO • JHB</div>
+            <h1>FIND<br/>YOUR<br/>KIND<br/><em>OF GOOD.</em></h1>
+            <p>Not another store. A tight edit of useful, well-made things that earn their place. No filler. No endless scroll.</p>
+            <div className="hero-actions">
+              <a href="#shop" className="btn-black">SHOP THE INDEX <ArrowUpRight size={16}/></a>
+              <div className="hero-stat"><b>{products.length}</b><span>OBJECTS<br/>CURATED</span></div>
+            </div>
+          </div>
+          <div className="hero-cards">
+            <div className="hero-big-card">
+              <img src="https://images.unsplash.com/photo-1490312278390-ab64016e0aa9?auto=format&fit=crop&w=1200&q=85" alt=""/>
+              <div className="card-overlay"><span>THE NEW STANDARD</span><strong>Little things.<br/>Big difference.</strong></div>
+            </div>
+            <div className="hero-small-cards">
+              <div className="mini-card"><PackageCheck size={18}/><strong>CURATED</strong><small>Not everything. Just the good stuff.</small></div>
+              <div className="mini-card dark"><Truck size={18}/><strong>DELIVERED</strong><small>Tracked across SA. No surprises.</small></div>
+            </div>
+          </div>
         </section>
-        <section id="shop" className="shop"><div className="shop-head"><h2>INDEX <span>({visible.length})</span></h2><div className="tabs">{categories.map(c=><button key={c} className={category===c?'active':''} onClick={()=>setCategory(c)}>{c.toUpperCase()}</button>)}</div><button className="view-all" onClick={()=>{setShowAll(true); window.scrollTo(0,0)}}>VIEW EVERYTHING <ArrowUpRight size={14}/></button></div>{loading&&<div className="loading">LOADING INDEX...</div>}{!loading&&!visible.length&&<div className="empty">NO RESULTS FOR "{search}" <button onClick={()=>{setSearch('');setCategory('All')}}>CLEAR</button></div>}<div className="grid">{visible.map((p,i)=><article key={p.id} className={i===0?"card big":"card"} onClick={()=>openProduct(p)}><div className="card-img"><img src={p.image_url} alt={p.name} loading="lazy"/><span className="tag">{i===0?'BESTSELLER':p.category}</span><button className="add" onClick={e=>{e.stopPropagation(); add(p);}}><Plus size={16}/></button></div><div className="card-info"><div><h3>{p.name}</h3><small>{p.category}</small></div><b>{fmt(p.price)}</b></div></article>)}</div></section>
-        <section id="story" className="manifesto"><div><h2>LESS NOISE.<br/>MORE<br/><em>MEANING.</em></h2></div><div><p>Urban Cart started with one question: what if we only sold things we'd keep?</p><p>We don't do 10,000 products. We do 30 that matter. Tech that doesn't shout. Homeware that lasts. Everyday stuff that makes the day feel a little more considered.</p><p>Proudly built in Soweto. Shipping everywhere in South Africa.</p><a href="#shop" className="btn-outline">READ OUR RULES <ArrowUpRight size={14}/></a></div></section>
+        <section id="shop" className="shop">
+          <div className="shop-head">
+            <h2>INDEX <span>({visible.length})</span></h2>
+            <div className="tabs">
+              {categories.map(c=><button key={c} className={category===c?'active':''} onClick={()=>setCategory(c)}>{c.toUpperCase()}</button>)}
+            </div>
+            <button className="view-all" onClick={()=>{setShowAll(true); window.scrollTo(0,0)}}>VIEW EVERYTHING <ArrowUpRight size={14}/></button>
+          </div>
+          {loading&&<div className="loading">LOADING INDEX...</div>}
+          {!loading&&!visible.length&&<div className="empty">NO RESULTS FOR "{search}" <button onClick={()=>{setSearch('');setCategory('All')}}>CLEAR</button></div>}
+          <div className="grid">
+            {visible.map((p,i)=>
+              <article key={p.id} className={i===0?"card big":"card"} onClick={()=>openProduct(p)}>
+                <div className="card-img"><img src={p.image_url} alt={p.name} loading="lazy"/><span className="tag">{i===0?'BESTSELLER':p.category}</span><button className="add" onClick={e=>{e.stopPropagation(); add(p);}}><Plus size={16}/></button></div>
+                <div className="card-info"><div><h3>{p.name}</h3><small>{p.category}</small></div><b>{fmt(p.price)}</b></div>
+              </article>
+            )}
+          </div>
+        </section>
+        <section id="story" className="manifesto">
+          <div><h2>LESS NOISE.<br/>MORE<br/><em>MEANING.</em></h2></div>
+          <div><p>Urban Cart started with one question: what if we only sold things we'd keep?</p><p>We don't do 10,000 products. We do 30 that matter. Tech that doesn't shout. Homeware that lasts. Everyday stuff that makes the day feel a little more considered.</p><p>Proudly built in Soweto. Shipping everywhere in South Africa.</p><a href="#shop" className="btn-outline">READ OUR RULES <ArrowUpRight size={14}/></a></div>
+        </section>
       </>
     )}
   </main>
-  <footer className="footer"><div className="foot-top"><span>© {new Date().getFullYear()} URBAN CART</span><span>SOWETO — JHB — SA</span><span>MADE FOR THE EVERYDAY ●</span></div><div className="foot-big">URBAN CART</div></footer>
+  <footer className="footer">
+    <div className="foot-top"><span>© {new Date().getFullYear()} URBAN CART</span><span>SOWETO — JHB — SA</span><span>MADE FOR THE EVERYDAY ●</span></div>
+    <div className="foot-big">URBAN CART</div>
+  </footer>
   {notice&&<div className="toast"><Check size={14}/>{notice}<button onClick={()=>setNotice('')}><X size={12}/></button></div>}
-  {cartOpen&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setCartOpen(false)}}><aside className="drawer"><div className="drawer-head"><h2>BAG ({count})</h2><button onClick={()=>setCartOpen(false)}><X size={16}/></button></div>{!cart.length?<div className="empty-bag"><ShoppingBag size={28}/><h3>Bag is empty.</h3><p>Go add some good stuff.</p><button className="btn-black" onClick={()=>setCartOpen(false)}>SHOP NOW</button></div>:<><div className="cart-list">{cart.map(p=><div key={p.id} className="cart-item"><img src={p.image_url}/><div><h4>{p.name}</h4><b>{fmt(p.price)}</b><div className="qty"><button onClick={()=>changeQty(p.id,-1)}><Minus size={10}/></button><span>{p.quantity}</span><button onClick={()=>changeQty(p.id,1)}><Plus size={10}/></button></div></div><button className="remove" onClick={()=>setCart(old=>old.filter(x=>x.id!==p.id))}>REMOVE</button></div>)}</div><div className="cart-foot"><div className="sum"><span>SUBTOTAL</span><b>{fmt(total)}</b></div><button className="btn-black full" onClick={()=>{setCartOpen(false);setCheckoutOpen(true)}}>CHECKOUT — {fmt(total)} <ArrowUpRight size={14}/></button></div></>}</aside></div>}
-  {checkoutOpen&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setCheckoutOpen(false)}}><section className="modal"><div className="drawer-head"><h2>CHECKOUT</h2><button onClick={()=>setCheckoutOpen(false)}><X size={16}/></button></div><form onSubmit={placeOrder} className="checkout-form"><input required placeholder="Full name" value={form.customer_name} onChange={e=>setField('customer_name',e.target.value)}/><input required type="email" placeholder="Email" value={form.email} onChange={e=>setField('email',e.target.value)}/><input required placeholder="Phone" value={form.phone} onChange={e=>setField('phone',e.target.value)}/><input required placeholder="Street address" className="wide" value={form.address} onChange={e=>setField('address',e.target.value)}/><input required placeholder="City" value={form.city} onChange={e=>setField('city',e.target.value)}/><select required value={form.province} onChange={e=>setField('province',e.target.value)}>{['Gauteng','Eastern Cape','Free State','KwaZulu-Natal','Limpopo','Mpumalanga','Northern Cape','North West','Western Cape'].map(p=><option key={p}>{p}</option>)}</select><input required placeholder="Postal code" value={form.postal_code} onChange={e=>setField('postal_code',e.target.value)}/><button className="btn-black full wide" disabled={busy||!cart.length}>{busy?'PREPARING...':`PAY WITH PAYFAST — ${fmt(total)}`} <ShieldCheck size={14}/></button></form></section></div>}
-  {accountOpen&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setAccountOpen(false)}}><section className="modal"><div className="drawer-head"><h2>{user?user.name.toUpperCase():authMode==='login'?'SIGN IN':'CREATE ACCOUNT'}</h2><button onClick={()=>setAccountOpen(false)}><X size={16}/></button></div>{user?<div className="account"><div className="avatar">{user.name[0]}</div><h3>{user.name}</h3><p>{user.email}</p><div className="orders">{orders.map(o=><div key={o.id} className="order-line"><span>#{o.id} • {new Date(o.created_at).toLocaleDateString()}</span><b>{fmt(o.total)} — {o.status}</b></div>)}</div><button className="btn-outline full" onClick={logout}>SIGN OUT</button>{user.role==='admin'&&<><button className="btn-black full" style={{marginTop:8}} onClick={()=>{setAccountOpen(false);showAdmin()}}>ADMIN MODAL</button><button className="btn-black full" style={{marginTop:8,background:'var(--gold)',color:'var(--ink)'}} onClick={()=>window.location.href='/admin'}>OPEN FULL ADMIN PAGE</button></>}</div>:<><div className="auth-switch"><button className={authMode==='login'?'on':''} onClick={()=>setAuthMode('login')}>LOGIN</button><button className={authMode==='register'?'on':''} onClick={()=>setAuthMode('register')}>REGISTER</button></div><form onSubmit={submitAuth} className="auth-form">{authMode==='register'&&<input required placeholder="Full name" value={authForm.name} onChange={e=>setAuthForm(f=>({...f,name:e.target.value}))}/>}<input required type="email" placeholder="Email" value={authForm.email} onChange={e=>setAuthForm(f=>({...f,email:e.target.value}))}/><input required type="password" placeholder="Password" value={authForm.password} onChange={e=>setAuthForm(f=>({...f,password:e.target.value}))}/><button className="btn-black full">{busy?'WAIT...':authMode==='login'?'SIGN IN':'CREATE ACCOUNT'}</button></form></>}</section></div>}
-  {adminOpen&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setAdminOpen(false)}}><section className="modal wide-modal"><div className="drawer-head"><h2>ADMIN</h2><button onClick={()=>setAdminOpen(false)}><X size={16}/></button></div>{adminOrders.map(o=><div key={o.id} className="admin-row"><div><b>#{o.id} {o.customer_name}</b><small>{o.email} — {fmt(o.total)}</small></div><select value={o.status} onChange={e=>updateStatus(o.id,e.target.value)}>{['pending','paid','processing','shipped','cancelled'].map(s=><option key={s}>{s}</option>)}</select></div>)}</section></div>}
+  {cartOpen&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setCartOpen(false)}}>
+    <aside className="drawer">
+      <div className="drawer-head"><h2>BAG ({count})</h2><button onClick={()=>setCartOpen(false)}><X size={16}/></button></div>
+      {!cart.length?<div className="empty-bag"><ShoppingBag size={28}/><h3>Bag is empty.</h3><p>Go add some good stuff.</p><button className="btn-black" onClick={()=>setCartOpen(false)}>SHOP NOW</button></div>:
+      <>
+        <div className="cart-list">{cart.map(p=><div key={p.id} className="cart-item"><img src={p.image_url}/><div><h4>{p.name}</h4><b>{fmt(p.price)}</b><div className="qty"><button onClick={()=>changeQty(p.id,-1)}><Minus size={10}/></button><span>{p.quantity}</span><button onClick={()=>changeQty(p.id,1)}><Plus size={10}/></button></div></div><button className="remove" onClick={()=>setCart(old=>old.filter(x=>x.id!==p.id))}>REMOVE</button></div>)}</div>
+        <div className="cart-foot"><div className="sum"><span>SUBTOTAL</span><b>{fmt(total)}</b></div><button className="btn-black full" onClick={()=>{setCartOpen(false);setCheckoutOpen(true)}}>CHECKOUT — {fmt(total)} <ArrowUpRight size={14}/></button></div>
+      </>}
+    </aside>
+  </div>}
+  {checkoutOpen&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setCheckoutOpen(false)}}>
+    <section className="modal">
+      <div className="drawer-head"><h2>CHECKOUT</h2><button onClick={()=>setCheckoutOpen(false)}><X size={16}/></button></div>
+      <form onSubmit={placeOrder} className="checkout-form">
+        <input required placeholder="Full name" value={form.customer_name} onChange={e=>setField('customer_name',e.target.value)}/>
+        <input required type="email" placeholder="Email" value={form.email} onChange={e=>setField('email',e.target.value)}/>
+        <input required placeholder="Phone" value={form.phone} onChange={e=>setField('phone',e.target.value)}/>
+        <input required placeholder="Street address" className="wide" value={form.address} onChange={e=>setField('address',e.target.value)}/>
+        <input required placeholder="City" value={form.city} onChange={e=>setField('city',e.target.value)}/>
+        <select required value={form.province} onChange={e=>setField('province',e.target.value)}>{['Gauteng','Eastern Cape','Free State','KwaZulu-Natal','Limpopo','Mpumalanga','Northern Cape','North West','Western Cape'].map(p=><option key={p}>{p}</option>)}</select>
+        <input required placeholder="Postal code" value={form.postal_code} onChange={e=>setField('postal_code',e.target.value)}/>
+        <button className="btn-black full wide" disabled={busy||!cart.length}>{busy?'PREPARING...':`PAY WITH PAYFAST — ${fmt(total)}`} <ShieldCheck size={14}/></button>
+      </form>
+    </section>
+  </div>}
+  {accountOpen&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setAccountOpen(false)}}>
+    <section className="modal">
+      <div className="drawer-head"><h2>{user?user.name.toUpperCase():authMode==='login'?'SIGN IN':'CREATE ACCOUNT'}</h2><button onClick={()=>setAccountOpen(false)}><X size={16}/></button></div>
+      {user?<div className="account">
+        <div className="avatar">{user.name[0]}</div><h3>{user.name}</h3><p>{user.email}</p>
+        <div className="orders">{orders.map(o=><div key={o.id} className="order-line"><span>#{o.id} • {new Date(o.created_at).toLocaleDateString()}</span><b>{fmt(o.total)} — {o.status}</b></div>)}</div>
+        <button className="btn-outline full" onClick={logout}>SIGN OUT</button>
+        {user.role==='admin'&&<button className="btn-black full" style={{marginTop:8}} onClick={()=>{setAccountOpen(false);showAdmin()}}>ADMIN ORDERS</button>}
+      </div>:<>
+        <div className="auth-switch"><button className={authMode==='login'?'on':''} onClick={()=>setAuthMode('login')}>LOGIN</button><button className={authMode==='register'?'on':''} onClick={()=>setAuthMode('register')}>REGISTER</button></div>
+        <form onSubmit={submitAuth} className="auth-form">
+          {authMode==='register'&&<input required placeholder="Full name" value={authForm.name} onChange={e=>setAuthForm(f=>({...f,name:e.target.value}))}/>}
+          <input required type="email" placeholder="Email" value={authForm.email} onChange={e=>setAuthForm(f=>({...f,email:e.target.value}))}/>
+          <input required type="password" placeholder="Password" value={authForm.password} onChange={e=>setAuthForm(f=>({...f,password:e.target.value}))}/>
+          <button className="btn-black full">{busy?'WAIT...':authMode==='login'?'SIGN IN':'CREATE ACCOUNT'}</button>
+        </form>
+      </>}
+    </section>
+  </div>}
+  {adminOpen&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setAdminOpen(false)}}>
+    <section className="modal wide-modal">
+      <div className="drawer-head"><h2>ADMIN</h2><button onClick={()=>setAdminOpen(false)}><X size={16}/></button></div>
+      {adminOrders.map(o=><div key={o.id} className="admin-row"><div><b>#{o.id} {o.customer_name}</b><small>{o.email} — {fmt(o.total)}</small></div><select value={o.status} onChange={e=>updateStatus(o.id,e.target.value)}>{['pending','paid','processing','shipped','cancelled'].map(s=><option key={s}>{s}</option>)}</select></div>)}
+    </section>
+  </div>}
 </div>
-}
-function App(){
-  const [route,setRoute]=useState(()=>window.location.pathname);
-  useEffect(()=>{
-    const onPop = ()=>setRoute(window.location.pathname);
-    window.addEventListener('popstate',onPop);
-    return ()=>window.removeEventListener('popstate',onPop);
-  },[]);
-  if(route.startsWith('/admin')){
-    const u = JSON.parse(localStorage.getItem('uc_user')||'null');
-    return <AdminPage user={u} onBack={()=>{window.history.pushState({},'','/'); setRoute('/'); window.scrollTo(0,0)}} />
-  }
-  return <StoreApp />
 }
 createRoot(document.getElementById('root')).render(<React.StrictMode><App/></React.StrictMode>);
