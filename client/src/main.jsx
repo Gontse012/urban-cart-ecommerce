@@ -25,8 +25,7 @@ async function api(path, options={}) {
   return data; 
 }
 function App(){
- const [products,setProducts]=useState(fallbackProducts),[category,setCategory]=useState('All'),[search,setSearch]=useState(''),[cart,setCart]=useState(()=>{ try{ const u=JSON.parse(localStorage.getItem('uc_user')||'null'); const key=u?.id?`uc_cart_${u.id}`:u?.email?`uc_cart_${u.email}`:'uc_cart_guest'; return JSON.parse(localStorage.getItem(key)||'[]'); }catch{return []} }),[cartOpen,setCartOpen]=useState(false),[checkoutOpen,setCheckoutOpen]=useState(false),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[menuOpen,setMenuOpen]=useState(false),[accountOpen,setAccountOpen]=useState(false),[authMode,setAuthMode]=useState('login'),[user,setUser]=useState(()=>JSON.parse(localStorage.getItem('uc_user')||'null')),[orders,setOrders]=useState([]),[adminOpen,setAdminOpen]=useState(false),[adminOrders,setAdminOrders]=useState([]),[busy,setBusy]=useState(false),[selectedProduct,setSelectedProduct]=useState(null),[showAll,setShowAll]=useState(false);
- const getCartKey = (u) => u?.id ? `uc_cart_${u.id}` : u?.email ? `uc_cart_${u.email}` : 'uc_cart_guest';
+ const [products,setProducts]=useState(fallbackProducts),[category,setCategory]=useState('All'),[search,setSearch]=useState(''),[cart,setCart]=useState(()=>JSON.parse(localStorage.getItem('uc_cart')||'[]')),[cartOpen,setCartOpen]=useState(false),[checkoutOpen,setCheckoutOpen]=useState(false),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[menuOpen,setMenuOpen]=useState(false),[accountOpen,setAccountOpen]=useState(false),[authMode,setAuthMode]=useState('login'),[user,setUser]=useState(()=>JSON.parse(localStorage.getItem('uc_user')||'null')),[orders,setOrders]=useState([]),[adminOpen,setAdminOpen]=useState(false),[adminOrders,setAdminOrders]=useState([]),[busy,setBusy]=useState(false),[selectedProduct,setSelectedProduct]=useState(null),[showAll,setShowAll]=useState(false);
  const [form,setForm]=useState({customer_name:'',email:'',phone:'',address:'',city:'',province:'Gauteng',postal_code:''});
  const [authForm,setAuthForm]=useState({name:'',email:'',password:''});
  const [adminTab,setAdminTab]=useState('orders');
@@ -38,44 +37,7 @@ function App(){
     if(params.get('payment')==='return'){ setCart([]); localStorage.removeItem('lastOrderId'); setNotice(`Payment successful! Order #${params.get('order')} received.`); }
     if(params.get('payment')==='cancel'){ setNotice('Payment cancelled - your cart is saved.'); }
  },[]);
-
- useEffect(()=>{
-   const key = getCartKey(user);
-   localStorage.setItem(key, JSON.stringify(cart));
-   // also keep legacy key for guest checkout compat
-   if(!user) localStorage.setItem('uc_cart', JSON.stringify(cart));
- },[cart, user]);
- useEffect(()=>{
-   // when user changes (login/logout/switch account), load that user's bag
-   try{
-     const key = getCartKey(user);
-     const saved = JSON.parse(localStorage.getItem(key)||'[]');
-     // if logging in and had guest items, merge them
-     if(user){
-       const guest = JSON.parse(localStorage.getItem('uc_cart_guest')|| localStorage.getItem('uc_cart') || '[]');
-       if(guest.length && !saved.length){
-         setCart(guest);
-       } else if(guest.length && saved.length){
-         // merge: guest + user
-         const merged=[...saved];
-         guest.forEach(g=>{
-           const f=merged.find(m=>m.id===g.id);
-           if(f) f.quantity=Math.min(99, f.quantity+g.quantity);
-           else merged.push(g);
-         });
-         setCart(merged);
-         localStorage.removeItem('uc_cart_guest');
-         localStorage.removeItem('uc_cart');
-       } else {
-         setCart(saved);
-       }
-     } else {
-       // logged out -> show guest bag
-       setCart(saved);
-     }
-   }catch{}
- },[user]);
-
+ useEffect(()=>{localStorage.setItem('uc_cart',JSON.stringify(cart));},[cart]);
  useEffect(()=>{api('/products').then((rows)=>{ if(Array.isArray(rows)&&rows.length) setProducts(rows); }).catch(()=>{}).finally(()=>setLoading(false));},[]);
  useEffect(()=>{if(user){setForm(f=>({...f,customer_name:f.customer_name||user.name,email:f.email||user.email}));api('/orders/mine').then(setOrders).catch(()=>{});}},[user]);
  useEffect(()=>{if(notice){const t=setTimeout(()=>setNotice(''),4500);return()=>clearTimeout(t);}},[notice]);
@@ -92,7 +54,7 @@ function App(){
   localStorage.setItem('uc_token',data.token);localStorage.setItem('uc_user',JSON.stringify(data.user));
   setUser(data.user);setAccountOpen(false); setNotice(`Welcome${data.user.name?`, ${data.user.name.split(' ')[0]}`:''}!`); setAuthForm({name:'',email:'',password:''});}
  catch(e){setNotice(e.message);}finally{setBusy(false);} }
- function logout(){ const key = user ? getCartKey(user) : 'uc_cart_guest'; localStorage.setItem(key, JSON.stringify(cart)); localStorage.removeItem('uc_token');localStorage.removeItem('uc_user');setUser(null);setOrders([]);setAdminOpen(false);setNotice('You have signed out.'); const guestCart = JSON.parse(localStorage.getItem('uc_cart_guest')|| localStorage.getItem('uc_cart') || '[]'); setCart(guestCart); }
+ function logout(){localStorage.removeItem('uc_token');localStorage.removeItem('uc_user');setUser(null);setOrders([]);setAdminOpen(false);setNotice('You have signed out.');}
  async function placeOrder(e) {
   e.preventDefault();
   if(!form.customer_name.trim()||!form.email.trim()||!form.phone.trim()||!form.address.trim()||!form.city.trim()||!form.postal_code.trim()){ setNotice('Please fill in all delivery fields.'); return; }
