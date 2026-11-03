@@ -138,7 +138,6 @@ function App(){
         {/* HERO ONLY ON HOME */}
         <section className="hero-grid">
           <div className="hero-manifesto">
-            <div className="eyebrow">EDITION 01 / 2026 — SOWETO • JHB</div>
             <h1>FIND<br/>YOUR<br/>KIND<br/><em>OF GOOD.</em></h1>
             <p>Not another store. A tight edit of useful, well-made things that earn their place. No filler. No endless scroll.</p>
             <div className="hero-actions">
