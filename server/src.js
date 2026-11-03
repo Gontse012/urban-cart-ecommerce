@@ -55,6 +55,13 @@ function adminOnly(req, res, next) {
   next(); 
 }
 
+async function getCategoryId(nameOrId){
+  if(!nameOrId) return null;
+  if(Number.isInteger(Number(nameOrId)) && Number(nameOrId)>0) return Number(nameOrId);
+  const [rows] = await pool.execute('SELECT id FROM categories WHERE name=? LIMIT 1', [String(nameOrId).trim()]);
+  return rows.length ? rows[0].id : null;
+}
+
 app.get('/', (req, res) => {
   res.send('urban-cart API is running - use /api/products');
 });
@@ -129,32 +136,24 @@ app.post('/api/auth/login', async (req, res, next) => {
 app.get('/api/auth/me', auth, (req, res) => res.json({ user: req.user }));
 
 app.post('/api/orders', async (req, res) => {
-  console.log('ORDER BODY:', req.body);
   const conn = await pool.getConnection();
   try {
     const { customer_name, email, phone, address, city, province, postal_code, items } = req.body;
     if (!items || !items.length) {
       return res.status(400).json({ error: 'Cart is empty' });
     }
-    // Get products from DB to verify price/stock
     const [products] = await conn.query('SELECT * FROM products WHERE id IN (?)', [items.map(i => i.id)]);
-    console.log('FOUND PRODUCTS:', products.length);
     let total = 0;
     for (const item of items) {
       const p = products.find(pr => pr.id == item.id);
-      if (!p) {
-        console.log('Product not found:', item.id);
-        return res.status(400).json({ error: `Product ${item.id} not found` });
-      }
+      if (!p) return res.status(400).json({ error: `Product ${item.id} not found` });
       total += Number(p.price) * item.quantity;
     }
-    console.log('TOTAL:', total);
     const [orderResult] = await conn.query(
       'INSERT INTO orders (customer_name, email, phone, address, city, province, postal_code, total, status) VALUES (?,?,?,?,?,?,?,?,?)',
       [customer_name, email, phone, address, city, province, postal_code, total, 'pending']
     );
     const orderId = orderResult.insertId;
-    console.log('ORDER CREATED:', orderId);
     for (const item of items) {
       const p = products.find(pr => pr.id == item.id);
       await conn.query(
@@ -162,11 +161,9 @@ app.post('/api/orders', async (req, res) => {
         [orderId, item.id, item.quantity, p.price]
       );
     }
-    await conn.commit?.() || null;
     res.json({ orderId, total });
   } catch (err) {
-    console.error('ORDER ERROR FULL:', err); // THIS WILL NOW SHOW IN RENDER LOGS
-    console.error(err.stack);
+    console.error('ORDER ERROR:', err);
     res.status(500).json({ error: 'Could not create your order: ' + err.message });
   } finally {
     conn.release();
@@ -182,19 +179,45 @@ app.get('/api/orders/mine', auth, async (req, res, next) => {
 
 app.get('/api/admin/orders', auth, adminOnly, async (_req, res, next) => { 
   try { 
-    const [rows] = await pool.query('SELECT id,customer_name,email,total,status,created_at FROM orders ORDER BY created_at DESC LIMIT 200'); 
+    const [rows] = await pool.query('SELECT id,customer_name,email,total,status,city,created_at FROM orders ORDER BY created_at DESC LIMIT 200'); 
     res.json(rows); 
   } catch (e) { next(e); } 
 });
 
+// ===== ADMIN PRODUCT CRUD - FULL =====
 app.post('/api/admin/products', auth, adminOnly, async (req, res, next) => { 
   try { 
-    const { name, description='', price, image_url='', stock=0, category_id=null } = req.body || {}; 
+    let { name, description='', price, image_url='', stock=0, category, category_id } = req.body || {}; 
+    const catId = category_id ? Number(category_id) : await getCategoryId(category);
     if (!String(name || '').trim() || !Number.isFinite(Number(price)) || Number(price) < 0 || !Number.isInteger(Number(stock)) || Number(stock) < 0) 
       return res.status(400).json({ error: 'Provide a name, valid price and non-negative whole-number stock.' }); 
-    const [r] = await pool.execute('INSERT INTO products(name,description,price,image_url,stock,category_id) VALUES(?,?,?,?,?,?)', [String(name).trim(), String(description), money(price), String(image_url), Number(stock), category_id ? Number(category_id) : null]); 
-    res.status(201).json({ id: r.insertId }); 
+    const [r] = await pool.execute('INSERT INTO products(name,description,price,image_url,stock,category_id,active) VALUES(?,?,?,?,?,?,1)', [String(name).trim(), String(description), money(price), String(image_url), Number(stock), catId]); 
+    const [rows] = await pool.query('SELECT p.id,p.name,p.description,p.price,p.image_url,p.stock,c.name AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?', [r.insertId]);
+    res.status(201).json(rows[0]); 
   } catch (e) { next(e); } 
+});
+
+app.put('/api/admin/products/:id', auth, adminOnly, async (req, res, next) => {
+  try{
+    const id = Number(req.params.id);
+    let { name, description='', price, image_url='', stock=0, category, category_id } = req.body || {};
+    const catId = category_id ? Number(category_id) : await getCategoryId(category);
+    if (!String(name || '').trim() || !Number.isFinite(Number(price)) || Number(price) < 0) 
+      return res.status(400).json({ error: 'Provide valid name and price.' });
+    const [r] = await pool.execute('UPDATE products SET name=?, description=?, price=?, image_url=?, stock=?, category_id=? WHERE id=?', [String(name).trim(), String(description), money(price), String(image_url), Number(stock), catId, id]);
+    if(!r.affectedRows) return res.status(404).json({ error: 'Product not found.' });
+    const [rows] = await pool.query('SELECT p.id,p.name,p.description,p.price,p.image_url,p.stock,c.name AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?', [id]);
+    res.json(rows[0]);
+  }catch(e){ next(e); }
+});
+
+app.delete('/api/admin/products/:id', auth, adminOnly, async (req, res, next) => {
+  try{
+    const id = Number(req.params.id);
+    const [r] = await pool.execute('DELETE FROM products WHERE id=?', [id]);
+    if(!r.affectedRows) return res.status(404).json({ error: 'Product not found.' });
+    res.json({ ok:true, id });
+  }catch(e){ next(e); }
 });
 
 app.patch('/api/admin/orders/:id/status', auth, adminOnly, async (req, res, next) => { 
@@ -207,7 +230,6 @@ app.patch('/api/admin/orders/:id/status', auth, adminOnly, async (req, res, next
   } catch (e) { next(e); } 
 });
 
-// ---- PAYFAST FIXED ----
 function generateSignature(data, passphrase) {
   let pfOutput = '';
   for (let key in data) {
@@ -226,20 +248,15 @@ app.post('/api/payfast/checkout', async (req, res, next) => {
   try {
     const orderId = Number(req.body.orderId); 
     if (!Number.isInteger(orderId) || orderId < 1) return res.status(400).json({ error: 'Invalid order.' });
-    
     const [rows] = await pool.execute('SELECT id,email,customer_name,total,status FROM orders WHERE id=?', [orderId]); 
     if (!rows.length) return res.status(404).json({ error: 'Order not found.' });
-    
     const order = rows[0]; 
     if (order.status !== 'pending') return res.status(409).json({ error: 'This order is no longer pending.' });
-
     const merchantId = process.env.PAYFAST_MERCHANT_ID; 
     const merchantKey = process.env.PAYFAST_MERCHANT_KEY;
     if (!merchantId || !merchantKey) return res.status(503).json({ error: 'PayFast is not configured yet.' });
-
-    const clientUrl = (process.env.CLIENT_URL || process.env.STORE_URL || 'https://urban-cart-ecommerce.vercel.app').replace(/\/$/, '');
+    const clientUrl = (process.env.CLIENT_URL || 'https://urban-cart-ecommerce.vercel.app').replace(/\/$/, '');
     const apiUrl = (process.env.API_URL || 'https://urban-cart-ecommerce.onrender.com').replace(/\/$/, '');
-
     const pfData = {
       merchant_id: merchantId,
       merchant_key: merchantKey,
@@ -253,9 +270,7 @@ app.post('/api/payfast/checkout', async (req, res, next) => {
       amount: Number(order.total).toFixed(2),
       item_name: `Urban Cart Order #${order.id}`.slice(0,100)
     };
-
     pfData.signature = generateSignature(pfData, process.env.PAYFAST_PASSPHRASE);
-
     res.json({ 
       action: process.env.PAYFAST_SANDBOX === 'true' ? 'https://sandbox.payfast.co.za/eng/process' : 'https://www.payfast.co.za/eng/process', 
       fields: pfData 
