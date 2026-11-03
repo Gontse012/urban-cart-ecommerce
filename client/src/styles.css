@@ -121,38 +121,19 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
 }
 
 
-/* ===== MOBILE: ONLY MAIN TEXT + HAMBURGER FIX ===== */
+/* ===== MOBILE ONLY: ONLY H1 - DESKTOP UNTOUCHED ===== */
 @media(max-width:900px){
-
-  /* HEADER ON TOP - FIX HAMBURGER */
-  .header, header, [class*="header"]{
+  .header{
     position:sticky !important;
     top:0 !important;
     z-index:9999 !important;
     background:var(--paper) !important;
-    pointer-events:auto !important;
   }
-  .header *{
-    pointer-events:auto !important;
-  }
-  button, [class*="hamburger"], [class*="menu-toggle"], [class*="burger"]{
+  button, [class*="hamburger"]{
     cursor:pointer !important;
-    pointer-events:auto !important;
-    z-index:10000 !important;
-  }
-  /* side nav / mobile menu must be above hero */
-  .mobile-menu, .nav-drawer, .side-nav, [class*="mobile-nav"], [class*="nav-links"]{
-    z-index:9998 !important;
-    position:fixed !important;
-  }
-  .mobile-menu.open, .nav-drawer.open, [class*="mobile-nav"].open{
-    display:flex !important;
-    opacity:1 !important;
-    transform:translateX(0) !important;
     pointer-events:auto !important;
   }
 
-  /* HERO - ONLY MAIN TEXT */
   .hero-grid{
     position:relative !important;
     height:72vh !important;
@@ -176,7 +157,6 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
     width:100% !important;
     height:100% !important;
     border:0 !important;
-    pointer-events:none !important;
   }
   .hero-big-card img{
     width:100% !important;
@@ -185,21 +165,18 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
     object-position:center 35% !important;
   }
 
-  /* HIDE EVERYTHING EXCEPT H1 */
+  /* HIDE ONLY ON MOBILE */
   .hero-small-cards,
-  .mini-card,
-  .card-stack,
   .hero-manifesto p,
   .hero-manifesto .stat,
   .hero-manifesto [class*="stat"],
-  .hero-actions,
-  .hero-actions .btn{
+  .hero-actions{
     display:none !important;
   }
 
   .hero-manifesto{
     position:relative !important;
-    z-index:1 !important;
+    z-index:2 !important;
     background:transparent !important;
     border:0 !important;
     height:100% !important;
@@ -207,23 +184,10 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
     align-items:flex-start !important;
     justify-content:center !important;
     padding:24px 18px !important;
-    pointer-events:none !important;
   }
   .hero-manifesto h1{
-    display:block !important;
     font-size:64px !important;
     line-height:.86 !important;
-    letter-spacing:-2.5px !important;
-    pointer-events:auto !important;
+    display:block !important;
   }
-
-  /* CHECKOUT RESPONSIVE (keep) */
-  .checkout-grid, .cart-grid{flex-direction:column !important; display:flex !important;}
-  .cart-table thead{display:none !important;}
-  .cart-table tr{flex-direction:column !important; display:flex !important; border:1.5px solid var(--ink) !important; margin-bottom:12px !important; padding:12px !important;}
-}
-
-/* DESKTOP keep normal */
-@media(min-width:901px){
-  .hero-small-cards{display:none !important;}
 }
