@@ -5,7 +5,7 @@ import './styles.css';
 const RAW = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
 const API = RAW.includes('/api') ? RAW : RAW + '/api';
 
-
+//const [isMenuOpen, setIsMenuOpen] = useState(false)
 
 const fallbackProducts = [
  {id:1,name:'Studio Wireless Headphones',category:'Tech',description:'Immersive sound, comfortable fit and all-day battery life. Tuned by Urban Cart Studio.',price:1299,image_url:'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=85',stock:25},
@@ -21,7 +21,11 @@ const fmt = n => new Intl.NumberFormat('en-ZA',{style:'currency',currency:'ZAR',
 async function api(path, options={}) { 
   const token=localStorage.getItem('uc_token'); 
   const url = path.startsWith('http') ? path : `${API}${path}`;
-  const res=await fetch(url,{...options,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`} : {}),...(options.headers||{})}}); 
+  const res=await fetch(
+    url,{...options,headers:{
+      'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`
+        
+      } : {}),...(options.headers||{})}}); 
   const data=await res.json().catch(()=>({})); 
   if(!res.ok) throw new Error(data.error||`Request failed: ${res.status}`); 
   return data; 
