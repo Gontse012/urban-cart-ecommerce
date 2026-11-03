@@ -121,24 +121,42 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
 }
 
 
-/* ===== MOBILE: REMOVE 3 BOXES + CHECKOUT RESPONSIVE ===== */
+/* ===== MOBILE: ONLY MAIN TEXT + HAMBURGER FIX ===== */
 @media(max-width:900px){
 
-  /* --- REMOVE 3 BOXES FROM HERO ON MOBILE --- */
-  .hero-small-cards,
-  .mini-card,
-  .card-stack,
-  .hero-manifesto p,           /* Not another store box */
-  .hero-manifesto .stat,       /* 8 objects curated */
-  .hero-manifesto [class*="stat"],
-  .hero-stat{
-    display:none !important;
+  /* HEADER ON TOP - FIX HAMBURGER */
+  .header, header, [class*="header"]{
+    position:sticky !important;
+    top:0 !important;
+    z-index:9999 !important;
+    background:var(--paper) !important;
+    pointer-events:auto !important;
+  }
+  .header *{
+    pointer-events:auto !important;
+  }
+  button, [class*="hamburger"], [class*="menu-toggle"], [class*="burger"]{
+    cursor:pointer !important;
+    pointer-events:auto !important;
+    z-index:10000 !important;
+  }
+  /* side nav / mobile menu must be above hero */
+  .mobile-menu, .nav-drawer, .side-nav, [class*="mobile-nav"], [class*="nav-links"]{
+    z-index:9998 !important;
+    position:fixed !important;
+  }
+  .mobile-menu.open, .nav-drawer.open, [class*="mobile-nav"].open{
+    display:flex !important;
+    opacity:1 !important;
+    transform:translateX(0) !important;
+    pointer-events:auto !important;
   }
 
+  /* HERO - ONLY MAIN TEXT */
   .hero-grid{
     position:relative !important;
-    height:84vh !important;
-    min-height:580px !important;
+    height:72vh !important;
+    min-height:520px !important;
     display:block !important;
     overflow:hidden !important;
     border-bottom:2px solid var(--ink) !important;
@@ -150,6 +168,7 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
     width:100% !important;
     height:100% !important;
     border:0 !important;
+    pointer-events:none !important;
   }
   .hero-big-card{
     position:absolute !important;
@@ -157,116 +176,54 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
     width:100% !important;
     height:100% !important;
     border:0 !important;
+    pointer-events:none !important;
   }
   .hero-big-card img{
     width:100% !important;
     height:100% !important;
     object-fit:cover !important;
-    object-position:center 40% !important;
+    object-position:center 35% !important;
+  }
+
+  /* HIDE EVERYTHING EXCEPT H1 */
+  .hero-small-cards,
+  .mini-card,
+  .card-stack,
+  .hero-manifesto p,
+  .hero-manifesto .stat,
+  .hero-manifesto [class*="stat"],
+  .hero-actions,
+  .hero-actions .btn{
+    display:none !important;
   }
 
   .hero-manifesto{
     position:relative !important;
-    z-index:2 !important;
+    z-index:1 !important;
     background:transparent !important;
     border:0 !important;
     height:100% !important;
     display:flex !important;
-    flex-direction:column !important;
-    justify-content:flex-end !important;
+    align-items:flex-start !important;
+    justify-content:center !important;
     padding:24px 18px !important;
-    gap:18px !important;
+    pointer-events:none !important;
   }
   .hero-manifesto h1{
-    font-size:58px !important;
+    display:block !important;
+    font-size:64px !important;
     line-height:.86 !important;
-    margin:0 !important;
-  }
-  /* SHOP button under header look - now at bottom, clean */
-  .hero-actions{
-    display:flex !important;
-    background:transparent !important;
-    border:0 !important;
-    padding:0 !important;
-    margin:0 !important;
-  }
-  .hero-actions .btn{
-    width:100% !important;
-    height:56px !important;
-    font-size:13px !important;
+    letter-spacing:-2.5px !important;
+    pointer-events:auto !important;
   }
 
-  /* --- CHECKOUT / CART RESPONSIVE --- */
-  .cart-page,
-  .checkout-page,
-  .checkout-container{
-    padding:16px !important;
-    width:100% !important;
-    overflow-x:hidden !important;
-  }
-  .checkout-grid,
-  .cart-grid,
-  .checkout-layout{
-    display:flex !important;
-    flex-direction:column !important;
-    gap:24px !important;
-    grid-template-columns:1fr !important;
-  }
-  .cart-table,
-  .checkout-table{
-    display:block !important;
-    width:100% !important;
-    overflow-x:auto !important;
-    -webkit-overflow-scrolling:touch !important;
-  }
-  .cart-table thead{
-    display:none !important;
-  }
-  .cart-table tbody,
-  .cart-table tr{
-    display:flex !important;
-    flex-direction:column !important;
-    width:100% !important;
-    gap:12px !important;
-  }
-  .cart-table tr{
-    border:1.5px solid var(--ink) !important;
-    padding:12px !important;
-    background:var(--paper) !important;
-    margin-bottom:12px !important;
-  }
-  .cart-item,
-  .checkout-item{
-    display:flex !important;
-    flex-direction:row !important;
-    gap:12px !important;
-    align-items:flex-start !important;
-  }
-  .cart-item img,
-  .checkout-item img{
-    width:80px !important;
-    height:80px !important;
-    object-fit:cover !important;
-  }
-  .cart-summary,
-  .checkout-summary,
-  .order-summary{
-    width:100% !important;
-    position:static !important;
-    border:2px solid var(--ink) !important;
-    padding:16px !important;
-  }
-  .checkout-form input,
-  .checkout-form select,
-  .checkout-form textarea{
-    width:100% !important;
-    font-size:16px !important; /* prevents iOS zoom */
-  }
-  .checkout-actions{
-    flex-direction:column !important;
-    gap:12px !important;
-  }
-  .checkout-actions .btn{
-    width:100% !important;
-  }
+  /* CHECKOUT RESPONSIVE (keep) */
+  .checkout-grid, .cart-grid{flex-direction:column !important; display:flex !important;}
+  .cart-table thead{display:none !important;}
+  .cart-table tr{flex-direction:column !important; display:flex !important; border:1.5px solid var(--ink) !important; margin-bottom:12px !important; padding:12px !important;}
+}
+
+/* DESKTOP keep normal */
+@media(min-width:901px){
+  .hero-small-cards{display:none !important;}
 }
