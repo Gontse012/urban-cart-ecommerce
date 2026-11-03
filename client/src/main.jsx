@@ -5,7 +5,7 @@ import './styles.css';
 const RAW = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
 const API = RAW.includes('/api') ? RAW : RAW + '/api';
 
-const [isMenuOpen, setIsMenuOpen] = useState(false)
+
 
 const fallbackProducts = [
  {id:1,name:'Studio Wireless Headphones',category:'Tech',description:'Immersive sound, comfortable fit and all-day battery life. Tuned by Urban Cart Studio.',price:1299,image_url:'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=85',stock:25},
@@ -26,6 +26,7 @@ async function api(path, options={}) {
   if(!res.ok) throw new Error(data.error||`Request failed: ${res.status}`); 
   return data; 
 }
+
 function App(){
  const [products,setProducts]=useState(fallbackProducts),[category,setCategory]=useState('All'),[search,setSearch]=useState(''),[cart,setCart]=useState(()=>JSON.parse(localStorage.getItem('uc_cart')||'[]')),[cartOpen,setCartOpen]=useState(false),[checkoutOpen,setCheckoutOpen]=useState(false),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[menuOpen,setMenuOpen]=useState(false),[accountOpen,setAccountOpen]=useState(false),[authMode,setAuthMode]=useState('login'),[user,setUser]=useState(()=>JSON.parse(localStorage.getItem('uc_user')||'null')),[orders,setOrders]=useState([]),[adminOpen,setAdminOpen]=useState(false),[adminOrders,setAdminOrders]=useState([]),[busy,setBusy]=useState(false),[selectedProduct,setSelectedProduct]=useState(null),[showAll,setShowAll]=useState(false);
  const [form,setForm]=useState({customer_name:'',email:'',phone:'',address:'',city:'',province:'Gauteng',postal_code:''});
