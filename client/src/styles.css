@@ -251,3 +251,139 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
     margin-left: auto !important;
   }
 }
+
+/* ===== MOBILE CENTER FIXES ===== */
+.centered-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.auth-modal {
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+}
+.centered-switch {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin: 12px auto;
+}
+.centered-switch button {
+  flex: 1;
+  max-width: 160px;
+}
+.centered-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  margin-top: 16px;
+}
+.centered-actions button {
+  width: 100%;
+  max-width: 320px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.delete-btn {
+  border: 1px solid #ff3b30 !important;
+  color: #ff3b30 !important;
+}
+.auth-error {
+  background: #ff3b30;
+  color: #fff;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  margin: 0 0 12px;
+  border: 2px solid #121212;
+  width: 100%;
+}
+.terms-box {
+  border: 1px dashed #121212;
+  padding: 10px;
+  background: #fffcf8;
+  margin: 8px 0;
+}
+.terms-check {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.terms-check input {
+  margin-top: 3px;
+}
+
+@media (max-width: 640px) {
+  .auth-switch, .centered-switch {
+    justify-content: center !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+  .auth-form {
+    align-items: center;
+  }
+  .auth-form input, .auth-form button, .auth-form select, .auth-form textarea {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .modal {
+    margin: 0 auto !important;
+    left: 0;
+    right: 0;
+    width: 94vw !important;
+    max-width: 94vw !important;
+  }
+  .drawer-head {
+    justify-content: center;
+    text-align: center;
+  }
+  .drawer-head h2 {
+    text-align: center;
+    flex: 1;
+  }
+  .account {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .avatar {
+    margin: 0 auto;
+  }
+  .orders {
+    width: 100%;
+  }
+  /* Toast / errors centered */
+  .toast {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    width: 90vw;
+    max-width: 90vw;
+    text-align: center;
+    justify-content: center;
+  }
+  /* Admin centered */
+  .admin-row {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .admin-row > div {
+    justify-content: center !important;
+  }
+  /* Checkout centered */
+  .checkout-form {
+    align-items: stretch;
+  }
+}

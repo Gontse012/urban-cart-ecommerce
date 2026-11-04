@@ -1,20 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Search, ShoppingBag, ArrowUpRight, Plus, Minus, X, Menu, Check, ShieldCheck, Truck, RotateCcw, PackageCheck, UserRound, MapPin, Clock } from 'lucide-react';
+import { Search, ShoppingBag, ArrowUpRight, Plus, Minus, X, Menu, Check, ShieldCheck, Truck, RotateCcw, PackageCheck, UserRound, MapPin, Clock, FileText, AlertTriangle, Bell } from 'lucide-react';
 import './styles.css';
 
 const RAW = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
 const API = RAW.includes('/api') ? RAW : RAW + '/api';
 
 const fallbackProducts = [
- {id:1,name:'Studio Wireless Headphones',category:'Tech',description:'Immersive sound, comfortable fit and all-day battery life. Tuned by Urban Cart Studio.',price:1299,image_url:'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=85',stock:25},
- {id:2,name:'Minimal Desk Lamp',category:'Home',description:'A warm, modern lamp for your workspace or bedside table. Concrete base, warm light.',price:649,image_url:'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=900&q=85',stock:18},
- {id:3,name:'Everyday Canvas Backpack',category:'Lifestyle',description:'A durable everyday backpack with a clean, versatile design. Waxed canvas.',price:899,image_url:'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=900&q=85',stock:20},
- {id:4,name:'Classic Sunglasses',category:'Accessories',description:'Timeless frames made for sunny days and daily wear. Polarized.',price:499,image_url:'https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=900&q=85',stock:30},
- {id:5,name:'Smart Watch',category:'Tech',description:'Track your activity and stay connected throughout the day. AMOLED.',price:1599,image_url:'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=85',stock:12},
- {id:6,name:'Ceramic Coffee Set',category:'Home',description:'A considered ceramic set for your everyday coffee ritual. Matte glaze.',price:379,image_url:'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?auto=format&fit=crop&w=900&q=85',stock:16},
- {id:7,name:'Everyday Sneakers',category:'Lifestyle',description:'Comfort-first sneakers with a simple, versatile silhouette. Cloud sole.',price:1099,image_url:'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=85',stock:14},
- {id:8,name:'Reusable Travel Bottle',category:'Accessories',description:'A reusable bottle to keep your favourite drink close at hand. Double wall.',price:249,image_url:'https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&w=900&q=85',stock:40}
+ {id:1,name:'Studio Wireless Headphones',category:'Tech',description:'Immersive sound, comfortable fit and all-day battery life.',price:1299,image_url:'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=85',stock:25},
+ {id:2,name:'Minimal Desk Lamp',category:'Home',description:'Warm, modern lamp for workspace.',price:649,image_url:'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=900&q=85',stock:18},
+ {id:3,name:'Everyday Canvas Backpack',category:'Lifestyle',description:'Durable everyday backpack.',price:899,image_url:'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=900&q=85',stock:20},
+ {id:4,name:'Classic Sunglasses',category:'Accessories',description:'Timeless frames.',price:499,image_url:'https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=900&q=85',stock:30},
+ {id:5,name:'Smart Watch',category:'Tech',description:'Track activity.',price:1599,image_url:'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=85',stock:12},
+ {id:6,name:'Ceramic Coffee Set',category:'Home',description:'Ceramic set.',price:379,image_url:'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?auto=format&fit=crop&w=900&q=85',stock:16},
+ {id:7,name:'Everyday Sneakers',category:'Lifestyle',description:'Comfort sneakers.',price:1099,image_url:'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=85',stock:14},
+ {id:8,name:'Reusable Travel Bottle',category:'Accessories',description:'Reusable bottle.',price:249,image_url:'https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&w=900&q=85',stock:40}
 ];
 
 const fmt = n => new Intl.NumberFormat('en-ZA',{style:'currency',currency:'ZAR',maximumFractionDigits:2}).format(Number(n||0));
@@ -38,21 +38,21 @@ function getCartKey(user){ return `uc_cart_${user?.id || 'guest'}`; }
 
 function App(){
  const [products,setProducts]=useState(fallbackProducts),[category,setCategory]=useState('All'),[search,setSearch]=useState(''),[cart,setCart]=useState([]),[cartOpen,setCartOpen]=useState(false),[checkoutOpen,setCheckoutOpen]=useState(false),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[menuOpen,setMenuOpen]=useState(false),[accountOpen,setAccountOpen]=useState(false),[authMode,setAuthMode]=useState('login'),[user,setUser]=useState(()=>JSON.parse(localStorage.getItem('uc_user')||'null')),[orders,setOrders]=useState([]),[adminOpen,setAdminOpen]=useState(false),[adminOrders,setAdminOrders]=useState([]),[busy,setBusy]=useState(false),[selectedProduct,setSelectedProduct]=useState(null),[showAll,setShowAll]=useState(false);
- // New: tracking + tabs
  const [activeTab,setActiveTab]=useState('shop');
  const [trackingOrders,setTrackingOrders]=useState([]);
  const [editingOrder,setEditingOrder]=useState(null);
+ const [cancelModal,setCancelModal]=useState(null);
+ const [cancelReason,setCancelReason]=useState('');
  const [editData,setEditData]=useState({delivery_status:'Order Placed', current_location:'Warehouse - Johannesburg', eta:'2-3 business days', tracking_note:''});
-
- // Checkout form - NO HARDCODED Raphuti/email, uses user
  const [form,setForm]=useState({full_name:'',email:'',phone:'',address_search:'',delivery_address:'',province:'LIMPOPO',postal_code:''});
- const [authForm,setAuthForm]=useState({name:'',email:'',password:''});
+ const [authForm,setAuthForm]=useState({name:'',email:'',password:'', acceptTerms:false});
+ const [authError,setAuthError]=useState('');
+ const [showTerms,setShowTerms]=useState(false);
  const [adminTab,setAdminTab]=useState('orders');
  const [prodForm,setProdForm]=useState({name:'',category:'Tech',price:'',stock:'',description:'',image_url:''});
  const [editingId,setEditingId]=useState(null);
  const categories=['All','Tech','Home','Lifestyle','Accessories'];
 
- // LOAD CART
  useEffect(()=>{
    const key = getCartKey(user);
    try{
@@ -93,7 +93,7 @@ function App(){
       localStorage.removeItem(key);
       localStorage.removeItem('lastOrderId'); 
       setCart([]);
-      setNotice(`Payment successful! Order #${params.get('order')} received.`); 
+      setNotice(`Payment successful! Order #${params.get('order')} received. Receipt sent to your email.`); 
       window.history.replaceState({}, '', window.location.pathname);
       setActiveTab('track');
       loadTracking();
@@ -105,20 +105,18 @@ function App(){
  },[user]);
 
  useEffect(()=>{api('/products').then((rows)=>{ if(Array.isArray(rows)&&rows.length) setProducts(rows); }).catch(()=>{}).finally(()=>setLoading(false));},[]);
-
  useEffect(()=>{
    if(user){
-     // Prefill from user - NO Raphuti, use real user
      setForm(f=>({
        ...f,
        full_name: user.name || f.full_name,
        email: user.email || f.email
      }));
      api('/orders/mine').then(setOrders).catch(()=>{});
+     loadTracking();
    }
  },[user]);
-
- useEffect(()=>{if(notice){const t=setTimeout(()=>setNotice(''),5500);return()=>clearTimeout(t);}},[notice]);
+ useEffect(()=>{if(notice){const t=setTimeout(()=>setNotice(''),6500);return()=>clearTimeout(t);}},[notice]);
 
  async function loadTracking(){
    try{
@@ -131,6 +129,7 @@ function App(){
  const visible=useMemo(()=>products.filter(p=>(category==='All'|| (p.category||'').toLowerCase()===category.toLowerCase())&& `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())),[products,category,search]);
  const count = cart.reduce((s,p)=>s+p.quantity,0), total=cart.reduce((s,p)=>s+p.price*p.quantity,0);  
  const setField=(k,v)=>setForm(f=>({...f,[k]:v}));
+ const hasOrders = trackingOrders.length > 0 || orders.length > 0;
 
  async function add(p){
    setCart(old=>{
@@ -139,7 +138,7 @@ function App(){
    });
    setNotice(`${p.name} added to bag`);
    if(user){
-     try{ await api('/cart',{method:'POST', body:JSON.stringify({product_id:p.id, quantity:1})}); }catch(e){ console.log('cart sync error', e.message); }
+     try{ await api('/cart',{method:'POST', body:JSON.stringify({product_id:p.id, quantity:1})}); }catch{}
    }
  }
  async function changeQty(id,d){
@@ -169,9 +168,16 @@ function App(){
  function closeProduct(){ setSelectedProduct(null); }
 
  async function submitAuth(e){
-  e.preventDefault(); setBusy(true);
+  e.preventDefault(); 
+  setAuthError('');
+  if(authMode==='register' && !authForm.acceptTerms){
+    setAuthError('You must accept the Terms & Conditions to create an account.');
+    return;
+  }
+  setBusy(true);
   try{
-    const data=await api(`/auth/${authMode}`,{method:'POST',body:JSON.stringify(authForm)});
+    const payload = {name: authForm.name, email: authForm.email, password: authForm.password};
+    const data=await api(`/auth/${authMode}`,{method:'POST',body:JSON.stringify(payload)});
     const guestKey = getCartKey(null);
     const guestCart = JSON.parse(localStorage.getItem(guestKey) || '[]');
     localStorage.setItem('uc_token',data.token);
@@ -179,14 +185,16 @@ function App(){
     setUser(data.user);
     setAccountOpen(false); 
     setNotice(`Welcome${data.user.name?`, ${data.user.name.split(' ')[0]}`:''}!`); 
-    setAuthForm({name:'',email:'',password:''});
+    setAuthForm({name:'',email:'',password:'', acceptTerms:false});
+    setAuthError('');
     if(guestCart.length){
       for(const item of guestCart){
         try{ await api('/cart',{method:'POST', body:JSON.stringify({product_id:item.id, quantity:item.quantity})}); }catch{}
       }
       localStorage.removeItem(guestKey);
     }
-  }catch(e){setNotice(e.message);} finally{setBusy(false);} 
+  }catch(err){ setAuthError(err.message); }
+  finally{setBusy(false);} 
  }
 
  function logout(){
@@ -199,6 +207,7 @@ function App(){
   localStorage.removeItem(key);
   setUser(null);
   setOrders([]);
+  setTrackingOrders([]);
   setCart([]);
   setAdminOpen(false);
   setAccountOpen(false);
@@ -222,13 +231,30 @@ function App(){
     setCart([]);
     setAccountOpen(false);
     setNotice('Your account has been deleted.');
-  }catch(e){ setNotice(e.message); }
+  }catch(e){ setAuthError(e.message); setNotice(e.message); }
   finally{ setBusy(false); }
+ }
+
+ function handleCheckoutClick(){
+   if(!user){
+     setCartOpen(false);
+     setAccountOpen(true);
+     setAuthMode('login');
+     setAuthError('Please sign in or create an account before checkout.');
+     setNotice('You must sign in before checkout');
+     return;
+   }
+   setCartOpen(false);
+   setCheckoutOpen(true);
  }
 
  async function placeOrder(e) {
   e.preventDefault();
-  // Validate SA phone + full address to prevent wrong delivery
+  if(!user){
+    setAuthError('Please sign in first');
+    setAccountOpen(true);
+    return;
+  }
   if(!form.full_name.trim()||!form.email.trim()||!form.phone.trim()||!form.delivery_address.trim()||!form.province.trim()||!form.postal_code.trim()){
     setNotice('Please fill all: Full Name, Email, SA Phone, Delivery Address, Province, Postal Code'); return;
   }
@@ -291,20 +317,39 @@ function App(){
     try{ await api(`/admin/products/${id}`,{method:'DELETE'}); setProducts(old=>old.filter(x=>x.id!==id)); setNotice('Product deleted'); }catch(err){setNotice(err.message)}
   }
  async function showAdmin(){try{const data=await api('/admin/orders');setAdminOrders(data);setAdminOpen(true);}catch(e){setNotice(e.message);}}
- async function updateStatus(id,status){try{await api(`/admin/orders/${id}/status`,{method:'PATCH',body:JSON.stringify({status})});setAdminOrders(old=>old.map(o=>o.id===id?{...o,status, delivery_status:status}:o));}catch(e){setNotice(e.message);}}
+ async function updateStatus(id,status){
+   if(status==='cancelled'){
+     setCancelModal(id);
+     return;
+   }
+   try{await api(`/admin/orders/${id}/status`,{method:'PATCH',body:JSON.stringify({status})});setAdminOrders(old=>old.map(o=>o.id===id?{...o,status, delivery_status:status}:o));}catch(e){setNotice(e.message);}
+ }
+ async function confirmCancel(){
+   if(!cancelModal) return;
+   if(!cancelReason.trim()){
+     setNotice('Please provide a reason for cancelling this order');
+     return;
+   }
+   try{
+     await api(`/admin/orders/${cancelModal}/status`,{method:'PATCH',body:JSON.stringify({status:'cancelled', cancel_reason: cancelReason})});
+     setAdminOrders(old=>old.map(o=>o.id===cancelModal?{...o,status:'cancelled', delivery_status:'Cancelled', cancel_reason: cancelReason}:o));
+     setNotice(`Order #${cancelModal} cancelled. Reason: ${cancelReason} - Customer will be notified`);
+     setCancelModal(null);
+     setCancelReason('');
+   }catch(e){ setNotice(e.message); }
+ }
  async function saveTrackingUpdate(){
    if(!editingOrder) return;
    setBusy(true);
    try{
      await api(`/admin/orders/${editingOrder.id}`,{method:'PUT', body:JSON.stringify(editData)});
-     setNotice(`Tracking updated for Order #${editingOrder.id} - customer will see new location`);
+     setNotice(`Tracking updated for Order #${editingOrder.id}`);
      setEditingOrder(null);
      showAdmin();
    }catch(e){ setNotice(e.message); }
    finally{ setBusy(false); }
  }
 
- const isHome = !selectedProduct && !showAll && activeTab==='shop';
  return <div className="app">
   <div className="ticker"><div className="ticker-track"><span>● FREE DELIVERY OVER R1,000 ● SECURE PAYFAST ● CURATED IN SA ● EVERYDAY ELEVATED ●</span><span>● FREE DELIVERY OVER R1,000 ● SECURE PAYFAST ● CURATED IN SA ● EVERYDAY ELEVATED ●</span></div></div>
   <header className="header">
@@ -316,7 +361,7 @@ function App(){
       <nav className={menuOpen?'nav open':'nav'}>
         <a onClick={()=>{setShowAll(false); closeProduct(); setCategory('All'); setActiveTab('shop'); setMenuOpen(false); window.scrollTo(0,0)}}>HOME</a>
         <a onClick={()=>{setShowAll(true); closeProduct(); setActiveTab('shop'); setMenuOpen(false); window.scrollTo(0,0)}}>INDEX</a>
-        <a onClick={()=>{setActiveTab('track'); loadTracking(); setMenuOpen(false);}}>TRACK ORDER</a>
+        {hasOrders && <a onClick={()=>{setActiveTab('track'); loadTracking(); setMenuOpen(false);}}>TRACK ORDER</a>}
         <a href="#story" onClick={()=>setMenuOpen(false)}>MANIFESTO</a>
       </nav>
     </div>
@@ -330,11 +375,11 @@ function App(){
     {activeTab==='track' ? (
       <section className="shop">
         <div className="shop-head"><h2>MY ORDERS & TRACKING</h2><button className="btn-ghost" onClick={()=>setActiveTab('shop')}>BACK TO SHOP</button></div>
-        {!trackingOrders.length && <div className="empty">No orders yet - <button onClick={()=>setActiveTab('shop')}>Start shopping</button><p style={{fontSize:12, marginTop:12}}>Orders appear here after checkout. Track delivery status live.</p></div>}
+        {!trackingOrders.length && <div className="empty">No orders yet - <button onClick={()=>setActiveTab('shop')}>Start shopping</button></div>}
         {trackingOrders.map(o=>(
           <div key={o.id} style={{border:'2px solid #121212', marginBottom:16, background:'#FFFCF8'}}>
             <div style={{padding:14, borderBottom:'2px solid #121212', display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:8}}>
-              <b>Order #{o.id} - {fmt(o.total)} - <span style={{background:'#121212', color:'#C9A87A', padding:'2px 6px'}}>{o.delivery_status || o.status}</span></b>
+              <b>Order #{o.id} - {fmt(o.total)} - <span style={{background: o.status==='cancelled' ? '#ff3b30' : '#121212', color:'#fff', padding:'2px 6px'}}>{o.cancel_reason ? `Cancelled: ${o.cancel_reason}` : (o.delivery_status || o.status)}</span></b>
               <span style={{fontSize:11}}>{new Date(o.created_at).toLocaleDateString()} • {o.province} {o.postal_code}</span>
             </div>
             <div style={{padding:14}}>
@@ -352,6 +397,11 @@ function App(){
               </div>
               <div style={{marginTop:14}}>
                 {o.items?.map((it, idx)=><div key={idx} style={{fontSize:11, borderTop:'1px solid #ddd', padding:'8px 0', display:'flex', gap:8, alignItems:'center'}}><img src={it.image_url || it.image} style={{width:48,height:48,objectFit:'cover', border:'1px solid #121212'}}/><span>{it.name} x {it.quantity} - {fmt(it.price)}</span></div>)}
+              </div>
+              <div style={{marginTop:12, border:'2px solid #121212', padding:10, background:'#fff'}}>
+                <p style={{fontSize:11, fontWeight:700, margin:'0 0 6px'}}><FileText size={12} style={{display:'inline'}}/> RECEIPT</p>
+                <p style={{fontSize:11, margin:'2px 0'}}>Order #{o.id} | Total: {fmt(o.total)} | Status: {o.status}</p>
+                <p style={{fontSize:10, opacity:.7}}>Payment via PayFast • Email receipt sent to {form.email || user?.email}</p>
               </div>
             </div>
           </div>
@@ -456,7 +506,12 @@ function App(){
       {!cart.length?<div className="empty-bag"><ShoppingBag size={28}/><h3>Bag is empty.</h3><p>Go add some good stuff.</p><button className="btn-black" onClick={()=>setCartOpen(false)}>SHOP NOW</button></div>:
       <>
         <div className="cart-list">{cart.map(p=><div key={p.id} className="cart-item"><img src={p.image_url}/><div><h4>{p.name}</h4><b>{fmt(p.price)}</b><div className="qty"><button onClick={()=>changeQty(p.id,-1)}><Minus size={10}/></button><span>{p.quantity}</span><button onClick={()=>changeQty(p.id,1)}><Plus size={10}/></button></div></div><button className="remove" onClick={()=>removeItem(p.id)}>REMOVE</button></div>)}</div>
-        <div className="cart-foot"><div className="sum"><span>SUBTOTAL ({count} items)</span><b>{fmt(total)}</b></div><button className="btn-black full" onClick={()=>{setCartOpen(false);setCheckoutOpen(true)}}>CHECKOUT — {fmt(total)} <ArrowUpRight size={14}/></button><button className="btn-ghost full" style={{marginTop:8}} onClick={clearCart}>CLEAR BAG</button></div>
+        <div className="cart-foot">
+          <div className="sum"><span>SUBTOTAL ({count} items)</span><b>{fmt(total)}</b></div>
+          <button className="btn-black full" onClick={handleCheckoutClick}>CHECKOUT — {fmt(total)} <ArrowUpRight size={14}/></button>
+          {!user && <p style={{fontSize:11, color:'#ff3b30', textAlign:'center', marginTop:8}}>⚠️ You must sign in to checkout</p>}
+          <button className="btn-ghost full" style={{marginTop:8}} onClick={clearCart}>CLEAR BAG</button>
+        </div>
       </>}
     </aside>
   </div>}
@@ -464,37 +519,37 @@ function App(){
   {checkoutOpen&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setCheckoutOpen(false)}}>
     <section className="modal" style={{maxWidth:560, width:'94vw'}}>
       <div className="drawer-head"><h2>DELIVERY DETAILS</h2><button onClick={()=>setCheckoutOpen(false)}><X size={16}/></button></div>
-
+      {!user && (
+        <div style={{background:'#ff3b30', color:'#fff', padding:12, marginBottom:12, fontSize:12, fontWeight:700, textAlign:'center'}}>
+          PLEASE SIGN IN FIRST - <button onClick={()=>{setCheckoutOpen(false); setAccountOpen(true);}} style={{background:'#fff', color:'#121212', border:'none', padding:'4px 10px', fontWeight:700, marginLeft:6, cursor:'pointer'}}>SIGN IN / SIGN UP</button>
+        </div>
+      )}
       <div style={{background:'#f7f5f0', border:'2px solid #121212', padding:12, marginBottom:14}}>
         <p style={{fontSize:12, fontWeight:700, margin:'0 0 6px'}}>✓ PCI DSS Secure - Your info is protected</p>
-        <p style={{fontSize:11, margin:0}}>We collect full SA address + SA phone to prevent wrong delivery. Like Temu checkout.</p>
+        <p style={{fontSize:11, margin:0}}>Full SA address + SA phone required to prevent wrong delivery.</p>
       </div>
-
       <form onSubmit={placeOrder} className="checkout-form" style={{display:'flex', flexDirection:'column', gap:12}}>
         <div>
-          <label style={{fontSize:11, fontWeight:700}}>Full Name * (First and Last name)</label>
+          <label style={{fontSize:11, fontWeight:700}}>Full Name *</label>
           <input required placeholder="e.g. John Smith" value={form.full_name} onChange={e=>setField('full_name',e.target.value)} style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/>
         </div>
         <div>
-          <label style={{fontSize:11, fontWeight:700, display:'flex', justifyContent:'space-between'}}><span>Phone number *</span><span style={{fontWeight:400, opacity:.6}}>SA only - May be used to assist delivery</span></label>
+          <label style={{fontSize:11, fontWeight:700, display:'flex', justifyContent:'space-between'}}><span>Phone number *</span><span style={{fontWeight:400, opacity:.6}}>SA only - assist delivery</span></label>
           <div style={{display:'flex', border:'2px solid #121212', height:44, marginTop:4}}>
             <span style={{background:'#eee', padding:'0 10px', display:'grid', placeItems:'center', fontSize:12, fontWeight:700, borderRight:'2px solid #121212'}}>ZA +27</span>
             <input required value={form.phone} onChange={e=>setField('phone',e.target.value)} placeholder="707 028 041 or 071 234 5678" style={{flex:1, border:0, padding:'0 12px'}}/>
           </div>
-          <p style={{fontSize:10, color:'green', margin:'4px 0 0'}}>✓ Your phone number will be kept secure.</p>
         </div>
         <div>
           <label style={{fontSize:11, fontWeight:700}}>Address search</label>
-          <p style={{fontSize:10, opacity:.6, margin:'2px 0 4px'}}>Enter your street name or house number to find your full address.</p>
-          <input value={form.address_search} onChange={e=>setField('address_search',e.target.value)} placeholder="Search by street or address" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px'}}/>
+          <input value={form.address_search} onChange={e=>setField('address_search',e.target.value)} placeholder="Search by street or address" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/>
         </div>
         <div>
           <label style={{fontSize:11, fontWeight:700}}>Delivery address *</label>
-          <input required list="sa-addresses" value={form.delivery_address} onChange={e=>setField('delivery_address',e.target.value)} placeholder="e.g. 7940 Lephalale, 123 Main St, Lephalale" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/>
+          <input required list="sa-addresses" value={form.delivery_address} onChange={e=>setField('delivery_address',e.target.value)} placeholder="e.g. 7940 Lephalale Street" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/>
           <datalist id="sa-addresses">
             <option value="7940 Lephalale Street, Greater Nigel, Nigel, South Africa"/>
             <option value="7940 Lephalale Street, Tshikota, Louis Trichardt, South Africa"/>
-            <option value="7940 Lephalale Clos, Lephalale, South Africa"/>
           </datalist>
         </div>
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
@@ -509,34 +564,28 @@ function App(){
             <input required value={form.postal_code} onChange={e=>setField('postal_code',e.target.value)} placeholder="0555" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/>
           </div>
         </div>
-
         <div style={{border:'2px solid #121212', padding:12, background:'#FFFCF8'}}>
           <h4 style={{margin:'0 0 8px', fontFamily:'Anton', fontSize:13}}>AVAILABLE PAYMENTS - PAYFAST</h4>
           <div style={{display:'flex', flexWrap:'wrap', gap:6, marginBottom:8}}>
-            <span style={{border:'1px solid #121212', padding:'4px 8px', fontSize:10, fontWeight:700, background:'#fff'}}>VISA</span>
-            <span style={{border:'1px solid #121212', padding:'4px 8px', fontSize:10, fontWeight:700, background:'#fff'}}>MasterCard</span>
-            <span style={{border:'1px solid #121212', padding:'4px 8px', fontSize:10, fontWeight:700, background:'#fff'}}>Capitec Pay</span>
-            <span style={{border:'1px solid #121212', padding:'4px 8px', fontSize:10, fontWeight:700, background:'#fff'}}>EFT Secure</span>
-            <span style={{border:'1px solid #121212', padding:'4px 8px', fontSize:10, fontWeight:700, background:'#fff'}}>Mobicred</span>
-            <span style={{border:'1px solid #121212', padding:'4px 8px', fontSize:10, fontWeight:700, background:'#fff'}}>SCode</span>
-            <span style={{border:'1px solid #121212', padding:'4px 8px', fontSize:10, fontWeight:700, background:'#fff'}}>Zapper</span>
-            <span style={{border:'1px solid #121212', padding:'4px 8px', fontSize:10, fontWeight:700, background:'#fff'}}>SnapScan</span>
+            {['VISA','MasterCard','Capitec Pay','EFT Secure','Mobicred','SCode','Zapper','SnapScan'].map(m=>(
+              <span key={m} style={{border:'1px solid #121212', padding:'4px 8px', fontSize:10, fontWeight:700, background:'#fff'}}>{m}</span>
+            ))}
           </div>
-          <p style={{fontSize:10, margin:0, opacity:.7}}>✓ Temu follows PCI DSS - Card info secure, never sold. All data safeguarded via PayFast.</p>
+          <p style={{fontSize:10, margin:0, opacity:.7}}>✓ Secure via PayFast - Card info never sold.</p>
         </div>
-
         <div style={{display:'flex', justifyContent:'space-between', fontWeight:700, borderTop:'2px solid #121212', paddingTop:10, fontSize:13}}>
           <span>SUBTOTAL ({count} items)</span><span>{fmt(total)}</span>
         </div>
-        <button className="btn-black full" disabled={busy} type="submit" style={{height:48}}>
+        <button className="btn-black full" disabled={busy || !user} type="submit" style={{height:48}}>
           {busy?'PREPARING...':`PAY ${fmt(total)} WITH PAYFAST`} <ShieldCheck size={14}/>
         </button>
+        {!user && <p style={{fontSize:11, color:'#ff3b30', textAlign:'center'}}>You must be signed in to pay. Your bag is saved.</p>}
       </form>
     </section>
   </div>}
 
-  {accountOpen&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setAccountOpen(false)}}>
-    <section className="modal">
+  {accountOpen&&<div className="overlay centered-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setAccountOpen(false)}}>
+    <section className="modal auth-modal">
       <div className="drawer-head"><h2>{user?user.name.toUpperCase():authMode==='login'?'SIGN IN':'CREATE ACCOUNT'}</h2><button onClick={()=>setAccountOpen(false)}><X size={16}/></button></div>
       {user?<div className="account">
         <div className="avatar">{user.name[0]}</div><h3>{user.name}</h3><p>{user.email}</p>
@@ -544,51 +593,100 @@ function App(){
           {orders.slice(0,5).map(o=><div key={o.id} className="order-line"><span>#{o.id} • {new Date(o.created_at).toLocaleDateString()} • {o.delivery_status || o.status}</span><b>{fmt(o.total)} — {o.status}</b></div>)}
           <button className="btn-ghost full" style={{marginTop:8}} onClick={()=>{setAccountOpen(false); setActiveTab('track'); loadTracking();}}>VIEW ALL & TRACK →</button>
         </div>
-        <button className="btn-outline full" onClick={logout}>SIGN OUT</button>
-        <button className="btn-ghost full" style={{marginTop:10, borderColor:'#ff3b30', color:'#ff3b30', border:'1px solid #ff3b30'}} onClick={deleteAccount} disabled={busy}>
-          {busy?'DELETING...':'DELETE MY ACCOUNT'}
-        </button>
-        <p style={{fontSize:11, color:'#888', marginTop:8, textAlign:'center'}}>This will permanently delete your account, orders and saved bag.</p>
+        <div className="centered-actions">
+          <button className="btn-outline full" onClick={logout}>SIGN OUT</button>
+          <button className="btn-ghost full delete-btn" onClick={deleteAccount} disabled={busy}>
+            {busy?'DELETING...':'DELETE MY ACCOUNT'}
+          </button>
+        </div>
         {user.role==='admin'&&<button className="btn-black full" style={{marginTop:12}} onClick={()=>{setAccountOpen(false);showAdmin()}}>ADMIN ORDERS</button>}
       </div>:<>
-        <div className="auth-switch"><button className={authMode==='login'?'on':''} onClick={()=>setAuthMode('login')}>LOGIN</button><button className={authMode==='register'?'on':''} onClick={()=>setAuthMode('register')}>REGISTER</button></div>
+        <div className="auth-switch centered-switch">
+          <button className={authMode==='login'?'on':''} onClick={()=>{setAuthMode('login'); setAuthError('');}}>LOGIN</button>
+          <button className={authMode==='register'?'on':''} onClick={()=>{setAuthMode('register'); setAuthError('');}}>SIGN UP</button>
+        </div>
+        {authError && <div className="auth-error">{authError}</div>}
         <form onSubmit={submitAuth} className="auth-form">
           {authMode==='register'&&<input required placeholder="Full name" value={authForm.name} onChange={e=>setAuthForm(f=>({...f,name:e.target.value}))}/>}
           <input required type="email" placeholder="Email" value={authForm.email} onChange={e=>setAuthForm(f=>({...f,email:e.target.value}))}/>
-          <input required type="password" placeholder="Password" value={authForm.password} onChange={e=>setAuthForm(f=>({...f,password:e.target.value}))}/>
-          <button className="btn-black full">{busy?'WAIT...':authMode==='login'?'SIGN IN':'CREATE ACCOUNT'}</button>
+          <input required type="password" placeholder="Password (min 8 chars)" value={authForm.password} onChange={e=>setAuthForm(f=>({...f,password:e.target.value}))}/>
+          {authMode==='register' && (
+            <div className="terms-box">
+              <label className="terms-check">
+                <input type="checkbox" checked={authForm.acceptTerms} onChange={e=>setAuthForm(f=>({...f, acceptTerms:e.target.checked}))}/>
+                <span>I agree to the <button type="button" onClick={()=>setShowTerms(true)} style={{textDecoration:'underline', background:'none', border:'none', fontWeight:700, cursor:'pointer'}}>Terms & Conditions</button> including liability limits</span>
+              </label>
+              <p style={{fontSize:10, opacity:.7, marginTop:6}}>By signing up you accept we are not liable for courier delays, wrong address provided by you, or PayFast downtime. See full terms.</p>
+            </div>
+          )}
+          <button className="btn-black full" disabled={busy}>{busy?'WAIT...':authMode==='login'?'SIGN IN':'CREATE ACCOUNT'}</button>
         </form>
       </>}
     </section>
   </div>}
 
+  {showTerms && (
+    <div className="overlay" style={{zIndex:10003}} onMouseDown={e=>{if(e.target===e.currentTarget)setShowTerms(false)}}>
+      <section className="modal" style={{maxWidth:600}}>
+        <div className="drawer-head"><h2>TERMS & CONDITIONS</h2><button onClick={()=>setShowTerms(false)}><X size={16}/></button></div>
+        <div style={{maxHeight:'70vh', overflow:'auto', fontSize:12, lineHeight:1.6}}>
+          <h3 style={{fontFamily:'Anton', fontSize:14}}>1. ORDERS & PAYMENTS</h3>
+          <p>All payments via PayFast sandbox/live. Orders only confirmed after successful PayFast payment.</p>
+          <h3 style={{fontFamily:'Anton', fontSize:14, marginTop:12}}>2. WHAT URBAN CART IS NOT RESPONSIBLE FOR</h3>
+          <ul style={{paddingLeft:16}}>
+            <li><b>Wrong address:</b> We are not responsible if you enter wrong delivery address, postal code, or province. Please double-check. No refunds for wrong address delivery.</li>
+            <li><b>Courier delays:</b> We use third-party couriers. Delays due to weather, strikes, public holidays, or incorrect contact info are not our liability.</li>
+            <li><b>PayFast failures:</b> Payment processing is by PayFast. Downtime, double charges, or bank declines are between you and PayFast/bank.</li>
+            <li><b>Product images:</b> Colors may vary slightly due to lighting/monitor.</li>
+            <li><b>Stock:</b> If item out of stock after order, we will refund within 3 days.</li>
+            <li><b>Phone not reachable:</b> If driver cannot reach you via SA phone provided, delivery may be returned at your cost.</li>
+          </ul>
+          <h3 style={{fontFamily:'Anton', fontSize:14, marginTop:12}}>3. RETURNS</h3>
+          <p>14-day returns for unused items. Customer pays return shipping unless item is faulty.</p>
+          <h3 style={{fontFamily:'Anton', fontSize:14, marginTop:12}}>4. PRIVACY</h3>
+          <p>Your SA phone & address used only for delivery & PayFast verification. Not sold.</p>
+        </div>
+        <button className="btn-black full" style={{marginTop:12}} onClick={()=>setShowTerms(false)}>I UNDERSTAND</button>
+      </section>
+    </div>
+  )}
+
   {adminOpen&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setAdminOpen(false)}}>
-    <section className="modal wide-modal" style={{maxWidth:820}}>
+    <section className="modal wide-modal" style={{maxWidth:860}}>
       <div className="drawer-head"><h2>ADMIN — {adminTab.toUpperCase()}</h2><button onClick={()=>setAdminOpen(false)}><X size={16}/></button></div>
-      <div className="auth-switch">
+      <div className="auth-switch centered-switch">
         <button className={adminTab==='orders'?'on':''} onClick={()=>setAdminTab('orders')}>ORDERS ({adminOrders.length})</button>
         <button className={adminTab==='products'?'on':''} onClick={()=>setAdminTab('products')}>PRODUCTS ({products.length})</button>
       </div>
       {adminTab==='orders' ? (
         <div style={{maxHeight:'70vh', overflow:'auto'}}>
+          <div style={{background:'#fff3cd', border:'2px solid #121212', padding:10, marginBottom:12, fontSize:11}}>
+            <p style={{margin:0, fontWeight:700}}><Bell size={12} style={{display:'inline'}}/> Phone notifications: Set NOTIFY_PHONE in Render env to your WhatsApp/Telegram webhook. Currently logs to server console + you get receipt in this panel.</p>
+            <p style={{margin:'6px 0 0'}}>New orders appear here first. You also get full customer details for receipt.</p>
+          </div>
           {adminOrders.map(o=>(
-            <div key={o.id} style={{border:'2px solid #121212', padding:12, marginBottom:10, background:'#FFFCF8'}}>
+            <div key={o.id} style={{border:'2px solid #121212', padding:12, marginBottom:10, background: o.status==='cancelled'?'#ffe0e0':'#FFFCF8'}}>
               <div style={{display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:6}}>
                 <b>#{o.id} {o.customer_name || o.full_name} - {o.email}</b>
-                <span style={{fontSize:11, background:'#121212', color:'#C9A87A', padding:'4px 8px'}}>{o.delivery_status || o.status}</span>
+                <span style={{fontSize:11, background: o.status==='cancelled'?'#ff3b30':'#121212', color:'#fff', padding:'4px 8px'}}>{o.cancel_reason ? `CANCELLED: ${o.cancel_reason}` : (o.delivery_status || o.status)}</span>
               </div>
               <p style={{fontSize:11, margin:'6px 0'}}>📍 {o.delivery_address || o.address}, {o.province}, {o.postal_code} | 📞 {o.phone}</p>
-              <p style={{fontSize:11}}>Location: {o.current_location} | ETA: {o.eta}</p>
-              <div style={{display:'flex', gap:6, marginTop:8, flexWrap:'wrap'}}>
+              <p style={{fontSize:11}}>Location: {o.current_location} | ETA: {o.eta} | Total: {fmt(o.total)}</p>
+              {o.cancel_reason && <p style={{fontSize:11, background:'#fff', border:'1px dashed #ff3b30', padding:6}}>Cancel reason: {o.cancel_reason}</p>}
+              <div style={{display:'flex', gap:6, marginTop:8, flexWrap:'wrap', justifyContent:'center'}}>
                 <button className="btn-ghost" style={{height:32, fontSize:11}} onClick={()=>{
                   setEditingOrder(o);
                   setEditData({delivery_status:o.delivery_status||o.status, current_location:o.current_location||'Warehouse - Johannesburg', eta:o.eta||'2-3 business days', tracking_note:''});
                 }}>UPDATE TRACKING</button>
                 <select value={o.status} onChange={e=>updateStatus(o.id,e.target.value)} style={{border:'2px solid #121212', fontSize:11, fontWeight:700, height:32}}>
-                  {['pending','paid','processing','shipped','delivered','cancelled'].map(s=><option key={s} value={s}>{s}</option>)}
+                  {['pending','paid','processing','shipped','delivered','cancelled'].map(s=><option key={s} value={s}>{s.toUpperCase()}</option>)}
                 </select>
+                <button className="btn-ghost" style={{height:32, fontSize:11}} onClick={async()=>{
+                  const receipt = `URBAN CART RECEIPT\nOrder #${o.id}\nCustomer: ${o.customer_name||o.full_name}\nEmail: ${o.email}\nPhone: ${o.phone}\nAddress: ${o.delivery_address}, ${o.province}, ${o.postal_code}\nTotal: ${fmt(o.total)}\nStatus: ${o.status}\nItems: ${(o.items||[]).map(i=>`${i.name} x${i.quantity}`).join(', ')}\nDate: ${o.created_at}`;
+                  try{ await navigator.clipboard.writeText(receipt); setNotice(`Receipt for #${o.id} copied!`);}catch{ setNotice(receipt); }
+                }}><FileText size={12} style={{display:'inline'}}/> COPY RECEIPT</button>
               </div>
-              <div style={{marginTop:6}}>{o.items?.map((it,idx)=><div key={idx} style={{fontSize:10}}>{it.name} x {it.quantity}</div>)}</div>
+              <div style={{marginTop:6}}>{o.items?.map((it,idx)=><div key={idx} style={{fontSize:10}}>{it.name} x {it.quantity} - {fmt(it.price)}</div>)}</div>
             </div>
           ))}
           {!adminOrders.length && <div className="empty">NO ORDERS YET</div>}
@@ -597,20 +695,43 @@ function App(){
             <div className="overlay" style={{zIndex:10001, position:'fixed'}} onMouseDown={e=>{if(e.target===e.currentTarget)setEditingOrder(null)}}>
               <section className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:500}}>
                 <div className="drawer-head"><h2>UPDATE ORDER #{editingOrder.id}</h2><button onClick={()=>setEditingOrder(null)}><X size={16}/></button></div>
-                <p style={{fontSize:11}}>Customer: {editingOrder.customer_name || editingOrder.full_name} - {editingOrder.delivery_address}</p>
                 <div style={{display:'flex', flexDirection:'column', gap:10, marginTop:12}}>
                   <label style={{fontSize:11, fontWeight:700}}>Delivery Status</label>
                   <select value={editData.delivery_status} onChange={e=>setEditData({...editData, delivery_status:e.target.value})} style={{height:42, border:'2px solid #121212'}}>
                     <option>Order Placed</option><option>Processing</option><option>Packed</option><option>Shipped</option><option>Out for Delivery</option><option>Delivered</option><option>Delayed</option>
                   </select>
-                  <label style={{fontSize:11, fontWeight:700}}>Current Location (e.g. Warehouse JHB → Polokwane → Lephalale)</label>
-                  <input value={editData.current_location} onChange={e=>setEditData({...editData, current_location:e.target.value})} placeholder="e.g. Courier Depot - Polokwane, On route to Lephalale" style={{height:42, border:'2px solid #121212', padding:'0 12px'}}/>
+                  <label style={{fontSize:11, fontWeight:700}}>Current Location</label>
+                  <input value={editData.current_location} onChange={e=>setEditData({...editData, current_location:e.target.value})} placeholder="e.g. Courier Depot - Polokwane" style={{height:42, border:'2px solid #121212', padding:'0 12px'}}/>
                   <label style={{fontSize:11, fontWeight:700}}>ETA</label>
-                  <input value={editData.eta} onChange={e=>setEditData({...editData, eta:e.target.value})} placeholder="e.g. Today by 5pm, Tomorrow, 2-3 days" style={{height:42, border:'2px solid #121212', padding:'0 12px'}}/>
+                  <input value={editData.eta} onChange={e=>setEditData({...editData, eta:e.target.value})} placeholder="e.g. Today by 5pm" style={{height:42, border:'2px solid #121212', padding:'0 12px'}}/>
                   <label style={{fontSize:11, fontWeight:700}}>Note to Customer</label>
-                  <textarea value={editData.tracking_note} onChange={e=>setEditData({...editData, tracking_note:e.target.value})} placeholder="e.g. Your package left JHB, arriving Limpopo tomorrow 10am" style={{height:80, border:'2px solid #121212', padding:12}}/>
+                  <textarea value={editData.tracking_note} onChange={e=>setEditData({...editData, tracking_note:e.target.value})} placeholder="e.g. Left JHB, arriving tomorrow" style={{height:80, border:'2px solid #121212', padding:12}}/>
                   <button className="btn-black full" onClick={saveTrackingUpdate} disabled={busy}>{busy?'SAVING...':'SAVE UPDATE'}</button>
                   <button className="btn-ghost full" onClick={()=>setEditingOrder(null)}>CANCEL</button>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {cancelModal && (
+            <div className="overlay" style={{zIndex:10002, position:'fixed'}} onMouseDown={e=>{if(e.target===e.currentTarget)setCancelModal(null)}}>
+              <section className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:500}}>
+                <div className="drawer-head"><h2><AlertTriangle size={16} style={{display:'inline'}}/> CANCEL ORDER #{cancelModal}</h2><button onClick={()=>setCancelModal(null)}><X size={16}/></button></div>
+                <p style={{fontSize:12}}>Why are you cancelling this order? Customer will see this reason.</p>
+                <div style={{display:'flex', flexDirection:'column', gap:10, marginTop:12}}>
+                  <select value={cancelReason} onChange={e=>setCancelReason(e.target.value)} style={{height:42, border:'2px solid #121212', padding:'0 12px'}}>
+                    <option value="">-- Select reason --</option>
+                    <option value="Out of stock">Out of stock</option>
+                    <option value="Customer requested cancellation">Customer requested cancellation</option>
+                    <option value="Wrong address / unable to deliver">Wrong address / unable to deliver</option>
+                    <option value="Suspicious / fraud payment">Suspicious / fraud payment</option>
+                    <option value="Courier cannot reach area">Courier cannot reach area</option>
+                    <option value="Damaged in warehouse">Damaged in warehouse</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  <textarea value={cancelReason} onChange={e=>setCancelReason(e.target.value)} placeholder="Type detailed reason e.g. Out of stock - back next week, Customer asked to cancel via phone..." style={{height:100, border:'2px solid #121212', padding:12}}/>
+                  <button className="btn-black full" style={{background:'#ff3b30'}} onClick={confirmCancel} disabled={busy}>CONFIRM CANCEL - SEND TO CUSTOMER</button>
+                  <button className="btn-ghost full" onClick={()=>{setCancelModal(null); setCancelReason('');}}>KEEP ORDER</button>
                 </div>
               </section>
             </div>
@@ -630,7 +751,7 @@ function App(){
             </div>
             <input required placeholder="Image URL https://..." value={prodForm.image_url} onChange={e=>setProdForm(f=>({...f,image_url:e.target.value}))}/>
             <textarea placeholder="Description" value={prodForm.description} onChange={e=>setProdForm(f=>({...f,description:e.target.value}))} style={{minHeight:80, border:'2px solid var(--ink)', padding:12, fontFamily:'Syne'}}/>
-            <div style={{display:'flex', gap:8}}>
+            <div style={{display:'flex', gap:8, justifyContent:'center'}}>
               <button className="btn-black full" type="submit">{editingId? 'SAVE CHANGES' : 'CREATE PRODUCT'}</button>
               {editingId && <button type="button" className="btn-ghost" onClick={()=>{setEditingId(null); setProdForm({name:'',category:'Tech',price:'',stock:'',description:'',image_url:''})}}>CANCEL</button>}
             </div>

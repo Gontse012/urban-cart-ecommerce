@@ -9,7 +9,6 @@ import crypto from 'node:crypto';
 
 const app = express();
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-
 app.use(cors({ 
   origin: [
     'http://localhost:5173',
@@ -20,8 +19,7 @@ app.use(cors({
   ], 
   credentials: true 
 }));
-
-app.use(express.json({ limit: '100kb' }));
+app.use(express.json({ limit: '200kb' }));
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
@@ -38,7 +36,6 @@ const pool = mysql.createPool({
 
 const money = n => Math.round(Number(n) * 100) / 100;
 const signToken = user => jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role }, process.env.JWT_SECRET || 'dev-only-change-this-secret', { expiresIn: '2h' });
-
 function auth(req, res, next) { 
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, ''); 
   try { 
@@ -60,13 +57,10 @@ async function getCategoryId(nameOrId){
   return rows.length ? rows[0].id : null;
 }
 function isValidSAnumber(phone){
-  if(!phone) return false;
-  const cleaned = String(phone).replace(/\s/g,'');
-  // Valid SA: +27 6-8 xxxxxxxxx, 27..., 0 6-8 ...
+  const cleaned = String(phone||'').replace(/\s/g,'');
   return /^(?:\+27|27|0)[6-8][0-9]{8}$/.test(cleaned);
 }
 
-// AUTO-CREATE CARTS TABLE + TRACKING COLUMNS
 async function ensureCartsAndTracking(){
   try{
     await pool.execute(`
@@ -82,7 +76,6 @@ async function ensureCartsAndTracking(){
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
       )
     `);
-    // Tracking columns - try add each, ignore if exists
     const alterCols = [
       "ADD COLUMN address_search VARCHAR(255) NULL",
       "ADD COLUMN delivery_address VARCHAR(255) NULL",
@@ -90,25 +83,22 @@ async function ensureCartsAndTracking(){
       "ADD COLUMN current_location VARCHAR(255) DEFAULT 'Warehouse - Johannesburg'",
       "ADD COLUMN eta VARCHAR(100) DEFAULT '2-3 business days'",
       "ADD COLUMN tracking_history JSON NULL",
-      "ADD COLUMN full_name VARCHAR(255) NULL"
+      "ADD COLUMN full_name VARCHAR(255) NULL",
+      "ADD COLUMN cancel_reason TEXT NULL"
     ];
     for(const col of alterCols){
-      try{ await pool.query(`ALTER TABLE orders ${col}`); }catch(e){ /* already exists */ }
+      try{ await pool.query(`ALTER TABLE orders ${col}`); }catch{}
     }
-    console.log('Carts + Tracking ready');
+    console.log('Carts + Tracking + Cancel reason ready');
   }catch(e){ console.error('Migration error:', e.message); }
 }
 ensureCartsAndTracking();
 
-app.get('/', (req, res) => {
-  res.send('urban-cart API is running - TRACKING VERSION - use /api/products');
-});
-app.get('/api', (req, res) => {
-  res.json({ message: 'API working', status: 'ok' });
-});
+app.get('/', (req, res) => { res.send('urban-cart API v2 - tracking + receipts'); });
+app.get('/api', (req, res) => { res.json({ message: 'API working v2', status: 'ok' }); });
 app.get('/api/health', async (_req, res) => { 
-  try { await pool.query('SELECT 1'); res.json({ ok: true, database: 'connected' }); } 
-  catch { res.status(503).json({ ok: false, database: 'unavailable' }); } 
+  try { await pool.query('SELECT 1'); res.json({ ok: true }); } 
+  catch { res.status(503).json({ ok: false }); } 
 });
 app.get('/api/products', async (req, res, next) => { 
   try { 
@@ -156,7 +146,6 @@ app.post('/api/auth/login', async (req, res, next) => {
   } catch (e) { next(e); } 
 });
 app.get('/api/auth/me', auth, (req, res) => res.json({ user: req.user }));
-
 app.delete('/api/auth/me', auth, async (req, res, next) => {
   const conn = await pool.getConnection();
   try{
@@ -168,7 +157,7 @@ app.delete('/api/auth/me', auth, async (req, res, next) => {
     const [r] = await conn.execute('DELETE FROM customers WHERE id=?', [req.user.id]);
     if(!r.affectedRows){ await conn.rollback(); return res.status(404).json({ error: 'Account not found.' }); }
     await conn.commit();
-    res.json({ ok:true, message:'Account deleted' });
+    res.json({ ok:true });
   }catch(e){ await conn.rollback(); next(e); } finally{ conn.release(); }
 });
 
@@ -214,32 +203,26 @@ app.delete('/api/cart', auth, async (req, res, next) => {
   try{ await pool.execute('DELETE FROM carts WHERE user_id=?', [req.user.id]); res.json({ ok:true }); }catch(e){ next(e); }
 });
 
-// ===== ORDERS - WITH FULL ADDRESS + SA PHONE + TRACKING =====
+// ORDERS
 app.post('/api/orders', async (req, res) => {
   const conn = await pool.getConnection();
   try {
-    const { customer_name, full_name, email, phone, address, address_search, delivery_address, city, province, postal_code, items, customer_id } = req.body;
-    
-    // Normalize fields - support both old and new names, NO HARDCODED DEFAULTS
+    const { full_name, customer_name, email, phone, address_search, delivery_address, address, city, province, postal_code, items, customer_id } = req.body;
     const finalFullName = (full_name || customer_name || '').trim();
     const finalEmail = (email || '').trim().toLowerCase();
     const finalPhone = (phone || '').trim();
-    const finalAddressSearch = (address_search || '').trim();
     const finalDeliveryAddress = (delivery_address || address || '').trim();
+    const finalAddressSearch = (address_search || '').trim();
     const finalProvince = (province || '').trim().toUpperCase();
     const finalPostalCode = (postal_code || '').trim();
-    const finalCity = (city || '').trim();
+    const finalCity = (city || '').trim() || finalDeliveryAddress;
 
     if (!items || !items.length) return res.status(400).json({ error: 'Cart is empty' });
     if (!finalFullName || !finalEmail || !finalPhone || !finalDeliveryAddress || !finalProvince || !finalPostalCode) {
-      return res.status(400).json({ error: 'Full Name, Email, SA Phone, Delivery Address, Province, Postal Code are required to prevent wrong delivery.' });
+      return res.status(400).json({ error: 'Full Name, Email, SA Phone, Delivery Address, Province, Postal Code required.' });
     }
-    if(!isValidSAnumber(finalPhone)){
-      return res.status(400).json({ error: 'Invalid South African phone number. Use +27 format e.g. +27 71 234 5678 or 0712345678' });
-    }
-    if(!/^[0-9]{4}$/.test(finalPostalCode)){
-      return res.status(400).json({ error: 'Postal code must be 4 digits (SA format) e.g. 0555' });
-    }
+    if(!isValidSAnumber(finalPhone)) return res.status(400).json({ error: 'Invalid SA phone' });
+    if(!/^[0-9]{4}$/.test(finalPostalCode)) return res.status(400).json({ error: 'Postal code 4 digits' });
 
     const [products] = await conn.query('SELECT * FROM products WHERE id IN (?)', [items.map(i => i.id || i.product_id)]);
     let total = 0;
@@ -256,12 +239,13 @@ app.post('/api/orders', async (req, res) => {
         cid = decoded.id;
       }
     }catch{}
+    if(!cid) return res.status(401).json({ error: 'You must be signed in to place an order. Please sign in.' });
 
     const initialHistory = JSON.stringify([{
       status: 'Order Placed',
       location: 'Warehouse - Johannesburg',
       time: new Date().toISOString(),
-      note: `Order confirmed for ${finalFullName}. Address: ${finalDeliveryAddress}, ${finalProvince}`
+      note: `Order confirmed for ${finalFullName}. Address: ${finalDeliveryAddress}, ${finalProvince} ${finalPostalCode}`
     }]);
 
     const [orderResult] = await conn.query(
@@ -276,7 +260,31 @@ app.post('/api/orders', async (req, res) => {
       await conn.query('UPDATE products SET stock=stock-? WHERE id=?', [item.quantity, p.id || p.product_id]);
     }
     if(cid){ await conn.query('DELETE FROM carts WHERE user_id=?', [cid]); }
-    res.json({ orderId, total });
+
+    // ===== PHONE NOTIFICATION + RECEIPT =====
+    // Logs + if env NOTIFY_WEBHOOK set, posts there. For real SMS, add Twilio/WhatsApp API
+    const receipt = `
+NEW ORDER #${orderId}
+Customer: ${finalFullName}
+Email: ${finalEmail}
+Phone: ${finalPhone}
+Address: ${finalDeliveryAddress}, ${finalProvince}, ${finalPostalCode}
+Search: ${finalAddressSearch}
+Total: R${total}
+Items: ${items.map(i=>`${i.id}x${i.quantity}`).join(', ')}
+Time: ${new Date().toISOString()}
+`;
+    console.log('\n===== NEW ORDER NOTIFICATION =====\n' + receipt + '\n==================================\n');
+
+    // If you set NOTIFY_PHONE webhook (e.g. ntfy.sh, Telegram Bot, WhatsApp), it will ping your phone
+    const notifyUrl = process.env.NOTIFY_WEBHOOK || process.env.NOTIFY_PHONE;
+    if(notifyUrl){
+      try{
+        await fetch(notifyUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ text: receipt, orderId, total }) });
+      }catch(e){ console.log('Notify webhook failed', e.message); }
+    }
+
+    res.json({ orderId, total, receipt });
   } catch (err) {
     console.error('ORDER ERROR:', err);
     res.status(500).json({ error: 'Could not create your order: ' + err.message });
@@ -285,7 +293,7 @@ app.post('/api/orders', async (req, res) => {
 
 app.get('/api/orders/mine', auth, async (req, res, next) => { 
   try { 
-    const [rows] = await pool.execute('SELECT id,total,status,delivery_status,current_location,eta,tracking_history,delivery_address,province,postal_code,created_at FROM orders WHERE customer_id=? OR email=? ORDER BY created_at DESC', [req.user.id, req.user.email]); 
+    const [rows] = await pool.execute('SELECT id,total,status,delivery_status,current_location,eta,tracking_history,delivery_address,province,postal_code,cancel_reason,created_at FROM orders WHERE customer_id=? OR email=? ORDER BY created_at DESC', [req.user.id, req.user.email]); 
     for(const r of rows){
       const [items] = await pool.execute('SELECT oi.*, p.name, p.image_url FROM order_items oi JOIN products p ON p.id=oi.product_id WHERE oi.order_id=?', [r.id]);
       r.items = items;
@@ -294,14 +302,12 @@ app.get('/api/orders/mine', auth, async (req, res, next) => {
     res.json(rows); 
   } catch (e) { next(e); } 
 });
-
 app.get('/api/orders/my-orders', auth, async (req, res, next) => {
   try{
     const [rows] = await pool.execute('SELECT o.*, oi.quantity, oi.price, p.name, p.image_url FROM orders o LEFT JOIN order_items oi ON oi.order_id=o.id LEFT JOIN products p ON p.id=oi.product_id WHERE o.customer_id=? OR o.email=? ORDER BY o.created_at DESC', [req.user.id, req.user.email]);
-    // group
     const map = {};
     rows.forEach(r=>{
-      if(!map[r.id]) map[r.id] = { id:r.id, total:r.total, status:r.status, delivery_status:r.delivery_status, current_location:r.current_location, eta:r.eta, tracking_history:r.tracking_history, delivery_address:r.delivery_address, province:r.province, postal_code:r.postal_code, created_at:r.created_at, items:[] };
+      if(!map[r.id]) map[r.id] = { id:r.id, total:r.total, status:r.status, delivery_status:r.delivery_status, current_location:r.current_location, eta:r.eta, tracking_history:r.tracking_history, delivery_address:r.delivery_address, province:r.province, postal_code:r.postal_code, cancel_reason:r.cancel_reason, created_at:r.created_at, items:[] };
       if(r.quantity) map[r.id].items.push({ name:r.name, image_url:r.image_url, quantity:r.quantity, price:r.price });
     });
     const result = Object.values(map).map(o=>{
@@ -312,15 +318,9 @@ app.get('/api/orders/my-orders', auth, async (req, res, next) => {
   }catch(e){ next(e); }
 });
 
-// ADMIN - VIEW ALL ORDERS WITH FULL ADDRESS
 app.get('/api/admin/orders', auth, adminOnly, async (_req, res, next) => { 
   try { 
-    const [rows] = await pool.query(`
-      SELECT o.*, c.name as customer_name_db, c.email as customer_email_db 
-      FROM orders o 
-      LEFT JOIN customers c ON c.id=o.customer_id 
-      ORDER BY o.created_at DESC LIMIT 200
-    `); 
+    const [rows] = await pool.query(`SELECT o.*, c.name as customer_name_db FROM orders o LEFT JOIN customers c ON c.id=o.customer_id ORDER BY o.created_at DESC LIMIT 200`); 
     for(const r of rows){
       const [items] = await pool.query('SELECT oi.*, p.name FROM order_items oi JOIN products p ON p.id=oi.product_id WHERE oi.order_id=?', [r.id]);
       r.items = items;
@@ -335,7 +335,7 @@ app.post('/api/admin/products', auth, adminOnly, async (req, res, next) => {
     let { name, description='', price, image_url='', stock=0, category, category_id } = req.body || {}; 
     const catId = category_id ? Number(category_id) : await getCategoryId(category);
     if (!String(name || '').trim() || !Number.isFinite(Number(price)) || Number(price) < 0 || !Number.isInteger(Number(stock)) || Number(stock) < 0) 
-      return res.status(400).json({ error: 'Provide a name, valid price and non-negative whole-number stock.' }); 
+      return res.status(400).json({ error: 'Provide valid name price stock.' }); 
     const [r] = await pool.execute('INSERT INTO products(name,description,price,image_url,stock,category_id,active) VALUES(?,?,?,?,?,?,1)', [String(name).trim(), String(description), money(price), String(image_url), Number(stock), catId]); 
     const [rows] = await pool.query('SELECT p.id,p.name,p.description,p.price,p.image_url,p.stock,c.name AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?', [r.insertId]);
     res.status(201).json(rows[0]); 
@@ -363,14 +363,30 @@ app.delete('/api/admin/products/:id', auth, adminOnly, async (req, res, next) =>
   }catch(e){ next(e); }
 });
 
-// ADMIN UPDATE STATUS + TRACKING
 app.patch('/api/admin/orders/:id/status', auth, adminOnly, async (req, res, next) => { 
   try { 
     const allowed = ['pending','paid','processing','shipped','cancelled','delivered']; 
     if (!allowed.includes(req.body.status)) return res.status(400).json({ error: 'Invalid status.' }); 
-    const [r] = await pool.execute('UPDATE orders SET status=? WHERE id=?', [req.body.status, Number(req.params.id)]); 
+    const id = Number(req.params.id);
+    const cancel_reason = req.body.cancel_reason || null;
+    let query = 'UPDATE orders SET status=?';
+    const params = [req.body.status];
+    if(req.body.status==='cancelled'){
+      query += ', cancel_reason=?, delivery_status=?';
+      params.push(cancel_reason, `Cancelled: ${cancel_reason||'No reason provided'}`);
+      // Add to tracking history
+      const [existing] = await pool.query('SELECT tracking_history FROM orders WHERE id=?', [id]);
+      let hist = [];
+      try{ hist = typeof existing[0].tracking_history==='string' ? JSON.parse(existing[0].tracking_history) : (existing[0].tracking_history||[]); }catch{ hist=[]; }
+      hist.push({ status: 'Cancelled', location: 'Admin', time: new Date().toISOString(), note: cancel_reason||'Cancelled by admin' });
+      query += ', tracking_history=?';
+      params.push(JSON.stringify(hist));
+    }
+    query += ' WHERE id=?';
+    params.push(id);
+    const [r] = await pool.execute(query, params); 
     if (!r.affectedRows) return res.status(404).json({ error: 'Order not found.' }); 
-    res.json({ ok: true }); 
+    res.json({ ok: true, cancel_reason }); 
   } catch (e) { next(e); } 
 });
 
@@ -453,9 +469,9 @@ app.post('/api/payfast/notify', express.urlencoded({ extended: false }), async (
 app.use((err, _req, res, _next) => { 
   console.error(err); 
   if (err.code === 'ER_NO_SUCH_TABLE' || err.code === 'ECONNREFUSED') 
-    return res.status(503).json({ error: 'Database unavailable. Check MySQL is running and server/.env is correct.' }); 
+    return res.status(503).json({ error: 'Database unavailable.' }); 
   res.status(500).json({ error: 'Unexpected server error.' }); 
 });
 
 const port = Number(process.env.PORT || 4000); 
-app.listen(port, () => console.log(`Urban Cart API listening on http://localhost:${port} - TRACKING ENABLED`));
+app.listen(port, () => console.log(`Urban Cart API v2 listening on http://localhost:${port}`));
