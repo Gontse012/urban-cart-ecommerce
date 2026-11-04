@@ -62,6 +62,27 @@ async function getCategoryId(nameOrId){
   return rows.length ? rows[0].id : null;
 }
 
+// AUTO-CREATE CARTS TABLE ON STARTUP
+async function ensureCartsTable(){
+  try{
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS carts (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        product_id INT NOT NULL,
+        quantity INT NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY unique_user_product (user_id, product_id),
+        FOREIGN KEY (user_id) REFERENCES customers(id) ON DELETE CASCADE,
+        FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+      )
+    `);
+    console.log('Carts table ready');
+  }catch(e){ console.error('Carts table error:', e.message); }
+}
+ensureCartsTable();
+
 app.get('/', (req, res) => {
   res.send('urban-cart API is running - use /api/products');
 });
@@ -135,10 +156,95 @@ app.post('/api/auth/login', async (req, res, next) => {
 
 app.get('/api/auth/me', auth, (req, res) => res.json({ user: req.user }));
 
+// ===== DELETE OWN ACCOUNT =====
+app.delete('/api/auth/me', auth, async (req, res, next) => {
+  const conn = await pool.getConnection();
+  try{
+    await conn.beginTransaction();
+    await conn.execute('DELETE FROM carts WHERE user_id=?', [req.user.id]);
+    await conn.execute('DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE customer_id=?)', [req.user.id]);
+    await conn.execute('DELETE FROM orders WHERE customer_id=?', [req.user.id]);
+    await conn.execute('DELETE FROM orders WHERE email=? AND customer_id IS NULL', [req.user.email]);
+    const [r] = await conn.execute('DELETE FROM customers WHERE id=?', [req.user.id]);
+    if(!r.affectedRows){ await conn.rollback(); return res.status(404).json({ error: 'Account not found.' }); }
+    await conn.commit();
+    res.json({ ok:true, message:'Account deleted' });
+  }catch(e){ await conn.rollback(); next(e); } finally{ conn.release(); }
+});
+
+// ===== CARTS - PERSISTENT IN DATABASE =====
+app.get('/api/cart/mine', auth, async (req, res, next) => {
+  try{
+    const [rows] = await pool.execute(`
+      SELECT c.product_id, c.quantity, p.name, p.description, p.price, p.image_url, p.stock, cat.name AS category
+      FROM carts c
+      JOIN products p ON p.id=c.product_id
+      LEFT JOIN categories cat ON cat.id=p.category_id
+      WHERE c.user_id=?
+      ORDER BY c.updated_at DESC
+    `, [req.user.id]);
+    res.json(rows);
+  }catch(e){ next(e); }
+});
+
+app.post('/api/cart', auth, async (req, res, next) => {
+  try{
+    const product_id = Number(req.body.product_id || req.body.id);
+    let quantity = Number(req.body.quantity || 1);
+    if(!Number.isInteger(product_id) || product_id<1) return res.status(400).json({ error: 'Invalid product.' });
+    if(!Number.isInteger(quantity) || quantity<1) quantity=1;
+    if(quantity>99) quantity=99;
+    const [prod] = await pool.execute('SELECT id, stock FROM products WHERE id=?', [product_id]);
+    if(!prod.length) return res.status(404).json({ error: 'Product not found.' });
+    if(prod[0].stock < quantity) return res.status(409).json({ error: 'Not enough stock.' });
+    await pool.execute(`
+      INSERT INTO carts (user_id, product_id, quantity) VALUES (?,?,?)
+      ON DUPLICATE KEY UPDATE quantity = LEAST(99, quantity + VALUES(quantity))
+    `, [req.user.id, product_id, quantity]);
+    const [rows] = await pool.execute(`
+      SELECT c.product_id, c.quantity, p.name, p.price, p.image_url FROM carts c JOIN products p ON p.id=c.product_id WHERE c.user_id=? ORDER BY c.updated_at DESC
+    `, [req.user.id]);
+    res.json(rows);
+  }catch(e){ next(e); }
+});
+
+app.patch('/api/cart/:productId', auth, async (req, res, next) => {
+  try{
+    const productId = Number(req.params.productId);
+    let quantity = Number(req.body.quantity);
+    if(!Number.isInteger(productId) || productId<1) return res.status(400).json({ error: 'Invalid product.' });
+    if(!Number.isInteger(quantity) || quantity<0) return res.status(400).json({ error: 'Invalid quantity.' });
+    if(quantity===0){
+      await pool.execute('DELETE FROM carts WHERE user_id=? AND product_id=?', [req.user.id, productId]);
+    }else{
+      await pool.execute('UPDATE carts SET quantity=? WHERE user_id=? AND product_id=?', [Math.min(99, quantity), req.user.id, productId]);
+    }
+    const [rows] = await pool.execute(`
+      SELECT c.product_id, c.quantity, p.name, p.price, p.image_url FROM carts c JOIN products p ON p.id=c.product_id WHERE c.user_id=? ORDER BY c.updated_at DESC
+    `, [req.user.id]);
+    res.json(rows);
+  }catch(e){ next(e); }
+});
+
+app.delete('/api/cart/:productId', auth, async (req, res, next) => {
+  try{
+    const productId = Number(req.params.productId);
+    await pool.execute('DELETE FROM carts WHERE user_id=? AND product_id=?', [req.user.id, productId]);
+    res.json({ ok:true });
+  }catch(e){ next(e); }
+});
+
+app.delete('/api/cart', auth, async (req, res, next) => {
+  try{
+    await pool.execute('DELETE FROM carts WHERE user_id=?', [req.user.id]);
+    res.json({ ok:true });
+  }catch(e){ next(e); }
+});
+
 app.post('/api/orders', async (req, res) => {
   const conn = await pool.getConnection();
   try {
-    const { customer_name, email, phone, address, city, province, postal_code, items } = req.body;
+    const { customer_name, email, phone, address, city, province, postal_code, items, customer_id } = req.body;
     if (!items || !items.length) {
       return res.status(400).json({ error: 'Cart is empty' });
     }
@@ -149,9 +255,18 @@ app.post('/api/orders', async (req, res) => {
       if (!p) return res.status(400).json({ error: `Product ${item.id} not found` });
       total += Number(p.price) * item.quantity;
     }
+    // Try to get customer_id from JWT if not provided
+    let cid = customer_id || null;
+    try{
+      const token = (req.headers.authorization || '').replace(/^Bearer\s+/i,'');
+      if(token){
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-only-change-this-secret');
+        cid = decoded.id;
+      }
+    }catch{}
     const [orderResult] = await conn.query(
-      'INSERT INTO orders (customer_name, email, phone, address, city, province, postal_code, total, status) VALUES (?,?,?,?,?,?,?,?,?)',
-      [customer_name, email, phone, address, city, province, postal_code, total, 'pending']
+      'INSERT INTO orders (customer_id, customer_name, email, phone, address, city, province, postal_code, total, status) VALUES (?,?,?,?,?,?,?,?,?,?)',
+      [cid, customer_name, email, phone, address, city, province, postal_code, total, 'pending']
     );
     const orderId = orderResult.insertId;
     for (const item of items) {
@@ -160,6 +275,11 @@ app.post('/api/orders', async (req, res) => {
         'INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?,?,?,?)',
         [orderId, item.id, item.quantity, p.price]
       );
+      await conn.query('UPDATE products SET stock=stock-? WHERE id=?', [item.quantity, item.id]);
+    }
+    // Clear DB cart after successful order if user logged in
+    if(cid){
+      await conn.query('DELETE FROM carts WHERE user_id=?', [cid]);
     }
     res.json({ orderId, total });
   } catch (err) {
@@ -179,7 +299,7 @@ app.get('/api/orders/mine', auth, async (req, res, next) => {
 
 app.get('/api/admin/orders', auth, adminOnly, async (_req, res, next) => { 
   try { 
-    const [rows] = await pool.query('SELECT id,customer_name,email,total,status,city,created_at FROM orders ORDER BY created_at DESC LIMIT 200'); 
+    const [rows] = await pool.query('SELECT id,customer_id,customer_name,email,total,status,city,created_at FROM orders ORDER BY created_at DESC LIMIT 200'); 
     res.json(rows); 
   } catch (e) { next(e); } 
 });

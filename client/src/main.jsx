@@ -41,27 +41,50 @@ function App(){
  const [editingId,setEditingId]=useState(null);
  const categories=['All','Tech','Home','Lifestyle','Accessories'];
 
- // LOAD CART FOR CURRENT USER (fixes sharing bug)
+ // LOAD LOCAL CART FOR GUEST + DB CART FOR USER
  useEffect(()=>{
    const key = getCartKey(user);
    try{
      const saved = JSON.parse(localStorage.getItem(key) || '[]');
-     setCart(Array.isArray(saved) ? saved : []);
-   }catch{ setCart([]); }
+     if(!user) setCart(Array.isArray(saved) ? saved : []);
+   }catch{ if(!user) setCart([]); }
+
+   if(user){
+     // Load DB cart when logged in
+     api('/cart/mine').then(dbRows=>{
+       if(Array.isArray(dbRows) && dbRows.length){
+         // Map DB rows to full product objects
+         const mapped = dbRows.map(r=>{
+           // r may already have product details from backend JOIN
+           return {
+             id: r.product_id,
+             product_id: r.product_id,
+             quantity: r.quantity,
+             name: r.name,
+             price: r.price,
+             image_url: r.image_url,
+             description: r.description || '',
+             category: r.category || 'Tech',
+             stock: r.stock ?? 99
+           };
+         });
+         setCart(mapped);
+         localStorage.setItem(key, JSON.stringify(mapped));
+       }
+     }).catch(()=>{});
+   }
  },[user]);
 
- // SAVE CART FOR CURRENT USER
+ // SAVE LOCAL BACKUP
  useEffect(()=>{
    const key = getCartKey(user);
    localStorage.setItem(key, JSON.stringify(cart));
-   // cleanup old global key
    localStorage.removeItem('uc_cart');
  },[cart, user]);
 
  useEffect(()=>{
     const params=new URLSearchParams(window.location.search);
     if(params.get('payment')==='return'){ 
-      // clear cart for this user after successful payment
       const key = getCartKey(user);
       localStorage.removeItem(key);
       localStorage.removeItem('lastOrderId'); 
@@ -83,8 +106,46 @@ function App(){
  const count=cart.reduce((s,p)=>s+p.quantity,0),total=cart.reduce((s,p)=>s+p.price*p.quantity,0);
  const setField=(k,v)=>setForm(f=>({...f,[k]:v}));
 
- function add(p){setCart(old=>{const found=old.find(x=>x.id===p.id);return found?old.map(x=>x.id===p.id?{...x,quantity:Math.min(x.quantity+1,99)}:x):[...old,{...p,quantity:1}]});setNotice(`${p.name} added to bag`);}
- function changeQty(id,d){setCart(old=>old.map(p=>p.id===id?{...p,quantity:p.quantity+d}:p).filter(p=>p.quantity>0));}
+ async function add(p){
+   setCart(old=>{
+     const found=old.find(x=>x.id===p.id);
+     return found?old.map(x=>x.id===p.id?{...x,quantity:Math.min(x.quantity+1,99)}:x):[...old,{...p,quantity:1}];
+   });
+   setNotice(`${p.name} added to bag`);
+   if(user){
+     try{ await api('/cart',{method:'POST', body:JSON.stringify({product_id:p.id, quantity:1})}); }catch(e){ console.log('cart sync error', e.message); }
+   }
+ }
+
+ async function changeQty(id,d){
+   const current = cart.find(x=>x.id===id);
+   if(!current) return;
+   const newQty = current.quantity + d;
+   if(newQty <=0){
+     setCart(old=>old.filter(x=>x.id!==id));
+   }else{
+     setCart(old=>old.map(p=>p.id===id?{...p,quantity:newQty}:p));
+   }
+   if(user){
+     try{
+       if(newQty<=0) await api(`/cart/${id}`,{method:'DELETE'});
+       else await api(`/cart/${id}`,{method:'PATCH', body:JSON.stringify({quantity:newQty})});
+     }catch{}
+   }
+ }
+
+ async function removeItem(id){
+   setCart(old=>old.filter(x=>x.id!==id));
+   if(user){ try{ await api(`/cart/${id}`,{method:'DELETE'});}catch{} }
+ }
+
+ async function clearCart(){
+   setCart([]);
+   if(user){ try{ await api('/cart',{method:'DELETE'});}catch{} }
+   const key=getCartKey(user);
+   localStorage.removeItem(key);
+ }
+
  function openProduct(p){ setSelectedProduct(p); setShowAll(false); window.scrollTo({top:0, behavior:'smooth'}); }
  function closeProduct(){ setSelectedProduct(null); }
 
@@ -92,12 +153,22 @@ function App(){
   e.preventDefault(); setBusy(true);
   try{
     const data=await api(`/auth/${authMode}`,{method:'POST',body:JSON.stringify(authForm)});
+    // Merge guest cart into DB cart after login/register
+    const guestKey = getCartKey(null);
+    const guestCart = JSON.parse(localStorage.getItem(guestKey) || '[]');
     localStorage.setItem('uc_token',data.token);
     localStorage.setItem('uc_user',JSON.stringify(data.user));
     setUser(data.user);
     setAccountOpen(false); 
     setNotice(`Welcome${data.user.name?`, ${data.user.name.split(' ')[0]}`:''}!`); 
     setAuthForm({name:'',email:'',password:''});
+    // Push guest cart to DB
+    if(guestCart.length){
+      for(const item of guestCart){
+        try{ await api('/cart',{method:'POST', body:JSON.stringify({product_id:item.id, quantity:item.quantity})}); }catch{}
+      }
+      localStorage.removeItem(guestKey);
+    }
   }
   catch(e){setNotice(e.message);}
   finally{setBusy(false);} 
@@ -105,18 +176,42 @@ function App(){
 
  function logout(){
   const key = getCartKey(user);
+  // Keep DB cart on server, only clear local UI - so it comes back next login
+  // Save current cart to guest key so guest still sees something
   localStorage.removeItem('uc_token');
   localStorage.removeItem('uc_user');
-  localStorage.removeItem(key);
   localStorage.removeItem('uc_cart');
   localStorage.removeItem('cart');
   localStorage.removeItem('uc_cart_guest');
+  // Do NOT delete user's DB cart on logout, only local state
+  localStorage.removeItem(key);
   setUser(null);
   setOrders([]);
   setCart([]);
   setAdminOpen(false);
   setAccountOpen(false);
-  setNotice('You have signed out.');
+  setNotice('You have signed out. Your bag is saved for next login.');
+ }
+
+ async function deleteAccount(){
+  if(!confirm('Delete your account? This will permanently delete your account, orders and saved bag.')) return;
+  if(!confirm('Are you absolutely sure? This cannot be undone.')) return;
+  setBusy(true);
+  try{
+    await api('/auth/me',{method:'DELETE'});
+    const key = getCartKey(user);
+    localStorage.removeItem('uc_token');
+    localStorage.removeItem('uc_user');
+    localStorage.removeItem(key);
+    localStorage.removeItem('uc_cart');
+    localStorage.removeItem('uc_cart_guest');
+    setUser(null);
+    setOrders([]);
+    setCart([]);
+    setAccountOpen(false);
+    setNotice('Your account has been deleted.');
+  }catch(e){ setNotice(e.message); }
+  finally{ setBusy(false); }
  }
 
  async function placeOrder(e) {
@@ -125,7 +220,7 @@ function App(){
   if(!cart.length){ setNotice('Your bag is empty.'); return; }
   setBusy(true); setNotice('');
   try {
-    const order = await api('/orders',{method:'POST',body:JSON.stringify({...form,items: cart.map(p => ({ id: p.id, quantity: p.quantity }))})});
+    const order = await api('/orders',{method:'POST',body:JSON.stringify({...form, customer_id: user?.id, items: cart.map(p => ({ id: p.id, quantity: p.quantity }))})});
     const pay = await api('/payfast/checkout',{method:'POST',body:JSON.stringify({ orderId: order.orderId })});
     if (!pay.action || !pay.fields) throw new Error('PayFast is not configured yet on server');
     localStorage.setItem('lastOrderId', order.orderId);
@@ -294,8 +389,8 @@ function App(){
       <div className="drawer-head"><h2>BAG ({count})</h2><button onClick={()=>setCartOpen(false)}><X size={16}/></button></div>
       {!cart.length?<div className="empty-bag"><ShoppingBag size={28}/><h3>Bag is empty.</h3><p>Go add some good stuff.</p><button className="btn-black" onClick={()=>setCartOpen(false)}>SHOP NOW</button></div>:
       <>
-        <div className="cart-list">{cart.map(p=><div key={p.id} className="cart-item"><img src={p.image_url}/><div><h4>{p.name}</h4><b>{fmt(p.price)}</b><div className="qty"><button onClick={()=>changeQty(p.id,-1)}><Minus size={10}/></button><span>{p.quantity}</span><button onClick={()=>changeQty(p.id,1)}><Plus size={10}/></button></div></div><button className="remove" onClick={()=>setCart(old=>old.filter(x=>x.id!==p.id))}>REMOVE</button></div>)}</div>
-        <div className="cart-foot"><div className="sum"><span>SUBTOTAL</span><b>{fmt(total)}</b></div><button className="btn-black full" onClick={()=>{setCartOpen(false);setCheckoutOpen(true)}}>CHECKOUT — {fmt(total)} <ArrowUpRight size={14}/></button></div>
+        <div className="cart-list">{cart.map(p=><div key={p.id} className="cart-item"><img src={p.image_url}/><div><h4>{p.name}</h4><b>{fmt(p.price)}</b><div className="qty"><button onClick={()=>changeQty(p.id,-1)}><Minus size={10}/></button><span>{p.quantity}</span><button onClick={()=>changeQty(p.id,1)}><Plus size={10}/></button></div></div><button className="remove" onClick={()=>removeItem(p.id)}>REMOVE</button></div>)}</div>
+        <div className="cart-foot"><div className="sum"><span>SUBTOTAL</span><b>{fmt(total)}</b></div><button className="btn-black full" onClick={()=>{setCartOpen(false);setCheckoutOpen(true)}}>CHECKOUT — {fmt(total)} <ArrowUpRight size={14}/></button><button className="btn-ghost full" style={{marginTop:8}} onClick={clearCart}>CLEAR BAG</button></div>
       </>}
     </aside>
   </div>}
@@ -321,7 +416,11 @@ function App(){
         <div className="avatar">{user.name[0]}</div><h3>{user.name}</h3><p>{user.email}</p>
         <div className="orders">{orders.map(o=><div key={o.id} className="order-line"><span>#{o.id} • {new Date(o.created_at).toLocaleDateString()}</span><b>{fmt(o.total)} — {o.status}</b></div>)}</div>
         <button className="btn-outline full" onClick={logout}>SIGN OUT</button>
-        {user.role==='admin'&&<button className="btn-black full" style={{marginTop:8}} onClick={()=>{setAccountOpen(false);showAdmin()}}>ADMIN ORDERS</button>}
+        <button className="btn-ghost full" style={{marginTop:10, borderColor:'#ff3b30', color:'#ff3b30', border:'1px solid #ff3b30'}} onClick={deleteAccount} disabled={busy}>
+          {busy?'DELETING...':'DELETE MY ACCOUNT'}
+        </button>
+        <p style={{fontSize:11, color:'#888', marginTop:8, textAlign:'center'}}>This will permanently delete your account, orders and saved bag.</p>
+        {user.role==='admin'&&<button className="btn-black full" style={{marginTop:12}} onClick={()=>{setAccountOpen(false);showAdmin()}}>ADMIN ORDERS</button>}
       </div>:<>
         <div className="auth-switch"><button className={authMode==='login'?'on':''} onClick={()=>setAuthMode('login')}>LOGIN</button><button className={authMode==='register'?'on':''} onClick={()=>setAuthMode('register')}>REGISTER</button></div>
         <form onSubmit={submitAuth} className="auth-form">
