@@ -458,7 +458,6 @@ function App(){
         <section className="hero-grid">
           <div className="hero-manifesto">
             <h1>FIND<br/>YOUR<br/>KIND<br/><em>OF GOOD.</em></h1>
-            <p>Not another store. A tight edit of useful, well-made things that earn their place. No filler. No endless scroll.</p>
             <div className="hero-actions">
               <a href="#shop" className="btn-black">SHOP THE INDEX <ArrowUpRight size={16}/></a>
             </div>
@@ -614,7 +613,7 @@ function App(){
         <form onSubmit={submitAuth} className="auth-form">
           {authMode==='register'&&<input required placeholder="Full name" value={authForm.name} onChange={e=>setAuthForm(f=>({...f,name:e.target.value}))}/>}
           <input required type="email" placeholder="Email" value={authForm.email} onChange={e=>setAuthForm(f=>({...f,email:e.target.value}))}/>
-          <input required type="password" placeholder="Password (min 8 chars)" value={authForm.password} onChange={e=>setAuthForm(f=>({...f,password:e.target.value}))}/>
+          <input required type="password" placeholder="Password" value={authForm.password} onChange={e=>setAuthForm(f=>({...f,password:e.target.value}))}/>
           {authMode==='register' && (
             <div className="terms-box">
               <label className="terms-check">
