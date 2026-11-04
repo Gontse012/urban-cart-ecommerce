@@ -376,3 +376,99 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
   }
 }
 
+
+/* === FIX: bag over header on big devices === */
+
+/* ===== Z-INDEX HIERARCHY FIX =====
+   Header: 100 (sticky, always bottom)
+   Mobile search: 500
+   Bag Drawer Overlay: 10000
+   Bag Drawer: 10001
+   Checkout/Account/Admin Overlays: 10002
+   Toast: 11000
+*/
+
+.header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 100 !important;
+  background: #fdfcfa !important;
+  isolation: isolate;
+}
+
+.ticker {
+  position: relative;
+  z-index: 99 !important;
+}
+
+.overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 10000 !important;
+  background: rgba(0,0,0,0.4) !important;
+}
+
+.overlay.centered-overlay {
+  z-index: 10002 !important;
+}
+
+.drawer {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 420px !important;
+  max-width: 90vw !important;
+  z-index: 10001 !important;
+  background: #fff !important;
+  box-shadow: -8px 0 30px rgba(0,0,0,0.15) !important;
+}
+
+.modal {
+  position: relative !important;
+  z-index: 10003 !important;
+}
+
+.nav.open {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+  background: #FFFCF8 !important;
+}
+
+.mobile-search-overlay {
+  position: fixed !important;
+  top: 64px !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 500 !important;
+  background: #fff !important;
+  border-bottom: 2px solid #121212 !important;
+}
+
+.toast {
+  position: fixed !important;
+  z-index: 11000 !important;
+  bottom: 20px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+}
+
+/* Ensure bag pill count not hidden */
+.bag-pill {
+  position: relative;
+  z-index: 1;
+}
+
+/* Desktop: ensure header does not create new stacking context over drawer */
+@media (min-width: 768px) {
+  .header {
+    z-index: 100 !important;
+  }
+  .overlay, .drawer {
+    z-index: 10000 !important;
+  }
+  .drawer {
+    z-index: 10001 !important;
+  }
+}
