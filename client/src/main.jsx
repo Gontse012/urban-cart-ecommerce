@@ -39,6 +39,8 @@ function getCartKey(user){ return `uc_cart_${user?.id || 'guest'}`; }
 function App(){
  const [products,setProducts]=useState(fallbackProducts),[category,setCategory]=useState('All'),[search,setSearch]=useState(''),[cart,setCart]=useState([]),[cartOpen,setCartOpen]=useState(false),[checkoutOpen,setCheckoutOpen]=useState(false),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[menuOpen,setMenuOpen]=useState(false),[accountOpen,setAccountOpen]=useState(false),[authMode,setAuthMode]=useState('login'),[user,setUser]=useState(()=>JSON.parse(localStorage.getItem('uc_user')||'null')),[orders,setOrders]=useState([]),[adminOpen,setAdminOpen]=useState(false),[adminOrders,setAdminOrders]=useState([]),[busy,setBusy]=useState(false),[selectedProduct,setSelectedProduct]=useState(null),[showAll,setShowAll]=useState(false);
  const [activeTab,setActiveTab]=useState('shop');
+ const [searchOpen,setSearchOpen]=useState(false);
+ const [checkoutError,setCheckoutError]=useState('');
  const [trackingOrders,setTrackingOrders]=useState([]);
  const [editingOrder,setEditingOrder]=useState(null);
  const [cancelModal,setCancelModal]=useState(null);
@@ -127,7 +129,8 @@ function App(){
  }
 
  const visible=useMemo(()=>products.filter(p=>(category==='All'|| (p.category||'').toLowerCase()===category.toLowerCase())&& `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())),[products,category,search]);
- const count = cart.reduce((s,p)=>s+p.quantity,0), total=cart.reduce((s,p)=>s+p.price*p.quantity,0);  
+ const visibleAll=useMemo(()=>products.filter(p=> `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())),[products,search]);
+ const count = cart.reduce((s,p)=>s+p.quantity,0), total=cart.reduce((s,p)=>s+p.price*p.quantity,0);    
  const setField=(k,v)=>setForm(f=>({...f,[k]:v}));
  const hasOrders = trackingOrders.length > 0 || orders.length > 0;
 
@@ -166,6 +169,8 @@ function App(){
  }
  function openProduct(p){ setSelectedProduct(p); setShowAll(false); setActiveTab('shop'); window.scrollTo({top:0, behavior:'smooth'}); }
  function closeProduct(){ setSelectedProduct(null); }
+ function handleViewEverything(){ setCategory('All'); setSearch(''); setShowAll(true); setSelectedProduct(null); setActiveTab('shop'); window.scrollTo({top:0, behavior:'smooth'}); }
+ function handleHome(){ setShowAll(false); closeProduct(); setCategory('All'); setSearch(''); setActiveTab('shop'); window.scrollTo({top:0, behavior:'smooth'}); }
 
  async function submitAuth(e){
   e.preventDefault(); 
@@ -262,7 +267,7 @@ function App(){
     setNotice('Invalid SA phone. Use +27 71 234 5678 or 0712345678 (SA numbers start with 6-8)'); return;
   }
   if(!/^[0-9]{4}$/.test(form.postal_code.trim())){
-    setNotice('Postal code must be 4 digits (SA) e.g. 0555'); return;
+    setNotice('Postal code must be 4 digits (SA) e.g. 2196'); return;
   }
   if(!cart.length){ setNotice('Your bag is empty.'); return; }
   setBusy(true); setNotice('');
@@ -287,7 +292,7 @@ function App(){
     const formEl = document.createElement('form'); formEl.method='POST'; formEl.action=pay.action; formEl.style.display='none';
     Object.entries(pay.fields).forEach(([name, value]) => { const input=document.createElement('input'); input.type='hidden'; input.name=name; input.value=String(value ?? ''); formEl.appendChild(input); });
     document.body.appendChild(formEl); setCheckoutOpen(false); formEl.submit();
-  } catch (err) { setNotice(err.message || 'Could not start PayFast checkout.'); } finally { setBusy(false); }
+  } catch (err) { setCheckoutError(err.message || 'Could not start PayFast checkout.'); } finally { setBusy(false); }
  }
 
  async function createProduct(e){
@@ -359,14 +364,16 @@ function App(){
         <span className="brand-mark">U</span> URBAN CART <i>®</i>
       </a>
       <nav className={menuOpen?'nav open':'nav'}>
-        <a onClick={()=>{setShowAll(false); closeProduct(); setCategory('All'); setActiveTab('shop'); setMenuOpen(false); window.scrollTo(0,0)}}>HOME</a>
-        <a onClick={()=>{setShowAll(true); closeProduct(); setActiveTab('shop'); setMenuOpen(false); window.scrollTo(0,0)}}>INDEX</a>
+        <button className="nav-close" onClick={()=>setMenuOpen(false)} aria-label="Close menu"><X size={24}/></button>
+        <a onClick={()=>{handleHome(); setMenuOpen(false);}}>HOME</a>
+        <a onClick={()=>{handleViewEverything(); setMenuOpen(false);}}>INDEX</a>
         {hasOrders && <a onClick={()=>{setActiveTab('track'); loadTracking(); setMenuOpen(false);}}>TRACK ORDER</a>}
         <a href="#story" onClick={()=>setMenuOpen(false)}>MANIFESTO</a>
       </nav>
     </div>
     <div className="header-right">
-      <label className="search-pill"><Search size={14}/><input value={search} onChange={e=>{setSearch(e.target.value); if(selectedProduct){closeProduct()}}} placeholder="SEARCH"/><kbd>⌘K</kbd></label>
+      <label className="search-pill desktop-search"><Search size={14}/><input value={search} onChange={e=>{setSearch(e.target.value); if(selectedProduct){closeProduct()}}} placeholder="SEARCH"/><kbd>⌘K</kbd></label>
+      <button className="circle-btn mobile-search-btn" onClick={()=>{const inp=document.querySelector(".mobile-search-overlay input"); if(inp){document.querySelector(".mobile-search-overlay")?.classList.toggle("show")} else {setSearchOpen(!searchOpen)}} }><Search size={16}/></button>
       <button className="circle-btn" onClick={()=>setAccountOpen(true)}><UserRound size={16}/></button>
       <button className="bag-pill" onClick={()=>setCartOpen(true)}><ShoppingBag size={14}/> BAG <b>{count}</b></button>
     </div>
@@ -434,11 +441,11 @@ function App(){
     ) : showAll ? (
       <section className="shop">
         <div className="shop-head">
-          <h2>FULL INDEX <span>({visible.length})</span></h2>
+          <h2>FULL INDEX <span>({visibleAll.length})</span></h2>
           <button className="btn-ghost" onClick={()=>{setShowAll(false); window.scrollTo(0,0)}}><X size={14}/> BACK TO HOME</button>
         </div>
         <div className="grid all-mode">
-          {visible.map((p)=>
+          {visibleAll.map((p)=>
             <article key={p.id} className="card" onClick={()=>openProduct(p)}>
               <div className="card-img"><img src={p.image_url} alt={p.name} loading="lazy"/><span className="tag">{p.category}</span><button className="add" onClick={e=>{e.stopPropagation(); add(p);}}><Plus size={16}/></button></div>
               <div className="card-info"><div><h3>{p.name}</h3><small>{p.category}</small></div><b>{fmt(p.price)}</b></div>
@@ -459,7 +466,9 @@ function App(){
           </div>
           <div className="hero-cards">
             <div className="hero-big-card">
-              <img src="https://images.unsplash.com/photo-1490312278390-ab64016e0aa9?auto=format&fit=crop&w=1200&q=85" alt=""/>
+              <video autoPlay muted loop playsInline poster="https://images.unsplash.com/photo-1490312278390-ab64016e0aa9?auto=format&fit=crop&w=1200&q=85" style={{width:"100%",height:"100%",objectFit:"cover"}}>
+                <source src="https://videos.pexels.com/video-files/18069234/18069234-uhd_1440_1440_24fps.mp4" type="video/mp4"/>
+              </video>
               <div className="card-overlay"><span>THE NEW STANDARD</span><strong>Little things.<br/>Big difference.</strong></div>
             </div>
             <div className="hero-small-cards">
@@ -474,7 +483,7 @@ function App(){
             <div className="tabs">
               {categories.map(c=><button key={c} className={category===c?'active':''} onClick={()=>setCategory(c)}>{c.toUpperCase()}</button>)}
             </div>
-            <button className="view-all" onClick={()=>{setShowAll(true); window.scrollTo(0,0)}}>VIEW EVERYTHING <ArrowUpRight size={14}/></button>
+            <button className="view-all" onClick={()=>{handleViewEverything()}}>VIEW EVERYTHING <ArrowUpRight size={14}/></button>
           </div>
           {loading&&<div className="loading">LOADING INDEX...</div>}
           {!loading&&!visible.length&&<div className="empty">NO RESULTS FOR "{search}" <button onClick={()=>{setSearch('');setCategory('All')}}>CLEAR</button></div>}
@@ -524,6 +533,7 @@ function App(){
           PLEASE SIGN IN FIRST - <button onClick={()=>{setCheckoutOpen(false); setAccountOpen(true);}} style={{background:'#fff', color:'#121212', border:'none', padding:'4px 10px', fontWeight:700, marginLeft:6, cursor:'pointer'}}>SIGN IN / SIGN UP</button>
         </div>
       )}
+      {checkoutError && <div className="checkout-error" style={{background:'#FEF3C7', border:'2px solid #F59E0B', color:'#92400E', padding:'10px 12px', fontSize:11, fontWeight:700, marginBottom:12, textAlign:'center', borderRadius:4}}>{checkoutError}</div>}
       <div style={{background:'#f7f5f0', border:'2px solid #121212', padding:12, marginBottom:14}}>
         <p style={{fontSize:12, fontWeight:700, margin:'0 0 6px'}}>✓ PCI DSS Secure - Your info is protected</p>
         <p style={{fontSize:11, margin:0}}>Full SA address + SA phone required to prevent wrong delivery.</p>
@@ -537,7 +547,7 @@ function App(){
           <label style={{fontSize:11, fontWeight:700, display:'flex', justifyContent:'space-between'}}><span>Phone number *</span><span style={{fontWeight:400, opacity:.6}}>SA only - assist delivery</span></label>
           <div style={{display:'flex', border:'2px solid #121212', height:44, marginTop:4}}>
             <span style={{background:'#eee', padding:'0 10px', display:'grid', placeItems:'center', fontSize:12, fontWeight:700, borderRight:'2px solid #121212'}}>ZA +27</span>
-            <input required value={form.phone} onChange={e=>setField('phone',e.target.value)} placeholder="707 028 041 or 071 234 5678" style={{flex:1, border:0, padding:'0 12px'}}/>
+            <input required value={form.phone} onChange={e=>setField('phone',e.target.value)} placeholder="082 123 4567 or +27 82 123 4567" style={{flex:1, border:0, padding:'0 12px'}}/>
           </div>
         </div>
         <div>
@@ -546,10 +556,10 @@ function App(){
         </div>
         <div>
           <label style={{fontSize:11, fontWeight:700}}>Delivery address *</label>
-          <input required list="sa-addresses" value={form.delivery_address} onChange={e=>setField('delivery_address',e.target.value)} placeholder="e.g. 7940 Lephalale Street" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/>
+          <input required list="sa-addresses" value={form.delivery_address} onChange={e=>setField('delivery_address',e.target.value)} placeholder="e.g. 24 Oak Avenue, Sandton" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/>
           <datalist id="sa-addresses">
-            <option value="7940 Lephalale Street, Greater Nigel, Nigel, South Africa"/>
-            <option value="7940 Lephalale Street, Tshikota, Louis Trichardt, South Africa"/>
+            <option value="24 Oak Avenue, Sandton, Johannesburg, South Africa"/>
+            <option value="45 Beach Road, Sea Point, Cape Town, South Africa"/>
           </datalist>
         </div>
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
@@ -561,7 +571,7 @@ function App(){
           </div>
           <div>
             <label style={{fontSize:11, fontWeight:700}}>Postal code *</label>
-            <input required value={form.postal_code} onChange={e=>setField('postal_code',e.target.value)} placeholder="0555" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/>
+            <input required value={form.postal_code} onChange={e=>setField('postal_code',e.target.value)} placeholder="2196" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/>
           </div>
         </div>
         <div style={{border:'2px solid #121212', padding:12, background:'#FFFCF8'}}>
@@ -605,7 +615,7 @@ function App(){
           <button className={authMode==='login'?'on':''} onClick={()=>{setAuthMode('login'); setAuthError('');}}>LOGIN</button>
           <button className={authMode==='register'?'on':''} onClick={()=>{setAuthMode('register'); setAuthError('');}}>SIGN UP</button>
         </div>
-        {authError && <div className="auth-error">{authError}</div>}
+        {authError && <div className="auth-error" style={{background:'#FEF3C7', border:'2px solid #F59E0B', color:'#92400E', padding:'10px 12px', fontSize:11, fontWeight:700, marginBottom:12, textAlign:'center', borderRadius:4}}>{authError}</div>}
         <form onSubmit={submitAuth} className="auth-form">
           {authMode==='register'&&<input required placeholder="Full name" value={authForm.name} onChange={e=>setAuthForm(f=>({...f,name:e.target.value}))}/>}
           <input required type="email" placeholder="Email" value={authForm.email} onChange={e=>setAuthForm(f=>({...f,email:e.target.value}))}/>
