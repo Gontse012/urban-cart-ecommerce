@@ -103,7 +103,7 @@ function App(){
  useEffect(()=>{if(notice){const t=setTimeout(()=>setNotice(''),4500);return()=>clearTimeout(t);}},[notice]);
 
  const visible=useMemo(()=>products.filter(p=>(category==='All'|| (p.category||'').toLowerCase()===category.toLowerCase())&& `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())),[products,category,search]);
- const count=cart.reduce((s,p)=>s+p.quantity,0),total=cart.reduce((s,p)=>s+p.price*p.quantity,0);
+ const count = cart.length, total=cart.reduce((s,p)=>s+p.price*p.quantity,0);  
  const setField=(k,v)=>setForm(f=>({...f,[k]:v}));
 
  async function add(p){
