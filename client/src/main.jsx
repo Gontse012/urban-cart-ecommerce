@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Search, ShoppingBag, ArrowUpRight, Plus, Minus, X, Menu, Check, ShieldCheck, Truck, RotateCcw, PackageCheck, UserRound } from 'lucide-react';
 import './styles.css';
+
 const RAW = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
 const API = RAW.includes('/api') ? RAW : RAW + '/api';
 
@@ -15,7 +16,9 @@ const fallbackProducts = [
  {id:7,name:'Everyday Sneakers',category:'Lifestyle',description:'Comfort-first sneakers with a simple, versatile silhouette. Cloud sole.',price:1099,image_url:'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=85',stock:14},
  {id:8,name:'Reusable Travel Bottle',category:'Accessories',description:'A reusable bottle to keep your favourite drink close at hand. Double wall.',price:249,image_url:'https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&w=900&q=85',stock:40}
 ];
+
 const fmt = n => new Intl.NumberFormat('en-ZA',{style:'currency',currency:'ZAR',maximumFractionDigits:2}).format(Number(n||0));
+
 async function api(path, options={}) { 
   const token=localStorage.getItem('uc_token'); 
   const url = path.startsWith('http') ? path : `${API}${path}`;
@@ -24,40 +27,102 @@ async function api(path, options={}) {
   if(!res.ok) throw new Error(data.error||`Request failed: ${res.status}`); 
   return data; 
 }
+
+function getCartKey(user){
+  return `uc_cart_${user?.id || 'guest'}`;
+}
+
 function App(){
- const [products,setProducts]=useState(fallbackProducts),[category,setCategory]=useState('All'),[search,setSearch]=useState(''),[cart,setCart]=useState(()=>JSON.parse(localStorage.getItem('uc_cart')||'[]')),[cartOpen,setCartOpen]=useState(false),[checkoutOpen,setCheckoutOpen]=useState(false),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[menuOpen,setMenuOpen]=useState(false),[accountOpen,setAccountOpen]=useState(false),[authMode,setAuthMode]=useState('login'),[user,setUser]=useState(()=>JSON.parse(localStorage.getItem('uc_user')||'null')),[orders,setOrders]=useState([]),[adminOpen,setAdminOpen]=useState(false),[adminOrders,setAdminOrders]=useState([]),[busy,setBusy]=useState(false),[selectedProduct,setSelectedProduct]=useState(null),[showAll,setShowAll]=useState(false);
+ const [products,setProducts]=useState(fallbackProducts),[category,setCategory]=useState('All'),[search,setSearch]=useState(''),[cart,setCart]=useState([]),[cartOpen,setCartOpen]=useState(false),[checkoutOpen,setCheckoutOpen]=useState(false),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[menuOpen,setMenuOpen]=useState(false),[accountOpen,setAccountOpen]=useState(false),[authMode,setAuthMode]=useState('login'),[user,setUser]=useState(()=>JSON.parse(localStorage.getItem('uc_user')||'null')),[orders,setOrders]=useState([]),[adminOpen,setAdminOpen]=useState(false),[adminOrders,setAdminOrders]=useState([]),[busy,setBusy]=useState(false),[selectedProduct,setSelectedProduct]=useState(null),[showAll,setShowAll]=useState(false);
  const [form,setForm]=useState({customer_name:'',email:'',phone:'',address:'',city:'',province:'Gauteng',postal_code:''});
  const [authForm,setAuthForm]=useState({name:'',email:'',password:''});
  const [adminTab,setAdminTab]=useState('orders');
  const [prodForm,setProdForm]=useState({name:'',category:'Tech',price:'',stock:'',description:'',image_url:''});
  const [editingId,setEditingId]=useState(null);
  const categories=['All','Tech','Home','Lifestyle','Accessories'];
+
+ // LOAD CART FOR CURRENT USER (fixes sharing bug)
+ useEffect(()=>{
+   const key = getCartKey(user);
+   try{
+     const saved = JSON.parse(localStorage.getItem(key) || '[]');
+     setCart(Array.isArray(saved) ? saved : []);
+   }catch{ setCart([]); }
+ },[user]);
+
+ // SAVE CART FOR CURRENT USER
+ useEffect(()=>{
+   const key = getCartKey(user);
+   localStorage.setItem(key, JSON.stringify(cart));
+   // cleanup old global key
+   localStorage.removeItem('uc_cart');
+ },[cart, user]);
+
  useEffect(()=>{
     const params=new URLSearchParams(window.location.search);
-    if(params.get('payment')==='return'){ setCart([]); localStorage.removeItem('lastOrderId'); setNotice(`Payment successful! Order #${params.get('order')} received.`); }
-    if(params.get('payment')==='cancel'){ setNotice('Payment cancelled - your cart is saved.'); }
- },[]);
- useEffect(()=>{localStorage.setItem('uc_cart',JSON.stringify(cart));},[cart]);
+    if(params.get('payment')==='return'){ 
+      // clear cart for this user after successful payment
+      const key = getCartKey(user);
+      localStorage.removeItem(key);
+      localStorage.removeItem('lastOrderId'); 
+      setCart([]);
+      setNotice(`Payment successful! Order #${params.get('order')} received.`); 
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    if(params.get('payment')==='cancel'){ 
+      setNotice('Payment cancelled - your cart is saved.'); 
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+ },[user]);
+
  useEffect(()=>{api('/products').then((rows)=>{ if(Array.isArray(rows)&&rows.length) setProducts(rows); }).catch(()=>{}).finally(()=>setLoading(false));},[]);
  useEffect(()=>{if(user){setForm(f=>({...f,customer_name:f.customer_name||user.name,email:f.email||user.email}));api('/orders/mine').then(setOrders).catch(()=>{});}},[user]);
  useEffect(()=>{if(notice){const t=setTimeout(()=>setNotice(''),4500);return()=>clearTimeout(t);}},[notice]);
+
  const visible=useMemo(()=>products.filter(p=>(category==='All'|| (p.category||'').toLowerCase()===category.toLowerCase())&& `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())),[products,category,search]);
  const count=cart.reduce((s,p)=>s+p.quantity,0),total=cart.reduce((s,p)=>s+p.price*p.quantity,0);
  const setField=(k,v)=>setForm(f=>({...f,[k]:v}));
+
  function add(p){setCart(old=>{const found=old.find(x=>x.id===p.id);return found?old.map(x=>x.id===p.id?{...x,quantity:Math.min(x.quantity+1,99)}:x):[...old,{...p,quantity:1}]});setNotice(`${p.name} added to bag`);}
  function changeQty(id,d){setCart(old=>old.map(p=>p.id===id?{...p,quantity:p.quantity+d}:p).filter(p=>p.quantity>0));}
  function openProduct(p){ setSelectedProduct(p); setShowAll(false); window.scrollTo({top:0, behavior:'smooth'}); }
  function closeProduct(){ setSelectedProduct(null); }
+
  async function submitAuth(e){
   e.preventDefault(); setBusy(true);
-  try{const data=await api(`/auth/${authMode}`,{method:'POST',body:JSON.stringify(authForm)});
-  localStorage.setItem('uc_token',data.token);localStorage.setItem('uc_user',JSON.stringify(data.user));
-  setUser(data.user);setAccountOpen(false); setNotice(`Welcome${data.user.name?`, ${data.user.name.split(' ')[0]}`:''}!`); setAuthForm({name:'',email:'',password:''});}
- catch(e){setNotice(e.message);}finally{setBusy(false);} }
- function logout(){localStorage.removeItem('uc_token');localStorage.removeItem('uc_user');setUser(null);setOrders([]);setAdminOpen(false);setNotice('You have signed out.');}
+  try{
+    const data=await api(`/auth/${authMode}`,{method:'POST',body:JSON.stringify(authForm)});
+    localStorage.setItem('uc_token',data.token);
+    localStorage.setItem('uc_user',JSON.stringify(data.user));
+    setUser(data.user);
+    setAccountOpen(false); 
+    setNotice(`Welcome${data.user.name?`, ${data.user.name.split(' ')[0]}`:''}!`); 
+    setAuthForm({name:'',email:'',password:''});
+  }
+  catch(e){setNotice(e.message);}
+  finally{setBusy(false);} 
+ }
+
+ function logout(){
+  const key = getCartKey(user);
+  localStorage.removeItem('uc_token');
+  localStorage.removeItem('uc_user');
+  localStorage.removeItem(key);
+  localStorage.removeItem('uc_cart');
+  localStorage.removeItem('cart');
+  localStorage.removeItem('uc_cart_guest');
+  setUser(null);
+  setOrders([]);
+  setCart([]);
+  setAdminOpen(false);
+  setAccountOpen(false);
+  setNotice('You have signed out.');
+ }
+
  async function placeOrder(e) {
   e.preventDefault();
   if(!form.customer_name.trim()||!form.email.trim()||!form.phone.trim()||!form.address.trim()||!form.city.trim()||!form.postal_code.trim()){ setNotice('Please fill in all delivery fields.'); return; }
+  if(!cart.length){ setNotice('Your bag is empty.'); return; }
   setBusy(true); setNotice('');
   try {
     const order = await api('/orders',{method:'POST',body:JSON.stringify({...form,items: cart.map(p => ({ id: p.id, quantity: p.quantity }))})});
@@ -68,7 +133,8 @@ function App(){
     Object.entries(pay.fields).forEach(([name, value]) => { const input=document.createElement('input'); input.type='hidden'; input.name=name; input.value=String(value ?? ''); formEl.appendChild(input); });
     document.body.appendChild(formEl); setCheckoutOpen(false); formEl.submit();
   } catch (err) { setNotice(err.message || 'Could not start PayFast checkout.'); } finally { setBusy(false); }
-}
+ }
+
  async function createProduct(e){
     e.preventDefault();
     try{
@@ -77,6 +143,7 @@ function App(){
       setProducts(old=>[p,...old]); setNotice('Product created'); setProdForm({name:'',category:'Tech',price:'',stock:'',description:'',image_url:''});
     }catch(err){setNotice(err.message)}
   }
+
   async function saveEdit(e){
     e.preventDefault();
     try{
@@ -86,11 +153,13 @@ function App(){
       setEditingId(null); setProdForm({name:'',category:'Tech',price:'',stock:'',description:'',image_url:''}); setNotice('Product updated');
     }catch(err){setNotice(err.message)}
   }
+
   function startEdit(p){
     setEditingId(p.id);
     setProdForm({name:p.name, category:p.category||'Tech', price:String(p.price), stock:String(p.stock), description:p.description, image_url:p.image_url});
     setAdminTab('products');
   }
+
   async function deleteProduct(id){
     if(!confirm('Delete this product?')) return;
     try{
@@ -98,8 +167,10 @@ function App(){
       setProducts(old=>old.filter(x=>x.id!==id)); setNotice('Product deleted');
     }catch(err){setNotice(err.message)}
   }
+
  async function showAdmin(){try{const data=await api('/admin/orders');setAdminOrders(data);setAdminOpen(true);}catch(e){setNotice(e.message);}}
  async function updateStatus(id,status){try{await api(`/admin/orders/${id}/status`,{method:'PATCH',body:JSON.stringify({status})});setAdminOrders(old=>old.map(o=>o.id===id?{...o,status}:o));}catch(e){setNotice(e.message);}}
+
  const isHome = !selectedProduct && !showAll;
  return <div className="app">
   <div className="ticker"><div className="ticker-track"><span>● FREE DELIVERY OVER R1,000 ● SECURE PAYFAST ● CURATED IN SA ● EVERYDAY ELEVATED ●</span><span>● FREE DELIVERY OVER R1,000 ● SECURE PAYFAST ● CURATED IN SA ● EVERYDAY ELEVATED ●</span></div></div>
