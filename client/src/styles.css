@@ -376,9 +376,3 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
   }
 }
 
-.header{
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 1000 !important;
-  background: #fdfcfa !important;
-}
