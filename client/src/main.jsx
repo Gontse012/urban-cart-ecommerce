@@ -36,6 +36,102 @@ async function api(path, options={}) {
 
 function getCartKey(user){ return `uc_cart_${user?.id || 'guest'}`; }
 
+// ===== ADDRESS SEARCH - INTEGRATED (from your AddressSearch.jsx + screenshot style) =====
+function AddressSearch({ onSelect, value, onChange, setFormFields }) {
+  const [query, setQuery] = useState(value || '');
+  const [results, setResults] = useState([]);
+  const [show, setShow] = useState(false);
+
+  useEffect(()=>{ setQuery(value || ''); },[value]);
+
+  useEffect(() => {
+    if (query.length < 2) { setResults([]); setShow(false); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=za&limit=6&addressdetails=1`,
+          { headers: { 'Accept-Language': 'en' } }
+        );
+        const data = await res.json();
+        setResults(data);
+        setShow(true);
+      } catch (e) { console.error(e); }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const handleSelect = (place) => {
+    setQuery(place.display_name);
+    setShow(false);
+    onChange && onChange(place.display_name);
+    
+    // auto-fill province, postal_code, city from addressdetails
+    const addr = place.address || {};
+    const provinceMap = {
+      'limpopo':'LIMPOPO','gauteng':'GAUTENG','western cape':'WESTERN CAPE',
+      'eastern cape':'EASTERN CAPE','kwazulu-natal':'KWAZULU-NATAL',
+      'free state':'FREE STATE','mpumalanga':'MPUMALANGA',
+      'north west':'NORTH WEST','northern cape':'NORTHERN CAPE'
+    };
+    let prov = (addr.state || addr.province || '').toLowerCase();
+    let provFinal = provinceMap[prov] || (addr.state ? addr.state.toUpperCase() : '');
+    if(provFinal) setFormFields && setFormFields('province', provFinal);
+    if(addr.postcode) setFormFields && setFormFields('postal_code', addr.postcode);
+    if(place.display_name) setFormFields && setFormFields('delivery_address', place.display_name);
+
+    onSelect && onSelect({
+      address: place.display_name,
+      lat: parseFloat(place.lat),
+      lng: parseFloat(place.lon),
+      raw: place
+    });
+  };
+
+  const highlightMatch = (text) => {
+    const q = query.toLowerCase();
+    const idx = text.toLowerCase().indexOf(q);
+    if (idx === -1) return text;
+    return (
+      <>
+        {text.substring(0, idx)}
+        <b style={{ color: '#E67E22', fontWeight: 800 }}>{text.substring(idx, idx + query.length)}</b>
+        {text.substring(idx + query.length)}
+      </>
+    );
+  };
+
+  return (
+    <div style={{ position: 'relative', width: '100%' }}>
+      <label style={{ fontWeight: 700, fontSize: '16px', display: 'block', fontFamily: 'Instrument Serif, serif' }}>Address search</label>
+      <p style={{ fontSize: '13px', color: '#666', margin: '2px 0 8px 0' }}>Enter your street name or house number to find your full address.</p>
+      <div style={{ position: 'relative' }}>
+        <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}><Search size={14}/></span>
+        <input
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); onChange && onChange(e.target.value); }}
+          onFocus={()=> query.length>=2 && setShow(true)}
+          placeholder="e.g. 123 Main Road or ge"
+          style={{ width: '100%', padding: '12px 12px 12px 34px', border: '2px solid #121212', fontSize: '14px', outline: 'none', background:'#fff' }}
+        />
+      </div>
+      {show && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #121212', borderTop: 'none', boxShadow: '0 12px 24px rgba(0,0,0,0.12)', zIndex: 5000, overflow: 'hidden' }}>
+          {results.map((place) => (
+            <div key={place.place_id} onClick={() => handleSelect(place)} style={{ padding: '12px 14px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', fontSize: '13px' }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#f9f9f9'} onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}>
+              {highlightMatch(place.display_name)}
+            </div>
+          ))}
+          {results.length===0 && query.length>=2 && <div style={{padding:'10px 14px', fontSize:12, color:'#888'}}>No results for "{query}"</div>}
+          <div style={{ padding: '10px', textAlign: 'center', fontSize: '12px', color: '#888', background: '#fafafa', borderTop:'1px solid #eee' }}>
+            Can't find the address? <span style={{ color: '#E67E22', cursor: 'pointer', fontWeight:600 }} onClick={()=>setShow(false)}>Please enter it manually {'>'}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function App(){
  const [products,setProducts]=useState(fallbackProducts),[category,setCategory]=useState('All'),[search,setSearch]=useState(''),[cart,setCart]=useState([]),[cartOpen,setCartOpen]=useState(false),[checkoutOpen,setCheckoutOpen]=useState(false),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[menuOpen,setMenuOpen]=useState(false),[accountOpen,setAccountOpen]=useState(false),[authMode,setAuthMode]=useState('login'),[user,setUser]=useState(()=>JSON.parse(localStorage.getItem('uc_user')||'null')),[orders,setOrders]=useState([]),[adminOpen,setAdminOpen]=useState(false),[adminOrders,setAdminOrders]=useState([]),[busy,setBusy]=useState(false),[selectedProduct,setSelectedProduct]=useState(null),[showAll,setShowAll]=useState(false);
  const [activeTab,setActiveTab]=useState('shop');
@@ -46,7 +142,7 @@ function App(){
  const [cancelModal,setCancelModal]=useState(null);
  const [cancelReason,setCancelReason]=useState('');
  const [editData,setEditData]=useState({delivery_status:'Order Placed', current_location:'Warehouse - Johannesburg', eta:'2-3 business days', tracking_note:''});
- const [form,setForm]=useState({full_name:'',email:'',phone:'',address_search:'',delivery_address:'',province:'LIMPOPO',postal_code:''});
+ const [form,setForm]=useState({full_name:'',email:'',phone:'',address_search:'',delivery_address:'',province:'LIMPOPO',postal_code:'', lat:null, lng:null});
  const [authForm,setAuthForm]=useState({name:'',email:'',password:'', acceptTerms:false});
  const [authError,setAuthError]=useState('');
  const [showTerms,setShowTerms]=useState(false);
@@ -283,6 +379,8 @@ function App(){
       province: form.province,
       postal_code: form.postal_code,
       city: form.delivery_address,
+      latitude: form.lat,
+      longitude: form.lng,
       customer_id: user?.id,
       items: cart.map(p => ({ id: p.id, product_id: p.id, quantity: p.quantity }))
     })});
@@ -357,7 +455,7 @@ function App(){
 
  return <div className="app">
   <div className="ticker"><div className="ticker-track"><span>● FREE DELIVERY OVER R1,000 ● SECURE PAYFAST ● CURATED IN SA ● EVERYDAY ELEVATED ●</span><span>● FREE DELIVERY OVER R1,000 ● SECURE PAYFAST ● CURATED IN SA ● EVERYDAY ELEVATED ●</span></div></div>
-  <header className="header">
+  <header className="header" style={{position:'sticky', top:0, zIndex:1000, background:'#fdfcfa'}}>
     <div className="header-left">
       <button className="icon-btn mobile-only" onClick={()=>setMenuOpen(!menuOpen)}><Menu size={20}/></button>
       <a className="brand" href="#" onClick={()=>{setCategory('All');setSearch('');closeProduct();setShowAll(false); setActiveTab('shop');}}>
@@ -373,11 +471,20 @@ function App(){
     </div>
     <div className="header-right">
       <label className="search-pill desktop-search"><Search size={14}/><input value={search} onChange={e=>{setSearch(e.target.value); if(selectedProduct){closeProduct()}}} placeholder="SEARCH"/><kbd>⌘K</kbd></label>
-      <button className="circle-btn mobile-search-btn" onClick={()=>{const inp=document.querySelector(".mobile-search-overlay input"); if(inp){document.querySelector(".mobile-search-overlay")?.classList.toggle("show")} else {setSearchOpen(!searchOpen)}} }><Search size={16}/></button>
+      <button className="circle-btn mobile-search-btn" onClick={()=>setSearchOpen(!searchOpen)}><Search size={16}/></button>
       <button className="circle-btn" onClick={()=>setAccountOpen(true)}><UserRound size={16}/></button>
       <button className="bag-pill" onClick={()=>setCartOpen(true)}><ShoppingBag size={14}/> BAG <b>{count}</b></button>
     </div>
   </header>
+
+  {searchOpen && (
+    <div className="mobile-search-overlay">
+      <div className="mobile-search-inner">
+        <Search size={18}/><input autoFocus placeholder="Search products..." value={search} onChange={e=>setSearch(e.target.value)}/><button onClick={()=>setSearchOpen(false)}><X size={18}/></button>
+      </div>
+    </div>
+  )}
+
   <main>
     {activeTab==='track' ? (
       <section className="shop">
@@ -405,11 +512,6 @@ function App(){
               <div style={{marginTop:14}}>
                 {o.items?.map((it, idx)=><div key={idx} style={{fontSize:11, borderTop:'1px solid #ddd', padding:'8px 0', display:'flex', gap:8, alignItems:'center'}}><img src={it.image_url || it.image} style={{width:48,height:48,objectFit:'cover', border:'1px solid #121212'}}/><span>{it.name} x {it.quantity} - {fmt(it.price)}</span></div>)}
               </div>
-              <div style={{marginTop:12, border:'2px solid #121212', padding:10, background:'#fff'}}>
-                <p style={{fontSize:11, fontWeight:700, margin:'0 0 6px'}}><FileText size={12} style={{display:'inline'}}/> RECEIPT</p>
-                <p style={{fontSize:11, margin:'2px 0'}}>Order #{o.id} | Total: {fmt(o.total)} | Status: {o.status}</p>
-                <p style={{fontSize:10, opacity:.7}}>Payment via PayFast • Email receipt sent to {form.email || user?.email}</p>
-              </div>
             </div>
           </div>
         ))}
@@ -426,9 +528,7 @@ function App(){
           <p className="desc">{selectedProduct.description}</p>
           <div className="price-row"><strong>{fmt(selectedProduct.price)}</strong><span>ZAR • VAT INCL.</span></div>
           <div className="buy-row">
-            <button className="btn-black" onClick={()=>{add(selectedProduct);}}>
-              ADD TO BAG — {fmt(selectedProduct.price)} <ArrowUpRight size={16}/>
-            </button>
+            <button className="btn-black" onClick={()=>{add(selectedProduct);}}>ADD TO BAG — {fmt(selectedProduct.price)} <ArrowUpRight size={16}/></button>
             <button className="btn-ghost" onClick={()=>setCartOpen(true)}>View bag ({count})</button>
           </div>
           <div className="micro-badges">
@@ -459,13 +559,11 @@ function App(){
           <div className="hero-manifesto">
             <h1>FIND<br/>YOUR<br/>KIND<br/><em>OF GOOD.</em></h1>
             <p>Not another store. A tight edit of useful, well-made things that earn their place. No filler. No endless scroll.</p>
-            <div className="hero-actions">
-              <a href="#shop" className="btn-black">SHOP THE INDEX <ArrowUpRight size={16}/></a>
-            </div>
+            <div className="hero-actions"><a href="#shop" className="btn-black">SHOP THE INDEX <ArrowUpRight size={16}/></a></div>
           </div>
           <div className="hero-cards">
             <div className="hero-big-card">
-              <video autoPlay muted loop playsInline poster="https://images.unsplash.com/photo-1490312278390-ab64016e0aa9?auto=format&fit=crop&w=1200&q=85" style={{width:"100%",height:"100%",objectFit:"cover"}}>
+              <video autoPlay muted loop playsInline poster="https://images.unsplash.com/photo-1490312278390-ab64016e0aa9?auto=format&fit=crop&w=1200&q=85" style={{width:"100%",height:"100%",objectFit:"cover", pointerEvents:'none'}}>
                 <source src="https://videos.pexels.com/video-files/18069234/18069234-uhd_1440_1440_24fps.mp4" type="video/mp4"/>
               </video>
               <div className="card-overlay"><span>THE NEW STANDARD</span><strong>Little things.<br/>Big difference.</strong></div>
@@ -479,9 +577,7 @@ function App(){
         <section id="shop" className="shop">
           <div className="shop-head">
             <h2>INDEX <span>({visible.length})</span></h2>
-            <div className="tabs">
-              {categories.map(c=><button key={c} className={category===c?'active':''} onClick={()=>setCategory(c)}>{c.toUpperCase()}</button>)}
-            </div>
+            <div className="tabs">{categories.map(c=><button key={c} className={category===c?'active':''} onClick={()=>setCategory(c)}>{c.toUpperCase()}</button>)}</div>
             <button className="view-all" onClick={()=>{handleViewEverything()}}>VIEW EVERYTHING <ArrowUpRight size={14}/></button>
           </div>
           {loading&&<div className="loading">LOADING INDEX...</div>}
@@ -509,7 +605,7 @@ function App(){
   {notice&&<div className="toast"><Check size={14}/>{notice}<button onClick={()=>setNotice('')}><X size={12}/></button></div>}
 
   {cartOpen&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setCartOpen(false)}}>
-    <aside className="drawer">
+    <aside className="drawer" style={{zIndex:10001}}>
       <div className="drawer-head"><h2>BAG ({count})</h2><button onClick={()=>setCartOpen(false)}><X size={16}/></button></div>
       {!cart.length?<div className="empty-bag"><ShoppingBag size={28}/><h3>Bag is empty.</h3><p>Go add some good stuff.</p><button className="btn-black" onClick={()=>setCartOpen(false)}>SHOP NOW</button></div>:
       <>
@@ -517,7 +613,7 @@ function App(){
         <div className="cart-foot">
           <div className="sum"><span>SUBTOTAL ({count} items)</span><b>{fmt(total)}</b></div>
           <button className="btn-black full" onClick={handleCheckoutClick}>CHECKOUT — {fmt(total)} <ArrowUpRight size={14}/></button>
-          {!user && <p style={{fontSize:11, color:'#ff3b30', textAlign:'center', marginTop:8}}>⚠️ You must sign in to checkout</p>}
+          {!user && <p style={{fontSize:11, color:'#ff3b30', textAlign:'center', marginTop:8}}>⚠ You must sign in to checkout</p>}
           <button className="btn-ghost full" style={{marginTop:8}} onClick={clearCart}>CLEAR BAG</button>
         </div>
       </>}
@@ -533,34 +629,35 @@ function App(){
         </div>
       )}
       {checkoutError && <div className="checkout-error" style={{background:'#FEF3C7', border:'2px solid #F59E0B', color:'#92400E', padding:'10px 12px', fontSize:11, fontWeight:700, marginBottom:12, textAlign:'center', borderRadius:4}}>{checkoutError}</div>}
-      <div style={{background:'#f7f5f0', border:'2px solid #121212', padding:12, marginBottom:14}}>
-        <p style={{fontSize:12, fontWeight:700, margin:'0 0 6px'}}>✓ PCI DSS Secure - Your info is protected</p>
-        <p style={{fontSize:11, margin:0}}>Full SA address + SA phone required to prevent wrong delivery.</p>
-      </div>
       <form onSubmit={placeOrder} className="checkout-form" style={{display:'flex', flexDirection:'column', gap:12}}>
         <div>
           <label style={{fontSize:11, fontWeight:700}}>Full Name *</label>
           <input required placeholder="e.g. John Smith" value={form.full_name} onChange={e=>setField('full_name',e.target.value)} style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/>
         </div>
         <div>
-          <label style={{fontSize:11, fontWeight:700, display:'flex', justifyContent:'space-between'}}><span>Phone number *</span><span style={{fontWeight:400, opacity:.6}}>SA only - assist delivery</span></label>
+          <label style={{fontSize:11, fontWeight:700, display:'flex', justifyContent:'space-between'}}><span>Phone number *</span><span style={{fontWeight:400, opacity:.6}}>SA only</span></label>
           <div style={{display:'flex', border:'2px solid #121212', height:44, marginTop:4}}>
             <span style={{background:'#eee', padding:'0 10px', display:'grid', placeItems:'center', fontSize:12, fontWeight:700, borderRight:'2px solid #121212'}}>ZA +27</span>
-            <input required value={form.phone} onChange={e=>setField('phone',e.target.value)} placeholder="082 123 4567 or +27 82 123 4567" style={{flex:1, border:0, padding:'0 12px'}}/>
+            <input required value={form.phone} onChange={e=>setField('phone',e.target.value)} placeholder="082 000 0000" style={{flex:1, border:0, padding:'0 12px'}}/>
           </div>
         </div>
+
+        {/* === NEW ADDRESS SEARCH - REPLACES OLD 2 INPUTS === */}
+        <AddressSearch 
+          value={form.address_search}
+          onChange={(v)=>setField('address_search', v)}
+          setFormFields={setField}
+          onSelect={(loc)=>{
+            setField('lat', loc.lat);
+            setField('lng', loc.lng);
+          }}
+        />
+
         <div>
-          <label style={{fontSize:11, fontWeight:700}}>Address search</label>
-          <input value={form.address_search} onChange={e=>setField('address_search',e.target.value)} placeholder="Search by street or address" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/>
+          <label style={{fontSize:11, fontWeight:700}}>Delivery address * (auto-filled from search - edit if needed)</label>
+          <input required value={form.delivery_address} onChange={e=>setField('delivery_address',e.target.value)} placeholder="e.g. 24 Oak Avenue, Sandton" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/>
         </div>
-        <div>
-          <label style={{fontSize:11, fontWeight:700}}>Delivery address *</label>
-          <input required list="sa-addresses" value={form.delivery_address} onChange={e=>setField('delivery_address',e.target.value)} placeholder="e.g. 24 Oak Avenue, Sandton" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/>
-          <datalist id="sa-addresses">
-            <option value="24 Oak Avenue, Sandton, Johannesburg, South Africa"/>
-            <option value="45 Beach Road, Sea Point, Cape Town, South Africa"/>
-          </datalist>
-        </div>
+
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
           <div>
             <label style={{fontSize:11, fontWeight:700}}>Province *</label>
@@ -573,14 +670,14 @@ function App(){
             <input required value={form.postal_code} onChange={e=>setField('postal_code',e.target.value)} placeholder="2196" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/>
           </div>
         </div>
+
         <div style={{border:'2px solid #121212', padding:12, background:'#FFFCF8'}}>
-          <h4 style={{margin:'0 0 8px', fontFamily:'Anton', fontSize:13}}>AVAILABLE PAYMENTS - PAYFAST</h4>
+          <h4 style={{margin:'0 0 8px', fontFamily:'Anton', fontSize:13}}>PAYFAST SECURE - NO CARD DATA STORED</h4>
           <div style={{display:'flex', flexWrap:'wrap', gap:6, marginBottom:8}}>
             {['VISA','MasterCard','Capitec Pay','EFT Secure','Mobicred','SCode','Zapper','SnapScan'].map(m=>(
               <span key={m} style={{border:'1px solid #121212', padding:'4px 8px', fontSize:10, fontWeight:700, background:'#fff'}}>{m}</span>
             ))}
           </div>
-          <p style={{fontSize:10, margin:0, opacity:.7}}>✓ Secure via PayFast - Card info never sold.</p>
         </div>
         <div style={{display:'flex', justifyContent:'space-between', fontWeight:700, borderTop:'2px solid #121212', paddingTop:10, fontSize:13}}>
           <span>SUBTOTAL ({count} items)</span><span>{fmt(total)}</span>
@@ -588,7 +685,6 @@ function App(){
         <button className="btn-black full" disabled={busy || !user} type="submit" style={{height:48}}>
           {busy?'PREPARING...':`PAY ${fmt(total)} WITH PAYFAST`} <ShieldCheck size={14}/>
         </button>
-        {!user && <p style={{fontSize:11, color:'#ff3b30', textAlign:'center'}}>You must be signed in to pay. Your bag is saved.</p>}
       </form>
     </section>
   </div>}
@@ -604,9 +700,7 @@ function App(){
         </div>
         <div className="centered-actions">
           <button className="btn-outline full" onClick={logout}>SIGN OUT</button>
-          <button className="btn-ghost full delete-btn" onClick={deleteAccount} disabled={busy}>
-            {busy?'DELETING...':'DELETE MY ACCOUNT'}
-          </button>
+          <button className="btn-ghost full delete-btn" onClick={deleteAccount} disabled={busy}>{busy?'DELETING...':'DELETE MY ACCOUNT'}</button>
         </div>
         {user.role==='admin'&&<button className="btn-black full" style={{marginTop:12}} onClick={()=>{setAccountOpen(false);showAdmin()}}>ADMIN ORDERS</button>}
       </div>:<>
@@ -621,11 +715,7 @@ function App(){
           <input required type="password" placeholder="Password (min 8 chars)" value={authForm.password} onChange={e=>setAuthForm(f=>({...f,password:e.target.value}))}/>
           {authMode==='register' && (
             <div className="terms-box">
-              <label className="terms-check">
-                <input type="checkbox" checked={authForm.acceptTerms} onChange={e=>setAuthForm(f=>({...f, acceptTerms:e.target.checked}))}/>
-                <span>I agree to the <button type="button" onClick={()=>setShowTerms(true)} style={{textDecoration:'underline', background:'none', border:'none', fontWeight:700, cursor:'pointer'}}>Terms & Conditions</button> including liability limits</span>
-              </label>
-              <p style={{fontSize:10, opacity:.7, marginTop:6}}>By signing up you accept we are not liable for courier delays, wrong address provided by you, or PayFast downtime. See full terms.</p>
+              <label className="terms-check"><input type="checkbox" checked={authForm.acceptTerms} onChange={e=>setAuthForm(f=>({...f, acceptTerms:e.target.checked}))}/><span>I agree to the <button type="button" onClick={()=>setShowTerms(true)} style={{textDecoration:'underline', background:'none', border:'none', fontWeight:700, cursor:'pointer'}}>Terms & Conditions</button></span></label>
             </div>
           )}
           <button className="btn-black full" disabled={busy}>{busy?'WAIT...':authMode==='login'?'SIGN IN':'CREATE ACCOUNT'}</button>
@@ -639,21 +729,13 @@ function App(){
       <section className="modal" style={{maxWidth:600}}>
         <div className="drawer-head"><h2>TERMS & CONDITIONS</h2><button onClick={()=>setShowTerms(false)}><X size={16}/></button></div>
         <div style={{maxHeight:'70vh', overflow:'auto', fontSize:12, lineHeight:1.6}}>
-          <h3 style={{fontFamily:'Anton', fontSize:14}}>1. ORDERS & PAYMENTS</h3>
-          <p>All payments via PayFast sandbox/live. Orders only confirmed after successful PayFast payment.</p>
-          <h3 style={{fontFamily:'Anton', fontSize:14, marginTop:12}}>2. WHAT URBAN CART IS NOT RESPONSIBLE FOR</h3>
+          <h3 style={{fontFamily:'Anton', fontSize:14}}>1. ORDERS & PAYMENTS</h3><p>All payments via PayFast. Orders only confirmed after successful PayFast payment.</p>
+          <h3 style={{fontFamily:'Anton', fontSize:14, marginTop:12}}>2. LIABILITY LIMITS</h3>
           <ul style={{paddingLeft:16}}>
-            <li><b>Wrong address:</b> We are not responsible if you enter wrong delivery address, postal code, or province. Please double-check. No refunds for wrong address delivery.</li>
-            <li><b>Courier delays:</b> We use third-party couriers. Delays due to weather, strikes, public holidays, or incorrect contact info are not our liability.</li>
-            <li><b>PayFast failures:</b> Payment processing is by PayFast. Downtime, double charges, or bank declines are between you and PayFast/bank.</li>
-            <li><b>Product images:</b> Colors may vary slightly due to lighting/monitor.</li>
-            <li><b>Stock:</b> If item out of stock after order, we will refund within 3 days.</li>
-            <li><b>Phone not reachable:</b> If driver cannot reach you via SA phone provided, delivery may be returned at your cost.</li>
+            <li><b>Wrong address:</b> Not responsible if you enter wrong delivery address. No refunds for wrong address delivery.</li>
+            <li><b>Courier delays:</b> Third-party couriers. Delays not our liability.</li>
+            <li><b>PayFast failures:</b> Payment processing is by PayFast.</li>
           </ul>
-          <h3 style={{fontFamily:'Anton', fontSize:14, marginTop:12}}>3. RETURNS</h3>
-          <p>14-day returns for unused items. Customer pays return shipping unless item is faulty.</p>
-          <h3 style={{fontFamily:'Anton', fontSize:14, marginTop:12}}>4. PRIVACY</h3>
-          <p>Your SA phone & address used only for delivery & PayFast verification. Not sold.</p>
         </div>
         <button className="btn-black full" style={{marginTop:12}} onClick={()=>setShowTerms(false)}>I UNDERSTAND</button>
       </section>
@@ -669,10 +751,6 @@ function App(){
       </div>
       {adminTab==='orders' ? (
         <div style={{maxHeight:'70vh', overflow:'auto'}}>
-          <div style={{background:'#fff3cd', border:'2px solid #121212', padding:10, marginBottom:12, fontSize:11}}>
-            <p style={{margin:0, fontWeight:700}}><Bell size={12} style={{display:'inline'}}/> Phone notifications: Set NOTIFY_PHONE in Render env to your WhatsApp/Telegram webhook. Currently logs to server console + you get receipt in this panel.</p>
-            <p style={{margin:'6px 0 0'}}>New orders appear here first. You also get full customer details for receipt.</p>
-          </div>
           {adminOrders.map(o=>(
             <div key={o.id} style={{border:'2px solid #121212', padding:12, marginBottom:10, background: o.status==='cancelled'?'#ffe0e0':'#FFFCF8'}}>
               <div style={{display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:6}}>
@@ -680,26 +758,15 @@ function App(){
                 <span style={{fontSize:11, background: o.status==='cancelled'?'#ff3b30':'#121212', color:'#fff', padding:'4px 8px'}}>{o.cancel_reason ? `CANCELLED: ${o.cancel_reason}` : (o.delivery_status || o.status)}</span>
               </div>
               <p style={{fontSize:11, margin:'6px 0'}}>📍 {o.delivery_address || o.address}, {o.province}, {o.postal_code} | 📞 {o.phone}</p>
-              <p style={{fontSize:11}}>Location: {o.current_location} | ETA: {o.eta} | Total: {fmt(o.total)}</p>
-              {o.cancel_reason && <p style={{fontSize:11, background:'#fff', border:'1px dashed #ff3b30', padding:6}}>Cancel reason: {o.cancel_reason}</p>}
               <div style={{display:'flex', gap:6, marginTop:8, flexWrap:'wrap', justifyContent:'center'}}>
-                <button className="btn-ghost" style={{height:32, fontSize:11}} onClick={()=>{
-                  setEditingOrder(o);
-                  setEditData({delivery_status:o.delivery_status||o.status, current_location:o.current_location||'Warehouse - Johannesburg', eta:o.eta||'2-3 business days', tracking_note:''});
-                }}>UPDATE TRACKING</button>
+                <button className="btn-ghost" style={{height:32, fontSize:11}} onClick={()=>{ setEditingOrder(o); setEditData({delivery_status:o.delivery_status||o.status, current_location:o.current_location||'Warehouse - Johannesburg', eta:o.eta||'2-3 business days', tracking_note:''}); }}>UPDATE TRACKING</button>
                 <select value={o.status} onChange={e=>updateStatus(o.id,e.target.value)} style={{border:'2px solid #121212', fontSize:11, fontWeight:700, height:32}}>
                   {['pending','paid','processing','shipped','delivered','cancelled'].map(s=><option key={s} value={s}>{s.toUpperCase()}</option>)}
                 </select>
-                <button className="btn-ghost" style={{height:32, fontSize:11}} onClick={async()=>{
-                  const receipt = `URBAN CART RECEIPT\nOrder #${o.id}\nCustomer: ${o.customer_name||o.full_name}\nEmail: ${o.email}\nPhone: ${o.phone}\nAddress: ${o.delivery_address}, ${o.province}, ${o.postal_code}\nTotal: ${fmt(o.total)}\nStatus: ${o.status}\nItems: ${(o.items||[]).map(i=>`${i.name} x${i.quantity}`).join(', ')}\nDate: ${o.created_at}`;
-                  try{ await navigator.clipboard.writeText(receipt); setNotice(`Receipt for #${o.id} copied!`);}catch{ setNotice(receipt); }
-                }}><FileText size={12} style={{display:'inline'}}/> COPY RECEIPT</button>
               </div>
-              <div style={{marginTop:6}}>{o.items?.map((it,idx)=><div key={idx} style={{fontSize:10}}>{it.name} x {it.quantity} - {fmt(it.price)}</div>)}</div>
             </div>
           ))}
           {!adminOrders.length && <div className="empty">NO ORDERS YET</div>}
-
           {editingOrder && (
             <div className="overlay" style={{zIndex:10001, position:'fixed'}} onMouseDown={e=>{if(e.target===e.currentTarget)setEditingOrder(null)}}>
               <section className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:500}}>
@@ -721,27 +788,22 @@ function App(){
               </section>
             </div>
           )}
-
           {cancelModal && (
             <div className="overlay" style={{zIndex:10002, position:'fixed'}} onMouseDown={e=>{if(e.target===e.currentTarget)setCancelModal(null)}}>
               <section className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:500}}>
                 <div className="drawer-head"><h2><AlertTriangle size={16} style={{display:'inline'}}/> CANCEL ORDER #{cancelModal}</h2><button onClick={()=>setCancelModal(null)}><X size={16}/></button></div>
-                <p style={{fontSize:12}}>Why are you cancelling this order? Customer will see this reason.</p>
-                <div style={{display:'flex', flexDirection:'column', gap:10, marginTop:12}}>
-                  <select value={cancelReason} onChange={e=>setCancelReason(e.target.value)} style={{height:42, border:'2px solid #121212', padding:'0 12px'}}>
-                    <option value="">-- Select reason --</option>
-                    <option value="Out of stock">Out of stock</option>
-                    <option value="Customer requested cancellation">Customer requested cancellation</option>
-                    <option value="Wrong address / unable to deliver">Wrong address / unable to deliver</option>
-                    <option value="Suspicious / fraud payment">Suspicious / fraud payment</option>
-                    <option value="Courier cannot reach area">Courier cannot reach area</option>
-                    <option value="Damaged in warehouse">Damaged in warehouse</option>
-                    <option value="Other">Other</option>
-                  </select>
-                  <textarea value={cancelReason} onChange={e=>setCancelReason(e.target.value)} placeholder="Type detailed reason e.g. Out of stock - back next week, Customer asked to cancel via phone..." style={{height:100, border:'2px solid #121212', padding:12}}/>
-                  <button className="btn-black full" style={{background:'#ff3b30'}} onClick={confirmCancel} disabled={busy}>CONFIRM CANCEL - SEND TO CUSTOMER</button>
-                  <button className="btn-ghost full" onClick={()=>{setCancelModal(null); setCancelReason('');}}>KEEP ORDER</button>
-                </div>
+                <select value={cancelReason} onChange={e=>setCancelReason(e.target.value)} style={{height:42, border:'2px solid #121212', padding:'0 12px', width:'100%'}}>
+                  <option value="">-- Select reason --</option>
+                  <option value="Out of stock">Out of stock</option>
+                  <option value="Customer requested cancellation">Customer requested cancellation</option>
+                  <option value="Wrong address / unable to deliver">Wrong address / unable to deliver</option>
+                  <option value="Suspicious / fraud payment">Suspicious / fraud payment</option>
+                  <option value="Courier cannot reach area">Courier cannot reach area</option>
+                  <option value="Damaged in warehouse">Damaged in warehouse</option>
+                  <option value="Other">Other</option>
+                </select>
+                <textarea value={cancelReason} onChange={e=>setCancelReason(e.target.value)} placeholder="Type detailed reason..." style={{height:100, border:'2px solid #121212', padding:12, width:'100%', marginTop:10}}/>
+                <button className="btn-black full" style={{background:'#ff3b30', marginTop:10}} onClick={confirmCancel} disabled={busy}>CONFIRM CANCEL</button>
               </section>
             </div>
           )}
@@ -752,9 +814,7 @@ function App(){
             <h3 style={{fontFamily:'Anton', margin:'0 0 8px'}}>{editingId? `EDIT #${editingId}` : 'CREATE NEW PRODUCT'}</h3>
             <input required placeholder="Name" value={prodForm.name} onChange={e=>setProdForm(f=>({...f,name:e.target.value}))}/>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8}}>
-              <select value={prodForm.category} onChange={e=>setProdForm(f=>({...f,category:e.target.value}))}>
-                {['Tech','Home','Lifestyle','Accessories'].map(c=><option key={c}>{c}</option>)}
-              </select>
+              <select value={prodForm.category} onChange={e=>setProdForm(f=>({...f,category:e.target.value}))}>{['Tech','Home','Lifestyle','Accessories'].map(c=><option key={c}>{c}</option>)}</select>
               <input required type="number" step="0.01" placeholder="Price ZAR" value={prodForm.price} onChange={e=>setProdForm(f=>({...f,price:e.target.value}))}/>
               <input required type="number" placeholder="Stock" value={prodForm.stock} onChange={e=>setProdForm(f=>({...f,stock:e.target.value}))}/>
             </div>
