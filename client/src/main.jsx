@@ -461,7 +461,6 @@ function App(){
             <p>Not another store. A tight edit of useful, well-made things that earn their place. No filler. No endless scroll.</p>
             <div className="hero-actions">
               <a href="#shop" className="btn-black">SHOP THE INDEX <ArrowUpRight size={16}/></a>
-              <div className="hero-stat"><b>{products.length}</b><span>OBJECTS<br/>CURATED</span></div>
             </div>
           </div>
           <div className="hero-cards">
