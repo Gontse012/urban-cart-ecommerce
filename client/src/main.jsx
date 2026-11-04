@@ -555,11 +555,7 @@ function App(){
         </div>
         <div>
           <label style={{fontSize:11, fontWeight:700}}>Delivery address *</label>
-          <input required list="sa-addresses" value={form.delivery_address} onChange={e=>setField('delivery_address',e.target.value)} placeholder="e.g. 24 Oak Avenue, Sandton" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/>
-          <datalist id="sa-addresses">
-            <option value="24 Oak Avenue, Sandton, Johannesburg, South Africa"/>
-            <option value="45 Beach Road, Sea Point, Cape Town, South Africa"/>
-          </datalist>
+          <input value={form.delivery_address} onChange={e=>setField('delivery_address',e.target.value)} placeholder="e.g. 24 Oak Avenue, Sandton" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/>
         </div>
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
           <div>
