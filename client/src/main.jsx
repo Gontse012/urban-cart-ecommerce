@@ -3,6 +3,18 @@ import { createRoot } from 'react-dom/client';
 import { Search, ShoppingBag, ArrowUpRight, Plus, Minus, X, Menu, Check, ShieldCheck, Truck, RotateCcw, PackageCheck, UserRound, MapPin, Clock, FileText, AlertTriangle, Bell, Tag, Ban, MessageCircle, Printer, TrendingUp, DollarSign, Users, Crown, Eye, Archive } from 'lucide-react';
 import './styles.css';
 
+// New states
+const [resetToken,setResetToken]=useState(null);
+const [newPassword,setNewPassword]=useState('');
+const [resetConfirm,setResetConfirm]=useState('');
+const [resetMessage,setResetMessage]=useState('');
+// Auto-detect link from email
+useEffect(()=>{
+  const params = new URLSearchParams(window.location.search);
+  const t = params.get('reset_token') || params.get('token');
+  if(t){ setResetToken(t); }
+},[]);
+
 const RAW = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
 const API = RAW.includes('/api') ? RAW : RAW + '/api';
 
@@ -806,7 +818,10 @@ function App(){
           <input required type="email" placeholder="Email" value={authForm.email} onChange={e=>setAuthForm(f=>({...f,email:e.target.value}))}/>
           <input required type="password" placeholder="Password" value={authForm.password} onChange={e=>setAuthForm(f=>({...f,password:e.target.value}))}/>
           {/* === FIX A: Forgot link under login === */}
-          {authMode==='login' && <button type="button" className="forgot-link" onClick={()=>{setForgotOpen(true); setForgotEmail(authForm.email);}}>Forgot password?</button>}
+          {authMode==='login' && 
+          <button type="button" className="forgot-link" onClick={()=>{setForgotOpen(true); 
+            setForgotEmail(authForm.email);}}>Forgot password?
+            </button>}
           {authMode==='register' && (<div className="terms-box"><label className="terms-check"><input type="checkbox" checked={authForm.acceptTerms} onChange={e=>setAuthForm(f=>({...f, acceptTerms:e.target.checked}))}/><span>I agree to the <button type="button" onClick={()=>setShowTerms(true)} style={{textDecoration:'underline', background:'none', border:'none', fontWeight:700, cursor:'pointer'}}>Terms & Conditions</button></span></label></div>)}
           <button className="btn-black full" disabled={busy}>{busy?'WAIT...':authMode==='login'?'SIGN IN':'CREATE ACCOUNT'}</button>
         </form>
@@ -816,19 +831,34 @@ function App(){
 
   {/* === FIX A: Forgot modal === */}
   {forgotOpen && (
-    <div className="overlay" style={{zIndex:10004}} onMouseDown={e=>{if(e.target===e.currentTarget)setForgotOpen(false)}}>
-      <section className="modal" style={{maxWidth:420}}>
-        <div className="drawer-head"><h2>RESET PASSWORD</h2><button onClick={()=>setForgotOpen(false)}><X size={16}/></button></div>
-        <div style={{display:'flex', flexDirection:'column', gap:12, marginTop:12}}>
-          <p style={{fontSize:12, lineHeight:1.5}}>Enter your email. We'll send a reset link.</p>
-          <input autoFocus type="email" placeholder="you@example.com" value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)} style={{height:44, border:'2px solid #121212', padding:'0 12px'}}/>
-          {forgotMessage && <div style={{background: forgotMessage.includes('sent') || forgotMessage.includes('Contact') ? '#dcfce7' : '#FEF3C7', border:'2px solid #121212', padding:10, fontSize:11, fontWeight:700}}>{forgotMessage}</div>}
-          <button className="btn-black full" disabled={busy} onClick={handleForgot}>{busy?'SENDING...':'SEND RESET LINK'}</button>
-          <button className="btn-ghost full" onClick={()=>setForgotOpen(false)}>CANCEL</button>
-        </div>
-      </section>
-    </div>
-  )}
+  <div className="overlay" style={{zIndex:10004}} onMouseDown={e=>{if(e.target===e.currentTarget)setForgotOpen(false)}}>
+    <section className="modal" style={{maxWidth:420}}>
+      <div className="drawer-head"><h2>RESET PASSWORD</h2><button onClick={()=>setForgotOpen(false)}><X size={16}/></button></div>
+      <div style={{display:'flex', flexDirection:'column', gap:12, marginTop:12}}>
+        <p style={{fontSize:12, lineHeight:1.5}}>Enter your email. We'll send a reset link.</p>
+        <input autoFocus type="email" placeholder="you@example.com" value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)} style={{height:44, border:'2px solid #121212', padding:'0 12px'}}/>
+        {forgotMessage && <div style={{background: forgotMessage.includes('sent') || forgotMessage.includes('Contact') ? '#dcfce7' : '#FEF3C7', border:'2px solid #121212', padding:10, fontSize:11, fontWeight:700}}>{forgotMessage}</div>}
+        <button className="btn-black full" disabled={busy} onClick={handleForgot}>{busy?'SENDING...':'SEND RESET LINK'}</button>
+        <button className="btn-ghost full" onClick={()=>setForgotOpen(false)}>CANCEL</button>
+      </div>
+    </section>
+  </div>
+)}
+{resetToken && (
+  <div className="overlay" style={{zIndex:10005}} onMouseDown={e=>{if(e.target===e.currentTarget){ setResetToken(null); window.history.replaceState({}, '', window.location.pathname); }}}>
+    <section className="modal" style={{maxWidth:420}}>
+      <div className="drawer-head"><h2>SET NEW PASSWORD</h2><button onClick={()=>{ setResetToken(null); window.history.replaceState({}, '', window.location.pathname); }}><X size={16}/></button></div>
+      <form onSubmit={handleResetPassword} style={{display:'flex', flexDirection:'column', gap:12, marginTop:12}}>
+        <p style={{fontSize:12, lineHeight:1.5}}>Enter your new password. Link expires in 1 hour.</p>
+        <input autoFocus type="password" placeholder="New password (min 6 chars)" value={newPassword} onChange={e=>setNewPassword(e.target.value)} style={{height:44, border:'2px solid #121212', padding:'0 12px'}}/>
+        <input type="password" placeholder="Confirm new password" value={resetConfirm} onChange={e=>setResetConfirm(e.target.value)} style={{height:44, border:'2px solid #121212', padding:'0 12px'}}/>
+        {resetMessage && <div style={{background: resetMessage.includes('✅') ? '#dcfce7' : '#FEF3C7', border:'2px solid #121212', padding:10, fontSize:11, fontWeight:700}}>{resetMessage}</div>}
+        <button className="btn-black full" disabled={busy} type="submit">{busy?'RESETTING...':'RESET PASSWORD'}</button>
+        <button className="btn-ghost full" type="button" onClick={()=>{ setResetToken(null); window.history.replaceState({}, '', window.location.pathname); }}>CANCEL</button>
+      </form>
+    </section>
+  </div>
+)}
 
   {showTerms && (
     <div className="overlay" style={{zIndex:10003}} onMouseDown={e=>{if(e.target===e.currentTarget)setShowTerms(false)}}>

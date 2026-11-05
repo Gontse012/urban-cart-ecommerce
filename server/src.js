@@ -162,11 +162,20 @@ function getTransporter(){
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   if(!user || !pass) return null;
-  return nodemailer.createTransport({
-    host, port, secure: port===465,
-    auth: { user, pass }
-  });
-}
+
+  async function sendEmailResend({ to, subject, html }){
+    await fetch('https://api.resend.com/emails', {
+      method:'POST',
+      headers:{ 'Authorization': `Bearer ${RESEND_API_KEY}` },
+      body: JSON.stringify({ from: 'Urban Cart <onboarding@resend.dev>', to:[to], subject, html })
+    })
+  }
+  app.post('/api/auth/forgot-password', ...){
+    const token = crypto.randomBytes(32).toString('hex');
+    const resetLink = `${FRONTEND_URL}?reset_token=${token}`;
+    await sendEmailResend({ to: email, subject:'Reset Your Password', html: `<a href="${resetLink}">RESET</a>` })
+  }
+  }
 
 async function sendDeliveryNoteEmail(order, items){
   const adminEmail = (process.env.ADMIN_EMAIL || '').trim();
