@@ -159,6 +159,7 @@ const [resetMessage, setResetMessage] = useState('');
       setActiveTab('track');
       loadTracking();
     }
+    
     if(params.get('payment')==='cancel'){ 
       setNotice('Payment cancelled - your cart is saved.'); 
       window.history.replaceState({}, '', window.location.pathname);
@@ -871,7 +872,7 @@ const [resetMessage, setResetMessage] = useState('');
       </section>
     </div>
   )}
-  
+
   {/* ADD THIS - NEW RESET MODAL FROM EMAIL LINK */}
   {resetOpen && (
     <div className="overlay" style={{zIndex:10005}} onMouseDown={e=>{if(e.target===e.currentTarget)setResetOpen(false)}}>
