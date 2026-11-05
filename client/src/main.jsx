@@ -80,7 +80,7 @@ function App(){
  const [editingOrder,setEditingOrder]=useState(null);
  const [cancelModal,setCancelModal]=useState(null);
  const [cancelReason,setCancelReason]=useState('');
- const [editData,setEditData]=useState({delivery_status:'Order Placed', current_location:'Warehouse - Johannesburg', eta:'2-3 business days', tracking_note:''});
+ const [editData,setEditData]=useState({delivery_status:'Order Placed', current_location:'Warehouse - Lephalale', eta:'1-2 business days', tracking_note:''});
  const [form,setForm]=useState({full_name:'',email:'',phone:'',address_search:'',delivery_address:'',province:'LIMPOPO',postal_code:''});
  const [authForm,setAuthForm]=useState({name:'',email:'',password:'', acceptTerms:false});
  const [authError,setAuthError]=useState('');
@@ -99,6 +99,9 @@ function App(){
 const [resetOpen, setResetOpen] = useState(false);
 const [newPassword, setNewPassword] = useState('');
 const [resetMessage, setResetMessage] = useState('');
+const [forgotStatus, setForgotStatus] = useState('');
+const [resetPassword, setResetPassword] = useState('');
+const [resetStatus, setResetStatus] = useState('');
 
  useEffect(()=>{
    const key = getCartKey(user);
@@ -131,15 +134,55 @@ const [resetMessage, setResetMessage] = useState('');
    }
  },[user]);
 
- useEffect(()=>{
+ // Check URL for ?reset_token= on load
+useEffect(()=>{
   const params = new URLSearchParams(window.location.search);
-  const t = params.get('reset_token') || params.get('token');
+  const t = params.get('reset_token');
   if(t){
     setResetToken(t);
     setResetOpen(true);
-    setShowAuth(true); // or set your login modal open
   }
 },[]);
+
+async function handleForgotSubmit(e){
+  e.preventDefault();
+  setForgotStatus('Sending...');
+  try{
+    const r = await fetch(`${API_URL}/api/auth/forgot-password`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ email: forgotEmail })
+    });
+    const data = await r.json();
+    if(!r.ok) throw new Error(data.error || 'Failed');
+    setForgotStatus('✅ Reset link sent! Check inbox & spam folder.');
+  }catch(err){
+    setForgotStatus('❌ ' + err.message);
+  }
+}
+
+async function handleResetSubmit(e){
+  e.preventDefault();
+  setResetStatus('Resetting...');
+  try{
+    const r = await fetch(`${API_URL}/api/auth/reset-password`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ token: resetToken, newPassword: resetPassword })
+    });
+    const data = await r.json();
+    if(!r.ok) throw new Error(data.error || 'Failed');
+    setResetStatus('✅ Password changed! You can now login.');
+    setTimeout(()=>{
+      setResetOpen(false);
+      setResetToken('');
+      setResetPassword('');
+      window.history.replaceState({}, '', '/');
+    },2000);
+  }catch(err){
+    setResetStatus('❌ ' + err.message);
+  }
+}
 
  useEffect(()=>{
    const key = getCartKey(user);
@@ -159,7 +202,7 @@ const [resetMessage, setResetMessage] = useState('');
       setActiveTab('track');
       loadTracking();
     }
-    
+
     if(params.get('payment')==='cancel'){ 
       setNotice('Payment cancelled - your cart is saved.'); 
       window.history.replaceState({}, '', window.location.pathname);
@@ -548,8 +591,8 @@ const [resetMessage, setResetMessage] = useState('');
    <html><head><title>${type.toUpperCase()} #${o.id}</title>
    <style>body{font-family:monospace;padding:32px;color:#121212}h1{font-family:Anton,sans-serif;font-size:32px;margin:0} table{width:100%;border-collapse:collapse;margin-top:16px} td,th{border:1px solid #121212;padding:8px;font-size:12px} .head{display:flex;justify-content:space-between;border-bottom:3px solid #121212;padding-bottom:12px}</style>
    </head><body>
-   <div class="head"><div><h1>URBAN CART</h1><small>SOWETO — JHB — SA<br/>PayFast Secure</small></div><div style="text-align:right"><b>${type.toUpperCase()}</b><br/>#${o.id}<br/>${new Date(o.created_at).toLocaleDateString()}<br/>${o.status.toUpperCase()} / ${(o.payment_status||'paid').toUpperCase()}</div></div>
-   <div style="display:flex;gap:40px;margin-top:20px"><div><b>BILL TO:</b><br/>${o.customer_name||o.full_name}<br/>${o.email}<br/>${o.phone}<br/>${o.delivery_address||o.address}<br/>${o.province}, ${o.postal_code}</div><div><b>${type==='invoice'?'SHIP TO:':'DELIVERY:'}</b><br/>${o.delivery_address||o.address}<br/>${o.province}<br/>Courier: ${o.current_location||'Warehouse JHB'}<br/>ETA: ${o.eta||'2-3 days'}</div></div>
+   <div class="head"><div><h1>URBAN CART</h1><small>Ellisras — Lephalale — SA<br/>PayFast Secure</small></div><div style="text-align:right"><b>${type.toUpperCase()}</b><br/>#${o.id}<br/>${new Date(o.created_at).toLocaleDateString()}<br/>${o.status.toUpperCase()} / ${(o.payment_status||'paid').toUpperCase()}</div></div>
+   <div style="display:flex;gap:40px;margin-top:20px"><div><b>BILL TO:</b><br/>${o.customer_name||o.full_name}<br/>${o.email}<br/>${o.phone}<br/>${o.delivery_address||o.address}<br/>${o.province}, ${o.postal_code}</div><div><b>${type==='invoice'?'SHIP TO:':'DELIVERY:'}</b><br/>${o.delivery_address||o.address}<br/>${o.province}<br/>Courier: ${o.current_location||'Warehouse Lephalale'}<br/>ETA: ${o.eta||'2-3 days'}</div></div>
    <table><thead><tr><th>Item</th><th>Qty</th><th>Unit</th><th>Total</th></tr></thead><tbody>${itemsHtml}</tbody><tfoot><tr><td colspan="3" style="text-align:right"><b>TOTAL</b></td><td style="text-align:right"><b>${fmt(o.total)}</b></td></tr></tfoot></table>
    ${type==='delivery' ? `<div style="margin-top:40px;border:2px dashed #121212;padding:16px"><b>DELIVERY NOTE:</b><br/>Order #${o.id} — Handle with care. Customer phone: ${o.phone}. Signature required. ${o.cancel_reason?'<br/>NOTE: '+o.cancel_reason:''}</div>` : ''}
    <p style="font-size:10px;margin-top:32px">Generated by Urban Cart Admin — ${new Date().toLocaleString()}</p>
@@ -767,13 +810,13 @@ const [resetMessage, setResetMessage] = useState('');
         </section>
         <section id="story" className="manifesto">
           <div><h2>LESS NOISE.<br/>MORE<br/><em>MEANING.</em></h2></div>
-          <div><p>Urban Cart started with one question: what if we only sold things we'd keep?</p><p>We don't do 10,000 products. We do 30 that matter. Tech that doesn't shout. Homeware that lasts. Everyday stuff that makes the day feel a little more considered.</p><p>Proudly built in Soweto. Shipping everywhere in South Africa.</p><a href="#shop" className="btn-outline">READ OUR RULES <ArrowUpRight size={14}/></a></div>
+          <div><p>Urban Cart started with one question: what if we only sold things we'd keep?</p><p>We don't do 10,000 products. We do 30 that matter. Tech that doesn't shout. Homeware that lasts. Everyday stuff that makes the day feel a little more considered.</p><p>Proudly built in Ellisras. Shipping everywhere in South Africa.</p><a href="#shop" className="btn-outline">READ OUR RULES <ArrowUpRight size={14}/></a></div>
         </section>
       </>
     )}
   </main>
   <footer className="footer">
-    <div className="foot-top"><span>© {new Date().getFullYear()} URBAN CART</span><span>SOWETO — JHB — SA</span><span>MADE FOR THE EVERYDAY ●</span></div>
+    <div className="foot-top"><span>© {new Date().getFullYear()} URBAN CART</span><span>Ellisras — Lephalale — SA</span><span>MADE FOR THE EVERYDAY ●</span></div>
     <div className="foot-big">URBAN CART</div>
   </footer>
   {notice&&<div className="toast"><Check size={14}/>{notice}<button onClick={()=>setNotice('')}><X size={12}/></button></div>}
@@ -849,7 +892,21 @@ const [resetMessage, setResetMessage] = useState('');
           <input required type="email" placeholder="Email" value={authForm.email} onChange={e=>setAuthForm(f=>({...f,email:e.target.value}))}/>
           <input required type="password" placeholder="Password" value={authForm.password} onChange={e=>setAuthForm(f=>({...f,password:e.target.value}))}/>
           {/* === FIX A: Forgot link under login === */}
-          {authMode==='login' && <button type="button" className="forgot-link" onClick={()=>{setForgotOpen(true); setForgotEmail(authForm.email);}}>Forgot password?</button>}
+          {authMode==='login' && (
+            <button 
+              type="button" 
+              className="forgot-link" 
+              style={{cursor:'pointer', background:'none', border:'none', color:'#E9D9BF', textDecoration:'underline', fontSize:'13px', marginTop:'8px'}}
+              onClick={()=>{
+                console.log('forgot clicked'); // for debug
+                setForgotOpen(true); 
+                setForgotEmail(authForm.email);
+                setForgotStatus('');
+              }}
+            >
+              Forgot password?
+            </button>
+          )}
           {authMode==='register' && (<div className="terms-box"><label className="terms-check"><input type="checkbox" checked={authForm.acceptTerms} onChange={e=>setAuthForm(f=>({...f, acceptTerms:e.target.checked}))}/><span>I agree to the <button type="button" onClick={()=>setShowTerms(true)} style={{textDecoration:'underline', background:'none', border:'none', fontWeight:700, cursor:'pointer'}}>Terms & Conditions</button></span></label></div>)}
           <button className="btn-black full" disabled={busy}>{busy?'WAIT...':authMode==='login'?'SIGN IN':'CREATE ACCOUNT'}</button>
         </form>
@@ -857,37 +914,55 @@ const [resetMessage, setResetMessage] = useState('');
     </section>
   </div>}
 
-  {/* === FIX A: Forgot modal === */}
-  {forgotOpen && (
-    <div className="overlay" style={{zIndex:10004}} onMouseDown={e=>{if(e.target===e.currentTarget)setForgotOpen(false)}}>
-      <section className="modal" style={{maxWidth:420}}>
-        <div className="drawer-head"><h2>RESET PASSWORD</h2><button onClick={()=>setForgotOpen(false)}><X size={16}/></button></div>
-        <div style={{display:'flex', flexDirection:'column', gap:12, marginTop:12}}>
-          <p style={{fontSize:12, lineHeight:1.5}}>Enter your email. We'll send a reset link.</p>
-          <input autoFocus type="email" placeholder="you@example.com" value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)} style={{height:44, border:'2px solid #121212', padding:'0 12px'}}/>
-          {forgotMessage && <div style={{background: forgotMessage.includes('sent') || forgotMessage.includes('Contact') ? '#dcfce7' : '#FEF3C7', border:'2px solid #121212', padding:10, fontSize:11, fontWeight:700}}>{forgotMessage}</div>}
-          <button className="btn-black full" disabled={busy} onClick={handleForgot}>{busy?'SENDING...':'SEND RESET LINK'}</button>
-          <button className="btn-ghost full" onClick={()=>setForgotOpen(false)}>CANCEL</button>
-        </div>
-      </section>
+  {/* FORGOT PASSWORD MODAL */}
+{forgotOpen && (
+  <div className="modal-overlay" style={{zIndex:10003}} onClick={()=>setForgotOpen(false)}>
+    <div className="modal-box" onClick={e=>e.stopPropagation()} style={{maxWidth:'400px'}}>
+      <div className="modal-head">
+        <h3>Reset Password</h3>
+        <button onClick={()=>setForgotOpen(false)} className="icon-x">✕</button>
+      </div>
+      <form onSubmit={handleForgotSubmit} style={{padding:'16px', display:'flex', flexDirection:'column', gap:'12px'}}>
+        <p style={{fontSize:'13px', opacity:.7}}>Enter your email - we'll send you a reset link (expires in 1 hour).</p>
+        <input 
+          type="email" 
+          required 
+          value={forgotEmail} 
+          onChange={e=>setForgotEmail(e.target.value)}
+          placeholder="your@email.com"
+          style={{padding:'12px', border:'1px solid #ddd', borderRadius:'8px'}}
+        />
+        <button type="submit" className="btn-primary">Send Reset Link</button>
+        {forgotStatus && <div style={{fontSize:'13px', padding:'8px', background:'#FEF3C7', borderRadius:'6px'}}>{forgotStatus}</div>}
+      </form>
     </div>
-  )}
+  </div>
+)}
 
-  {/* ADD THIS - NEW RESET MODAL FROM EMAIL LINK */}
-  {resetOpen && (
-    <div className="overlay" style={{zIndex:10005}} onMouseDown={e=>{if(e.target===e.currentTarget)setResetOpen(false)}}>
-      <section className="modal" style={{maxWidth:420}}>
-        <div className="drawer-head"><h2>NEW PASSWORD</h2><button onClick={()=>setResetOpen(false)}><X size={16}/></button></div>
-        <div style={{display:'flex', flexDirection:'column', gap:12, marginTop:12}}>
-          <p style={{fontSize:12, lineHeight:1.5}}>Link verified ✅ Enter your new password (min 6 chars).</p>
-          <input autoFocus type="password" placeholder="New password" value={newPassword} onChange={e=>setNewPassword(e.target.value)} style={{height:44, border:'2px solid #121212', padding:'0 12px'}}/>
-          {resetMessage && <div style={{background: resetMessage.includes('successful') || resetMessage.includes('reset!') ? '#dcfce7' : '#FEF3C7', border:'2px solid #121212', padding:10, fontSize:11, fontWeight:700}}>{resetMessage}</div>}
-          <button className="btn-black full" disabled={busy} onClick={handleResetPassword}>{busy?'RESETTING...':'RESET PASSWORD'}</button>
-          <button className="btn-ghost full" onClick={()=>{setResetOpen(false); window.history.replaceState({}, '', window.location.pathname);}}>CANCEL</button>
-        </div>
-      </section>
+{/* RESET PASSWORD MODAL */}
+{resetOpen && (
+  <div className="modal-overlay" style={{zIndex:10004}} onClick={()=>{setResetOpen(false); window.history.replaceState({}, '', '/');}}>
+    <div className="modal-box" onClick={e=>e.stopPropagation()} style={{maxWidth:'400px'}}>
+      <div className="modal-head">
+        <h3>Set New Password</h3>
+        <button onClick={()=>{setResetOpen(false); window.history.replaceState({}, '', '/');}} className="icon-x">✕</button>
+      </div>
+      <form onSubmit={handleResetSubmit} style={{padding:'16px', display:'flex', flexDirection:'column', gap:'12px'}}>
+        <input 
+          type="password" 
+          required 
+          minLength={6}
+          value={resetPassword} 
+          onChange={e=>setResetPassword(e.target.value)}
+          placeholder="New password (min 6 chars)"
+          style={{padding:'12px', border:'1px solid #ddd', borderRadius:'8px'}}
+        />
+        <button type="submit" className="btn-primary">Reset Password</button>
+        {resetStatus && <div style={{fontSize:'13px', padding:'8px', background:'#FEF3C7', borderRadius:'6px'}}>{resetStatus}</div>}
+      </form>
     </div>
-  )}
+  </div>
+)}
 
   {showTerms && (
     <div className="overlay" style={{zIndex:10003}} onMouseDown={e=>{if(e.target===e.currentTarget)setShowTerms(false)}}>
@@ -951,7 +1026,7 @@ const [resetMessage, setResetMessage] = useState('');
                 <p style={{fontSize:11}}>Location: {o.current_location} | ETA: {o.eta} | Total: {fmt(o.total)}</p>
                 {o.cancel_reason && <p style={{fontSize:11, background:'#fff', border:'1px dashed #ff3b30', padding:6}}>Reason: {o.cancel_reason}</p>}
                 <div style={{display:'flex', gap:6, marginTop:8, flexWrap:'wrap'}}>
-                  <button className="btn-ghost" style={{height:32, fontSize:10}} onClick={()=>{setEditingOrder(o); setEditData({delivery_status:o.delivery_status||o.status, current_location:o.current_location||'Warehouse - JHB', eta:o.eta||'2-3 days', tracking_note:''});}}>UPDATE TRACKING</button>
+                  <button className="btn-ghost" style={{height:32, fontSize:10}} onClick={()=>{setEditingOrder(o); setEditData({delivery_status:o.delivery_status||o.status, current_location:o.current_location||'Warehouse - Lephalale', eta:o.eta||'2-3 days', tracking_note:''});}}>UPDATE TRACKING</button>
                   {/* FIX B: DB-safe lowercase values */}
                   <select value={toSafeStatus(o.status)} onChange={e=>updateStatus(o.id,e.target.value)} style={{border:'2px solid #121212', fontSize:10, fontWeight:700, height:32}}>
                     {['pending','paid','processing','shipped','delivered','cancelled','refunded'].map(s=><option key={s} value={s}>{s.toUpperCase()}</option>)}
