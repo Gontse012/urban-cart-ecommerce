@@ -128,35 +128,6 @@ async function generateDeliveryPdfBuffer(order, items){
 }
 
 async function sendViaResend({ to, subject, text, html, pdfBuffer, pdfName }){
-  const resendKey = (process.env.RESEND_API_KEY || '').trim();
-  if(!resendKey) return null;
-  try{
-    const payload = {
-      from: 'Urban Cart <onboarding@resend.dev>',
-      to: Array.isArray(to) ? to : [to],
-      subject,
-      html: html || text,
-      text: text || ''
-    };
-    if(pdfBuffer){
-      payload.attachments = [{ filename: pdfName || 'delivery-note.pdf', content: pdfBuffer.toString('base64') }];
-    }
-    const r = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await r.json();
-    if(!r.ok) throw new Error(JSON.stringify(data));
-    console.log('✅ Email sent via Resend:', data.id);
-    return { ok: true, via: 'resend', id: data.id };
-  }catch(e){
-    console.error('Resend failed:', e.message);
-    return { ok: false, error: e.message };
-  }
-}
-
-async function sendViaResend({ to, subject, text, html, pdfBuffer, pdfName }){
   if(!RESEND_API_KEY) return null;
   try{
     const payload = { from: FROM_EMAIL, to: Array.isArray(to) ? to : [to], subject, html: html || text || '', text: text || '' };
@@ -174,6 +145,7 @@ async function sendViaResend({ to, subject, text, html, pdfBuffer, pdfName }){
 async function sendEmailResend({ to, subject, html }){
   return sendViaResend({ to, subject, html });
 }
+
 function getTransporter(){
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = Number(process.env.SMTP_PORT || 465);
@@ -185,7 +157,22 @@ function getTransporter(){
     secure: port===465,
     auth: { user, pass }
   });
-}
+  }
+
+  async function sendEmailResend({ to, subject, html }){
+    await fetch('https://api.resend.com/emails', {
+      method:'POST',
+      headers:{ 'Authorization': `Bearer ${RESEND_API_KEY}` },
+      body: JSON.stringify({ from: 'Urban Cart <onboarding@resend.dev>', to:[to], subject, html })
+    })
+  }
+  app.post('/api/auth/forgot-password', ...){
+    const token = crypto.randomBytes(32).toString('hex');
+    const resetLink = `${FRONTEND_URL}?reset_token=${token}`;
+    await sendEmailResend({ to: email, subject:'Reset Your Password', html: `<a href="${resetLink}">RESET</a>` })
+  }
+  }
+
 async function sendDeliveryNoteEmail(order, items){
   const adminEmail = (process.env.ADMIN_EMAIL || '').trim();
   if(!adminEmail){
@@ -945,5 +932,5 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Unexpected server error: ' + err.message }); 
 });
 
-const port = Number(process.env.PORT || 4000); 
+const port = Number(process.env.PORT || 10000); 
 app.listen(port, () => console.log(`Urban Cart API v6 EMAIL listening on http://localhost:${port}`));

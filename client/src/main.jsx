@@ -871,6 +871,22 @@ const [resetMessage, setResetMessage] = useState('');
       </section>
     </div>
   )}
+  
+  {/* ADD THIS - NEW RESET MODAL FROM EMAIL LINK */}
+  {resetOpen && (
+    <div className="overlay" style={{zIndex:10005}} onMouseDown={e=>{if(e.target===e.currentTarget)setResetOpen(false)}}>
+      <section className="modal" style={{maxWidth:420}}>
+        <div className="drawer-head"><h2>NEW PASSWORD</h2><button onClick={()=>setResetOpen(false)}><X size={16}/></button></div>
+        <div style={{display:'flex', flexDirection:'column', gap:12, marginTop:12}}>
+          <p style={{fontSize:12, lineHeight:1.5}}>Link verified ✅ Enter your new password (min 6 chars).</p>
+          <input autoFocus type="password" placeholder="New password" value={newPassword} onChange={e=>setNewPassword(e.target.value)} style={{height:44, border:'2px solid #121212', padding:'0 12px'}}/>
+          {resetMessage && <div style={{background: resetMessage.includes('successful') || resetMessage.includes('reset!') ? '#dcfce7' : '#FEF3C7', border:'2px solid #121212', padding:10, fontSize:11, fontWeight:700}}>{resetMessage}</div>}
+          <button className="btn-black full" disabled={busy} onClick={handleResetPassword}>{busy?'RESETTING...':'RESET PASSWORD'}</button>
+          <button className="btn-ghost full" onClick={()=>{setResetOpen(false); window.history.replaceState({}, '', window.location.pathname);}}>CANCEL</button>
+        </div>
+      </section>
+    </div>
+  )}
 
   {showTerms && (
     <div className="overlay" style={{zIndex:10003}} onMouseDown={e=>{if(e.target===e.currentTarget)setShowTerms(false)}}>
