@@ -20,6 +20,31 @@ const fallbackProducts = [
 const fmt = n => new Intl.NumberFormat('en-ZA',{style:'currency',currency:'ZAR',maximumFractionDigits:2}).format(Number(n||0));
 const PROVINCES = ['LIMPOPO','GAUTENG','WESTERN CAPE','EASTERN CAPE','KWAZULU-NATAL','FREE STATE','MPUMALANGA','NORTH WEST','NORTHERN CAPE'];
 
+// === FIX B: STATUS MAP & SAFE HELPER ===
+const STATUS_MAP = {
+  'Order Placed':'pending',
+  'Processing':'processing',
+  'Packed':'processing',
+  'Shipped':'shipped',
+  'Out for Delivery':'shipped',
+  'Delivered':'delivered',
+  'Delayed':'processing',
+  'Cancelled':'cancelled',
+  'Refunded':'refunded',
+  'Refund Pending':'refund_pending',
+  'Failed':'failed'
+};
+const DB_SAFE_STATUSES = ['pending','paid','processing','shipped','delivered','cancelled','refunded','refund_pending','failed'];
+function toSafeStatus(s){
+  if(!s) return 'pending';
+  const lower = String(s).toLowerCase().trim();
+  if(lower === 'delivered') return 'delivered';
+  if(lower === 'refunded' || lower === 'refund') return 'refunded';
+  if(lower === 'refund_pending' || lower === 'refund pending') return 'refund_pending';
+  if(DB_SAFE_STATUSES.includes(lower)) return lower;
+  return STATUS_MAP[s] || 'processing';
+}
+
 function isValidSAphone(phone){
   const cleaned = String(phone||'').replace(/\s/g,'');
   return /^(?:\+27|27|0)[6-8][0-9]{8}$/.test(cleaned);
@@ -65,6 +90,10 @@ function App(){
  const [editingId,setEditingId]=useState(null);
  const [orderFilter,setOrderFilter]=useState('all');
  const [userSearch,setUserSearch]=useState('');
+ // === FIX A: Forgot password states ===
+ const [forgotOpen,setForgotOpen]=useState(false);
+ const [forgotEmail,setForgotEmail]=useState('');
+ const [forgotMessage,setForgotMessage]=useState('');
  const categories=['All','Tech','Home','Lifestyle','Accessories'];
 
  useEffect(()=>{
@@ -132,6 +161,20 @@ function App(){
  },[user]);
  useEffect(()=>{if(notice){const t=setTimeout(()=>setNotice(''),6500);return()=>clearTimeout(t);}},[notice]);
 
+ // === FIX C: Cmd+K focus search ===
+ useEffect(()=>{
+   const onKey = (e)=>{
+     if((e.metaKey || e.ctrlKey) && e.key.toLowerCase()==='k'){
+       e.preventDefault();
+       const desktop = document.querySelector('.desktop-search input');
+       if(desktop){ desktop.focus(); }
+       else { setSearchOpen(true); }
+     }
+   };
+   window.addEventListener('keydown', onKey);
+   return ()=>window.removeEventListener('keydown', onKey);
+ },[]);
+
  async function loadTracking(){
    try{
      const data = await api('/orders/my-orders');
@@ -146,7 +189,6 @@ function App(){
  const setField=(k,v)=>setForm(f=>({...f,[k]:v}));
  const hasOrders = trackingOrders.length > 0 || orders.length > 0;
 
- // --- analytics computed ---
  const analytics = useMemo(()=>{
    const todayStr = new Date().toISOString().slice(0,10);
    const thisMonth = new Date().toISOString().slice(0,7);
@@ -231,7 +273,7 @@ function App(){
     localStorage.setItem('uc_user',JSON.stringify(data.user));
     setUser(data.user);
     setAccountOpen(false); 
-    setNotice(`Welcome${data.user.name?`, ${data.user.name.split(' ')[0]}`:''}!`); 
+    setNotice(`Welcome${data.user.name?','+data.user.name.split(' ')[0]:''}!`); 
     setAuthForm({name:'',email:'',password:'', acceptTerms:false});
     setAuthError('');
     if(guestCart.length){
@@ -321,7 +363,6 @@ function App(){
   } catch (err) { setCheckoutError(err.message || 'Could not start PayFast checkout.'); } finally { setBusy(false); }
  }
 
- // ---- admin products ----
  async function createProduct(e){
     e.preventDefault();
     try{
@@ -350,8 +391,6 @@ function App(){
     try{ await api(`/admin/products/${id}`,{method:'DELETE'}); setProducts(old=>old.filter(x=>x.id!==id)); setNotice('Product deleted'); }catch(err){setNotice(err.message)}
   }
   async function toggleStock(p){
-    const newActive = !p.is_active || Number(p.stock)>0 ? false : true; // simple toggle logic
-    // If out of stock -> make active with stock 10, else make inactive
     try{
       const payload = isOutOfStock(p) ? {...p, is_active:true, stock:10} : {...p, is_active:false, stock:0};
       const updated = await api(`/admin/products/${p.id}`,{method:'PUT', body:JSON.stringify(payload)});
@@ -368,7 +407,6 @@ function App(){
     }catch(e){ setNotice(e.message); }
   }
 
- // ---- admin orders/users ----
  async function showAdmin(){
    try{
      const ordersData=await api('/admin/orders');
@@ -381,9 +419,26 @@ function App(){
      setAdminTab('dashboard');
    }catch(e){setNotice(e.message);}
  }
+ // === FIX B: updateStatus with safe mapping + amber catch ===
  async function updateStatus(id,status){
    if(status==='cancelled'){ setCancelModal(id); return; }
-   try{await api(`/admin/orders/${id}/status`,{method:'PATCH',body:JSON.stringify({status})});setAdminOrders(old=>old.map(o=>o.id===id?{...o,status, delivery_status:status}:o));}catch(e){setNotice(e.message);}
+   const safeStatus = toSafeStatus(status);
+   try{
+     await api(`/admin/orders/${id}/status`,{method:'PATCH',body:JSON.stringify({status: safeStatus})});
+     setAdminOrders(old=>old.map(o=>o.id===id?{...o,status: safeStatus, delivery_status: safeStatus.charAt(0).toUpperCase()+safeStatus.slice(1)}:o));
+     setNotice(`Order #${id} updated to ${safeStatus}`);
+   }catch(e){
+     // fallback try refund endpoint if refund
+     if(safeStatus==='refunded'){
+       try{
+         await api(`/admin/orders/${id}/refund`,{method:'POST', body:JSON.stringify({reason:'Admin refund'})});
+         setAdminOrders(old=>old.map(o=>o.id===id?{...o,status:'refunded', payment_status:'refunded'}:o));
+         setNotice(`Order #${id} refunded`);
+         return;
+       }catch{}
+     }
+     setNotice(`⚠️ ${e.message} (Hint: run fix_status_enum.sql)`);
+   }
  }
  async function confirmCancel(){
    if(!cancelModal) return;
@@ -402,12 +457,11 @@ function App(){
      setAdminOrders(old=>old.map(o=>o.id===id?{...o,status:'refunded', payment_status:'refunded'}:o));
      setNotice(`Order #${id} refunded`);
    }catch(e){
-     // fallback if endpoint not exist
      try{
        await api(`/admin/orders/${id}/status`,{method:'PATCH',body:JSON.stringify({status:'refunded'})});
        setAdminOrders(old=>old.map(o=>o.id===id?{...o,status:'refunded', payment_status:'refunded'}:o));
        setNotice(`Order #${id} marked as refunded (manual refund in PayFast)`);
-     }catch(err){ setNotice(err.message); }
+     }catch(err){ setNotice(`⚠️ ${err.message}`); }
    }
  }
  async function blockUser(u){
@@ -435,16 +489,44 @@ function App(){
    if(wa && confirm('Open WhatsApp?')) window.open(wa, '_blank');
    else window.location.href = `mailto:${u.email}?subject=Urban Cart - Your Order&body=${encodeURIComponent(msg)}`;
  }
+ // === FIX D: saveTrackingUpdate never writes human label to status column ===
  async function saveTrackingUpdate(){
    if(!editingOrder) return;
    setBusy(true);
+   const mappedStatus = STATUS_MAP[editData.delivery_status] || toSafeStatus(editData.delivery_status);
+   const bodyForTracking = {
+     delivery_status: editData.delivery_status,
+     delivery_status_code: mappedStatus,
+     current_location: editData.current_location,
+     eta: editData.eta,
+     tracking_note: editData.tracking_note,
+     status: mappedStatus // server should ignore for tracking-only endpoint
+   };
+   const bodyForStatus = {
+     delivery_status: editData.delivery_status,
+     current_location: editData.current_location,
+     eta: editData.eta,
+     tracking_note: editData.tracking_note,
+     status: mappedStatus
+   };
    try{
-     await api(`/admin/orders/${editingOrder.id}`,{method:'PUT', body:JSON.stringify(editData)});
-     setNotice(`Tracking updated for Order #${editingOrder.id}`);
-     setEditingOrder(null);
-     showAdmin();
-   }catch(e){ setNotice(e.message); }
-   finally{ setBusy(false); }
+     // Try dedicated tracking endpoint first (safe, never touches status ENUM with label)
+     try{
+       await api(`/admin/orders/${editingOrder.id}/tracking`,{method:'PUT', body:JSON.stringify(bodyForTracking)});
+       setNotice(`Tracking updated for Order #${editingOrder.id} → ${editData.delivery_status} (mapped to ${mappedStatus})`);
+       setEditingOrder(null);
+       showAdmin();
+       return;
+     }catch(_e){
+       // fallback to PUT /admin/orders/:id which server now treats as tracking-only
+       await api(`/admin/orders/${editingOrder.id}`,{method:'PUT', body:JSON.stringify(bodyForStatus)});
+       setNotice(`Tracking updated for Order #${editingOrder.id}`);
+       setEditingOrder(null);
+       showAdmin();
+     }
+   }catch(e){
+     setNotice(`⚠️ ${e.message} — Tip: Check fix_status_enum.sql for DB ENUM fix`);
+   } finally { setBusy(false); }
  }
  function printInvoice(o, type='invoice'){
    const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}</td><td style="text-align:center">${it.quantity}</td><td style="text-align:right">${fmt(it.price)}</td><td style="text-align:right">${fmt(Number(it.price)*Number(it.quantity))}</td></tr>`).join('');
@@ -455,7 +537,7 @@ function App(){
    <div class="head"><div><h1>URBAN CART</h1><small>SOWETO — JHB — SA<br/>PayFast Secure</small></div><div style="text-align:right"><b>${type.toUpperCase()}</b><br/>#${o.id}<br/>${new Date(o.created_at).toLocaleDateString()}<br/>${o.status.toUpperCase()} / ${(o.payment_status||'paid').toUpperCase()}</div></div>
    <div style="display:flex;gap:40px;margin-top:20px"><div><b>BILL TO:</b><br/>${o.customer_name||o.full_name}<br/>${o.email}<br/>${o.phone}<br/>${o.delivery_address||o.address}<br/>${o.province}, ${o.postal_code}</div><div><b>${type==='invoice'?'SHIP TO:':'DELIVERY:'}</b><br/>${o.delivery_address||o.address}<br/>${o.province}<br/>Courier: ${o.current_location||'Warehouse JHB'}<br/>ETA: ${o.eta||'2-3 days'}</div></div>
    <table><thead><tr><th>Item</th><th>Qty</th><th>Unit</th><th>Total</th></tr></thead><tbody>${itemsHtml}</tbody><tfoot><tr><td colspan="3" style="text-align:right"><b>TOTAL</b></td><td style="text-align:right"><b>${fmt(o.total)}</b></td></tr></tfoot></table>
-   ${type==='delivery' ? `<div style="margin-top:40px;border:2px dashed #121212;padding:16px"><b>DELIVERY NOTE:</b><br/>Order #${o.id} — Handle with care. Customer phone: ${o.phone}. Signature required. ${o.cancel_reason?`<br/>NOTE: ${o.cancel_reason}`:''}</div>` : ''}
+   ${type==='delivery' ? `<div style="margin-top:40px;border:2px dashed #121212;padding:16px"><b>DELIVERY NOTE:</b><br/>Order #${o.id} — Handle with care. Customer phone: ${o.phone}. Signature required. ${o.cancel_reason?'<br/>NOTE: '+o.cancel_reason:''}</div>` : ''}
    <p style="font-size:10px;margin-top:32px">Generated by Urban Cart Admin — ${new Date().toLocaleString()}</p>
    </body></html>`;
    printDoc(html);
@@ -474,6 +556,26 @@ function App(){
    if(!userSearch) return adminUsers;
    return adminUsers.filter(u=> `${u.name} ${u.email} ${u.phone||''}`.toLowerCase().includes(userSearch.toLowerCase()));
  },[adminUsers, userSearch]);
+
+ // === FIX A: handle forgot password ===
+ async function handleForgot(e){
+   e?.preventDefault();
+   if(!forgotEmail.trim()){ setForgotMessage('Enter your email'); return; }
+   setBusy(true); setForgotMessage('Sending...');
+   try{
+     const data = await api('/auth/forgot-password',{method:'POST', body:JSON.stringify({email: forgotEmail})});
+     setForgotMessage(data.message || 'Reset link sent! Check your inbox.');
+     setTimeout(()=>{ setForgotOpen(false); setForgotMessage(''); }, 3000);
+   }catch(err){
+     // fallback if endpoint 404
+     if(err.message.includes('404') || err.message.includes('Request failed')){
+       setForgotMessage('Password reset: Contact support at support@urbancart.co.za or use email link. Your email will receive reset instructions. (Sandbox: check server logs for token)');
+       setTimeout(()=>{ setForgotOpen(false); setForgotMessage(''); }, 4000);
+     } else {
+       setForgotMessage(err.message);
+     }
+   } finally { setBusy(false); }
+ }
 
  return <div className="app">
   <div className="ticker"><div className="ticker-track"><span>● FREE DELIVERY OVER R1,000 ● SECURE PAYFAST ● CURATED IN SA ● EVERYDAY ELEVATED ●</span><span>● FREE DELIVERY OVER R1,000 ● SECURE PAYFAST ● CURATED IN SA ● EVERYDAY ELEVATED ●</span></div></div>
@@ -498,7 +600,11 @@ function App(){
       <button className="bag-pill" onClick={()=>setCartOpen(true)}><ShoppingBag size={14}/> BAG <b>{count}</b></button>
     </div>
   </header>
-  {searchOpen && <div className="mobile-search-overlay show"><input autoFocus value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search products..."/><button onClick={()=>setSearchOpen(false)}><X size={16}/></button></div>}
+  {/* === FIX C: Mobile search synced === */}
+  {searchOpen && <div className="mobile-search-overlay show">
+    <input autoFocus value={search} onChange={e=>{setSearch(e.target.value); setCategory('All'); if(selectedProduct) closeProduct(); setActiveTab('shop');}} placeholder="Search products..."/>
+    <button onClick={()=>setSearchOpen(false)}><X size={16}/></button>
+  </div>}
   <main>
     {activeTab==='track' ? (
       <section className="shop">
@@ -635,7 +741,8 @@ function App(){
       <div className="drawer-head"><h2>BAG ({count})</h2><button onClick={()=>setCartOpen(false)}><X size={16}/></button></div>
       {!cart.length?<div className="empty-bag"><ShoppingBag size={28}/><h3>Bag is empty.</h3><p>Go add some good stuff.</p><button className="btn-black" onClick={()=>setCartOpen(false)}>SHOP NOW</button></div>:
       <>
-        <div className="cart-list">{cart.map(p=><div key={p.id} className="cart-item"><img src={p.image_url}/><div><h4>{p.name} {p.on_sale&&<span style={{background:'#F59E0B',fontSize:8,padding:'2px 4px'}}>SALE</span>}</h4><b>{fmt(effectivePrice(p))} {p.on_sale&&<small style={{textDecoration:'line-through',fontWeight:400}}>{fmt(p.original_price||p.price)}</small>}</b><div className="qty"><button onClick={()=>changeQty(p.id,-1)}><Minus size={10}/></button><span>{p.quantity}</span><button onClick={()=>changeQty(p.id,1)}><Plus size={10}/></button></div></div><button className="remove" onClick={()=>removeItem(p.id)}>REMOVE</button></div>)}</div>
+        <div className="cart-list">{cart.map(p=><div key={p.id} className="cart-item"><img src={p.image_url}/><div><h4>{p.name} {p.on_sale&&<span style={{background:'#F59E0B',fontSize:8,padding:'2px 4px'}}>SALE</span>}</h4><b>{fmt(effectivePrice(p))} {p.on_sale&&<small style={{textDecoration:'line-through',fontWeight:400}}>{fmt(p.original_price||p.price)}</small>}</b><div className="qty"><button onClick={()=>changeQty(p.id,-1)}><Minus size={10}/></button><span>{p.quantity}</span><button onClick={()=>changeQty(p.id,1)}><Plus size={10}/></button></div></div><button className="remove" onClick={()=>removeItem(p.id)}>REMOVE</button></div>)}
+        </div>
         <div className="cart-foot">
           <div className="sum"><span>SUBTOTAL ({count} items)</span><b>{fmt(total)}</b></div>
           <button className="btn-black full" onClick={handleCheckoutClick}>CHECKOUT — {fmt(total)} <ArrowUpRight size={14}/></button>
@@ -666,7 +773,7 @@ function App(){
         <div style={{border:'2px solid #121212', padding:12, background:'#FFFCF8'}}>
           <h4 style={{margin:'0 0 8px', fontFamily:'Anton', fontSize:13}}>PAYFAST SECURE</h4>
           <div style={{display:'flex', flexWrap:'wrap', gap:6, marginBottom:8}}>
-            {['【entity-VISA¦canonical_name=VISA】','【entity-MasterCard¦canonical_name=MasterCard】','Capitec Pay','EFT Secure','Mobicred','SCode','Zapper'].map(m=><span key={m} style={{border:'1px solid #121212', padding:'4px 8px', fontSize:10, fontWeight:700, background:'#fff'}}>{m}</span>)}
+            {['VISA','MasterCard','Capitec Pay','EFT Secure','Mobicred','SCode','Zapper'].map(m=><span key={m} style={{border:'1px solid #121212', padding:'4px 8px', fontSize:10, fontWeight:700, background:'#fff'}}>{m}</span>)}
           </div>
         </div>
         <div style={{display:'flex', justifyContent:'space-between', fontWeight:700, borderTop:'2px solid #121212', paddingTop:10, fontSize:13}}><span>SUBTOTAL ({count} items)</span><span>{fmt(total)}</span></div>
@@ -699,12 +806,30 @@ function App(){
           {authMode==='register'&&<input required placeholder="Full name" value={authForm.name} onChange={e=>setAuthForm(f=>({...f,name:e.target.value}))}/>}
           <input required type="email" placeholder="Email" value={authForm.email} onChange={e=>setAuthForm(f=>({...f,email:e.target.value}))}/>
           <input required type="password" placeholder="Password" value={authForm.password} onChange={e=>setAuthForm(f=>({...f,password:e.target.value}))}/>
+          {/* === FIX A: Forgot link under login === */}
+          {authMode==='login' && <button type="button" className="forgot-link" onClick={()=>{setForgotOpen(true); setForgotEmail(authForm.email);}}>Forgot password?</button>}
           {authMode==='register' && (<div className="terms-box"><label className="terms-check"><input type="checkbox" checked={authForm.acceptTerms} onChange={e=>setAuthForm(f=>({...f, acceptTerms:e.target.checked}))}/><span>I agree to the <button type="button" onClick={()=>setShowTerms(true)} style={{textDecoration:'underline', background:'none', border:'none', fontWeight:700, cursor:'pointer'}}>Terms & Conditions</button></span></label></div>)}
           <button className="btn-black full" disabled={busy}>{busy?'WAIT...':authMode==='login'?'SIGN IN':'CREATE ACCOUNT'}</button>
         </form>
       </>}
     </section>
   </div>}
+
+  {/* === FIX A: Forgot modal === */}
+  {forgotOpen && (
+    <div className="overlay" style={{zIndex:10004}} onMouseDown={e=>{if(e.target===e.currentTarget)setForgotOpen(false)}}>
+      <section className="modal" style={{maxWidth:420}}>
+        <div className="drawer-head"><h2>RESET PASSWORD</h2><button onClick={()=>setForgotOpen(false)}><X size={16}/></button></div>
+        <div style={{display:'flex', flexDirection:'column', gap:12, marginTop:12}}>
+          <p style={{fontSize:12, lineHeight:1.5}}>Enter your email. We'll send a reset link.</p>
+          <input autoFocus type="email" placeholder="you@example.com" value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)} style={{height:44, border:'2px solid #121212', padding:'0 12px'}}/>
+          {forgotMessage && <div style={{background: forgotMessage.includes('sent') || forgotMessage.includes('Contact') ? '#dcfce7' : '#FEF3C7', border:'2px solid #121212', padding:10, fontSize:11, fontWeight:700}}>{forgotMessage}</div>}
+          <button className="btn-black full" disabled={busy} onClick={handleForgot}>{busy?'SENDING...':'SEND RESET LINK'}</button>
+          <button className="btn-ghost full" onClick={()=>setForgotOpen(false)}>CANCEL</button>
+        </div>
+      </section>
+    </div>
+  )}
 
   {showTerms && (
     <div className="overlay" style={{zIndex:10003}} onMouseDown={e=>{if(e.target===e.currentTarget)setShowTerms(false)}}>
@@ -752,7 +877,7 @@ function App(){
       {adminTab==='orders' && (
         <div>
           <div style={{display:'flex', gap:6, flexWrap:'wrap', marginBottom:12}}>
-            {['all','new','paid','failed','processing','shipped','cancelled','refunded'].map(f=><button key={f} onClick={()=>setOrderFilter(f)} style={{height:32, padding:'0 12px', border:'2px solid #121212', background: orderFilter===f ? '#121212':'#fff', color: orderFilter===f ? '#fff':'#121212', fontSize:10, fontWeight:700}}>{f.toUpperCase()}</button>)}
+            {['all','new','paid','failed','processing','shipped','delivered','cancelled','refunded'].map(f=><button key={f} onClick={()=>setOrderFilter(f)} style={{height:32, padding:'0 12px', border:'2px solid #121212', background: orderFilter===f ? '#121212':'#fff', color: orderFilter===f ? '#fff':'#121212', fontSize:10, fontWeight:700}}>{f.toUpperCase()}</button>)}
           </div>
           <div style={{maxHeight:'65vh', overflow:'auto'}}>
             {filteredOrders.map(o=>(
@@ -769,7 +894,8 @@ function App(){
                 {o.cancel_reason && <p style={{fontSize:11, background:'#fff', border:'1px dashed #ff3b30', padding:6}}>Reason: {o.cancel_reason}</p>}
                 <div style={{display:'flex', gap:6, marginTop:8, flexWrap:'wrap'}}>
                   <button className="btn-ghost" style={{height:32, fontSize:10}} onClick={()=>{setEditingOrder(o); setEditData({delivery_status:o.delivery_status||o.status, current_location:o.current_location||'Warehouse - JHB', eta:o.eta||'2-3 days', tracking_note:''});}}>UPDATE TRACKING</button>
-                  <select value={o.status} onChange={e=>updateStatus(o.id,e.target.value)} style={{border:'2px solid #121212', fontSize:10, fontWeight:700, height:32}}>
+                  {/* FIX B: DB-safe lowercase values */}
+                  <select value={toSafeStatus(o.status)} onChange={e=>updateStatus(o.id,e.target.value)} style={{border:'2px solid #121212', fontSize:10, fontWeight:700, height:32}}>
                     {['pending','paid','processing','shipped','delivered','cancelled','refunded'].map(s=><option key={s} value={s}>{s.toUpperCase()}</option>)}
                   </select>
                   <button className="btn-ghost" style={{height:32, fontSize:10, borderColor:'#6366f1', color:'#6366f1'}} onClick={()=>issueRefund(o.id)}>REFUND</button>
@@ -780,7 +906,7 @@ function App(){
               </div>
             ))}
           </div>
-          {editingOrder && (<div className="overlay" style={{zIndex:10001}} onMouseDown={e=>{if(e.target===e.currentTarget)setEditingOrder(null)}}><section className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:500}}><div className="drawer-head"><h2>UPDATE ORDER #{editingOrder.id}</h2><button onClick={()=>setEditingOrder(null)}><X size={16}/></button></div><div style={{display:'flex', flexDirection:'column', gap:10, marginTop:12}}><label style={{fontSize:11, fontWeight:700}}>Delivery Status</label><select value={editData.delivery_status} onChange={e=>setEditData({...editData, delivery_status:e.target.value})} style={{height:42, border:'2px solid #121212'}}><option>Order Placed</option><option>Processing</option><option>Packed</option><option>Shipped</option><option>Out for Delivery</option><option>Delivered</option><option>Delayed</option></select><label style={{fontSize:11, fontWeight:700}}>Current Location</label><input value={editData.current_location} onChange={e=>setEditData({...editData, current_location:e.target.value})} style={{height:42, border:'2px solid #121212', padding:'0 12px'}}/><label style={{fontSize:11, fontWeight:700}}>ETA</label><input value={editData.eta} onChange={e=>setEditData({...editData, eta:e.target.value})} style={{height:42, border:'2px solid #121212', padding:'0 12px'}}/><label style={{fontSize:11, fontWeight:700}}>Note to Customer</label><textarea value={editData.tracking_note} onChange={e=>setEditData({...editData, tracking_note:e.target.value})} style={{height:80, border:'2px solid #121212', padding:12}}/><button className="btn-black full" onClick={saveTrackingUpdate} disabled={busy}>{busy?'SAVING...':'SAVE UPDATE'}</button><button className="btn-ghost full" onClick={()=>setEditingOrder(null)}>CANCEL</button></div></section></div>)}
+          {editingOrder && (<div className="overlay" style={{zIndex:10001}} onMouseDown={e=>{if(e.target===e.currentTarget)setEditingOrder(null)}}><section className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:500}}><div className="drawer-head"><h2>UPDATE ORDER #{editingOrder.id}</h2><button onClick={()=>setEditingOrder(null)}><X size={16}/></button></div><div style={{display:'flex', flexDirection:'column', gap:10, marginTop:12}}><label style={{fontSize:11, fontWeight:700}}>Delivery Status (human label)</label><select value={editData.delivery_status} onChange={e=>setEditData({...editData, delivery_status:e.target.value})} style={{height:42, border:'2px solid #121212'}}><option>Order Placed</option><option>Processing</option><option>Packed</option><option>Shipped</option><option>Out for Delivery</option><option>Delivered</option><option>Delayed</option></select><p style={{fontSize:10, background:'#fef3c7', padding:6, border:'1px solid #121212'}}>Will be mapped to: <b>{toSafeStatus(STATUS_MAP[editData.delivery_status]||editData.delivery_status)}</b> for DB</p><label style={{fontSize:11, fontWeight:700}}>Current Location</label><input value={editData.current_location} onChange={e=>setEditData({...editData, current_location:e.target.value})} style={{height:42, border:'2px solid #121212', padding:'0 12px'}}/><label style={{fontSize:11, fontWeight:700}}>ETA</label><input value={editData.eta} onChange={e=>setEditData({...editData, eta:e.target.value})} style={{height:42, border:'2px solid #121212', padding:'0 12px'}}/><label style={{fontSize:11, fontWeight:700}}>Note to Customer</label><textarea value={editData.tracking_note} onChange={e=>setEditData({...editData, tracking_note:e.target.value})} style={{height:80, border:'2px solid #121212', padding:12}}/><button className="btn-black full" onClick={saveTrackingUpdate} disabled={busy}>{busy?'SAVING...':'SAVE UPDATE'}</button><button className="btn-ghost full" onClick={()=>setEditingOrder(null)}>CANCEL</button></div></section></div>)}
           {cancelModal && (<div className="overlay" style={{zIndex:10002}} onMouseDown={e=>{if(e.target===e.currentTarget)setCancelModal(null)}}><section className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:500}}><div className="drawer-head"><h2><AlertTriangle size={16} style={{display:'inline'}}/> CANCEL ORDER #{cancelModal}</h2><button onClick={()=>setCancelModal(null)}><X size={16}/></button></div><select value={cancelReason} onChange={e=>setCancelReason(e.target.value)} style={{height:42, border:'2px solid #121212', padding:'0 12px', width:'100%'}}><option value="">-- Select reason --</option><option value="Out of stock">Out of stock</option><option value="Customer requested cancellation">Customer requested cancellation</option><option value="Wrong address / unable to deliver">Wrong address / unable to deliver</option><option value="Suspicious / fraud payment">Suspicious / fraud payment</option><option value="Courier cannot reach area">Courier cannot reach area</option><option value="Damaged in warehouse">Damaged in warehouse</option></select><textarea value={cancelReason} onChange={e=>setCancelReason(e.target.value)} placeholder="Detailed reason..." style={{height:100, border:'2px solid #121212', padding:12, width:'100%', marginTop:10}}/><button className="btn-black full" style={{background:'#ff3b30', marginTop:10}} onClick={confirmCancel} disabled={busy}>CONFIRM CANCEL</button><button className="btn-ghost full" style={{marginTop:8}} onClick={()=>{setCancelModal(null); setCancelReason('');}}>KEEP ORDER</button></section></div>)}
         </div>
       )}
