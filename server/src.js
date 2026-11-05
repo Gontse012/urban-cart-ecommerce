@@ -128,28 +128,22 @@ async function generateDeliveryPdfBuffer(order, items){
 }
 
 function getTransporter(){
-  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = Number(process.env.SMTP_PORT || 465);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const host = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
+  const port = Number((process.env.SMTP_PORT || '587').trim()) || 587;
+  const user = (process.env.SMTP_USER || '').trim().replace(/\s+/g, '');
+  const pass = (process.env.SMTP_PASS || '').trim().replace(/\s+/g, '');
   if(!user || !pass) return null;
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT) || 587,
-  secure: false, // false for 587, true for 465
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  tls: {
-    ciphers: 'SSLv3',
-    rejectUnauthorized: false
-  },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
-});
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+    tls: { rejectUnauthorized: false }
+  });
 }
 
 async function sendDeliveryNoteEmail(order, items){
@@ -756,67 +750,55 @@ app.get('/api/admin/orders/:id/delivery-pdf', auth, adminOnly, async (req, res, 
 
 app.get('/api/admin/test-email', async (req, res) => {
   const key = req.query.key || req.query.token;
-  if(key){
-    if(key !== (process.env.ADMIN_PDF_TOKEN || 'urban-cart-secret-123')){
-      // allow anyway but log
-    }
-  } else {
-    // try auth
+  if (key !== (process.env.ADMIN_PDF_TOKEN || 'urban-cart-secret-123')) {
     const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-    try{ 
-      const user = jwt.verify(token, process.env.JWT_SECRET || 'dev-only-change-this-secret');
-      if(user.role !== 'admin') throw new Error('not admin');
-    }catch{
-      // if no token, still allow test but warn - for debugging
-      if(!key){
-        return res.status(200).json({ 
-          info: 'Not signed in - showing config only. To actually send email, add ?key=YOUR_ADMIN_PDF_TOKEN or login.',
-          env_check: {
-            SMTP_HOST: process.env.SMTP_HOST || 'MISSING',
-            SMTP_PORT: process.env.SMTP_PORT || 'MISSING',
-            SMTP_USER: process.env.SMTP_USER ? process.env.SMTP_USER.slice(0,4)+'***' : 'MISSING',
-            SMTP_PASS: process.env.SMTP_PASS ? 'SET ('+String(process.env.SMTP_PASS).length+' chars - should be 16)' : 'MISSING',
-            ADMIN_EMAIL: process.env.ADMIN_EMAIL || 'MISSING',
-            ADMIN_PDF_TOKEN: process.env.ADMIN_PDF_TOKEN ? 'SET' : 'MISSING - set to urban-cart-secret-123'
-          }
-        });
-      }
+    try { 
+      const u = jwt.verify(token, process.env.JWT_SECRET);
+      if (u.role !== 'admin') throw new Error('not admin');
+    } catch {
+      return res.status(403).json({ error: 'Invalid key. Use ?key=urban-cart-secret-123' });
     }
   }
-  // continue actual test
-  const _req = req;
-  {
-  req = _req;
 
-  console.log('TEST EMAIL REQUESTED');
-  console.log('ENV CHECK:', { 
-    SMTP_HOST: process.env.SMTP_HOST || 'MISSING', 
-    SMTP_PORT: process.env.SMTP_PORT || 'MISSING', 
-    SMTP_USER: process.env.SMTP_USER ? (process.env.SMTP_USER.slice(0,3)+'***') : 'MISSING', 
-    SMTP_PASS: process.env.SMTP_PASS ? 'SET ('+process.env.SMTP_PASS.length+' chars)' : 'MISSING', 
-    ADMIN_EMAIL: process.env.ADMIN_EMAIL || 'MISSING' 
-  });
-  const transporter = getTransporter();
-  if(!transporter){
-    return res.status(500).json({ error: 'SMTP not configured. Set SMTP_USER, SMTP_PASS, ADMIN_EMAIL', env: { 
-      host: process.env.SMTP_HOST, 
-      port: process.env.SMTP_PORT, 
-      user_set: !!process.env.SMTP_USER, 
-      pass_set: !!process.env.SMTP_PASS, 
-      admin: process.env.ADMIN_EMAIL 
-    }});
+  const host = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
+  const port = Number((process.env.SMTP_PORT || '587').trim());
+  const user = (process.env.SMTP_USER || '').trim().replace(/\s+/g, '');
+  const pass = (process.env.SMTP_PASS || '').trim().replace(/\s+/g, '');
+  const admin = (process.env.ADMIN_EMAIL || '').trim();
+
+  console.log('TEST EMAIL:', { host, port, user, passLen: pass.length, admin });
+
+  if (!user || !pass || !admin) {
+    return res.status(500).json({ 
+      error: `Missing: ${!user?'SMTP_USER ':''}${!pass?'SMTP_PASS ':''}${!admin?'ADMIN_EMAIL':''}`,
+      env: { host, port, user_value: user, admin }
+    });
   }
-  try{
+
+  try {
+    const transporter = nodemailer.createTransport({
+      host, port, secure: port === 465,
+      auth: { user, pass },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
+      tls: { rejectUnauthorized: false }
+    });
+    
     await transporter.verify();
     console.log('SMTP verify OK');
-    const testOrder = { id: 999, total: 123.45, customer_name: 'Test Customer', full_name: 'Test Customer', email: 'test@test.com', phone: '0821234567', delivery_address: '123 Soweto', address_search: 'Soweto Test', province: 'GP', postal_code: '1868', city: 'Soweto', delivery_status: 'Test', payment_status: 'paid', current_location: 'Warehouse', eta: '2 days' };
-    const testItems = [{ name: 'Test Product', quantity: 1, price: 123.45 }];
-    const result = await sendDeliveryNoteEmail(testOrder, testItems);
-    res.json({ ok: result.ok, result, message: result.ok ? `Test email sent to ${process.env.ADMIN_EMAIL}` : 'Failed: '+result.reason });
-  }catch(e){
+
+    const info = await transporter.sendMail({
+      from: `"Urban Cart" <${user}>`,
+      to: admin,
+      subject: 'Urban Cart Email Works! ✅',
+      html: `<h2>✅ Email works!</h2><p>Your SMTP is configured! Time: ${new Date().toISOString()}</p><p>Host: ${host}<br>Port: ${port}<br>From: ${user}<br>To: ${admin}</p>`
+    });
+
+    res.json({ ok: true, messageId: info.messageId, to: admin, from: user, message: `Test email sent to ${admin}` });
+  } catch (e) {
     console.error('TEST EMAIL FAILED', e);
-    res.status(500).json({ error: e.message, stack: e.stack });
-  }
+    res.status(500).json({ error: e.message, details: e.toString(), env: { host, port, user_value: user, admin } });
   }
 });
 
