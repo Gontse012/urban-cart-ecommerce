@@ -220,7 +220,7 @@ ETA: ${order.eta}</p>
     // Try Resend first (HTTPS - no timeout on Render free tier)
     const resendResult = await sendViaResend({ to: adminEmail, subject, text, html, pdfBuffer: buffer, pdfName: `DELIVERY-${order.id}.pdf` });
     if(resendResult && resendResult.ok){
-      try{ await sendViaResend({ to: order.email, subject: `Your Urban Cart Order #${order.id} Confirmed`, text, html }); }catch{}
+      //try{ await sendViaResend({ to: order.email, subject: `Your Urban Cart Order #${order.id} Confirmed`, text, html }); }catch{}
       console.log(`✅ Email Delivery #${order.id} sent to ${adminEmail} via Resend`);
       return { ok:true, via:'resend' };
     }
@@ -508,16 +508,6 @@ app.post('/api/orders', async (req, res) => {
     }
     if(cid){ await conn.query('DELETE FROM carts WHERE user_id=?', [cid]); await conn.query('UPDATE customers SET total_spent = total_spent + ? WHERE id=?',[total, cid]); }
 
-    // === EMAIL AUTO SEND ===
-    (async()=>{
-      try{
-        const [oRows] = await pool.query('SELECT * FROM orders WHERE id=?',[orderId]);
-        const [iRows] = await pool.query('SELECT oi.*, p.name FROM order_items oi JOIN products p ON p.id=oi.product_id WHERE oi.order_id=?',[orderId]);
-        if(oRows.length){
-          await sendDeliveryNoteEmail(oRows[0], iRows);
-        }
-      }catch(e){ console.log('Auto Email failed', e.message); }
-    })();
 
     console.log(`NEW ORDER #${orderId} - ${finalFullName} - R${total}`);
     res.json({ orderId, total });
