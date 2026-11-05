@@ -133,10 +133,23 @@ function getTransporter(){
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   if(!user || !pass) return null;
-  return nodemailer.createTransport({
-    host, port, secure: port===465,
-    auth: { user, pass }
-  });
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: parseInt(process.env.SMTP_PORT) || 587,
+  secure: false, // false for 587, true for 465
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+  tls: {
+    ciphers: 'SSLv3',
+    rejectUnauthorized: false
+  },
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 10000,
+});
 }
 
 async function sendDeliveryNoteEmail(order, items){
