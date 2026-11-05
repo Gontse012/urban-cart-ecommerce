@@ -67,13 +67,13 @@ function isValidSAnumber(phone){
 // ================= EMAIL DELIVERY NOTE =================
 async function generateDeliveryPdfBuffer(order, items){
   return new Promise((resolve, reject)=>{
-    const doc = new PDFDocument({ margin: 40, size: 'A4' });
+    const doc = new PDFDocument({ margin: 40, size: 'A6/' });
     const chunks = [];
     doc.on('data', c=>chunks.push(c));
     doc.on('end', ()=> resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
     doc.fontSize(20).font('Helvetica-Bold').text('URBAN CART');
-    doc.fontSize(8).font('Helvetica').text('SOWETO - JHB - SA\nPayFast Secure');
+    doc.fontSize(8).font('Helvetica').text('Ellisras - Lephalale - SA\nPayFast Secure');
     const headerRight = `DELIVERY\n#${order.id}\n${new Date().toISOString().slice(0,10)}\n${(order.delivery_status||'').toUpperCase()} / ${(order.payment_status||order.status||'').toUpperCase()}`;
     doc.fontSize(8).text(headerRight, 400, 40, { align: 'right', width: 155 });
     doc.moveDown(0.5);
@@ -87,7 +87,7 @@ async function generateDeliveryPdfBuffer(order, items){
     );
     doc.font('Helvetica-Bold').text('DELIVERY:', 320, topY);
     doc.font('Helvetica').fontSize(9).text(
-      `${order.delivery_address || order.address || ''}, ${order.province||''}\nCourier: ${order.current_location || 'Warehouse - Johannesburg'}\nETA: ${order.eta || '2-3 business days'}`,
+      `${order.delivery_address || order.address || ''}, ${order.province||''}\nCourier: ${order.current_location || 'Warehouse - Lephalale'}\nETA: ${order.eta || '1-2 business days'}`,
       320, topY+12, { width: 235 }
     );
     doc.y = Math.max(doc.y, topY+70);
@@ -186,7 +186,7 @@ async function sendDeliveryNoteEmail(order, items){
   try{
     const buffer = await generateDeliveryPdfBuffer(order, items);
     const itemList = items.map(i => `• ${i.name || 'Product'} x${i.quantity} - R${(Number(i.price)*Number(i.quantity)).toFixed(2)}`).join('\n');
-    const subject = `📦 DELIVERY NOTE #${order.id} - R${Number(order.total).toFixed(2)} - ${order.customer_name || order.full_name}`;
+    const subject = `📦 ORDER PLACED - R${Number(order.total).toFixed(2)} - ${order.customer_name || order.full_name} ✅`;
     const text = `New Order #${order.id}
 
 Customer: ${order.customer_name || order.full_name}
@@ -304,8 +304,8 @@ async function ensureSchema(){
     }catch(e){ console.log('status enum fix note:', e.message); }
     try{ await pool.query(`ALTER TABLE orders MODIFY COLUMN delivery_status VARCHAR(80) DEFAULT 'Order Placed'`); }catch{}
     try{ await pool.query(`ALTER TABLE orders MODIFY COLUMN payment_status VARCHAR(30) DEFAULT 'pending'`); }catch{}
-    try{ await pool.query(`ALTER TABLE orders MODIFY COLUMN current_location VARCHAR(120) DEFAULT 'Warehouse - Johannesburg'`); }catch{}
-    try{ await pool.query(`ALTER TABLE orders MODIFY COLUMN eta VARCHAR(80) DEFAULT '2-3 business days'`); }catch{}
+    try{ await pool.query(`ALTER TABLE orders MODIFY COLUMN current_location VARCHAR(120) DEFAULT 'Warehouse - Lephalale'`); }catch{}
+    try{ await pool.query(`ALTER TABLE orders MODIFY COLUMN eta VARCHAR(80) DEFAULT '1-2 business days'`); }catch{}
     try{ await pool.query(`ALTER TABLE orders MODIFY COLUMN cancel_reason VARCHAR(500) NULL`); }catch{}
     try{ await pool.query(`ALTER TABLE orders MODIFY COLUMN refund_reason TEXT NULL`); }catch{}
     const orderAlters = [
@@ -502,14 +502,14 @@ app.post('/api/orders', async (req, res) => {
     if(!cid) return res.status(401).json({ error: 'You must be signed in to place an order.' });
     const initialHistory = JSON.stringify([{
       status: 'Order Placed',
-      location: 'Warehouse - Johannesburg',
+      location: 'Warehouse - Lephalale',
       time: new Date().toISOString(),
       note: `Order confirmed for ${finalFullName}. Address: ${finalDeliveryAddress}, ${finalProvince} ${finalPostalCode}`
     }]);
     const [orderResult] = await conn.query(
       `INSERT INTO orders (customer_id, customer_name, full_name, email, phone, address, city, province, postal_code, address_search, delivery_address, total, status, payment_status, delivery_status, current_location, eta, tracking_history) 
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [cid, finalFullName, finalFullName, finalEmail, finalPhone, finalDeliveryAddress, finalCity, finalProvince, finalPostalCode, finalAddressSearch, finalDeliveryAddress, total, 'pending', 'pending', 'Order Placed', 'Warehouse - Johannesburg', '2-3 business days', initialHistory]
+      [cid, finalFullName, finalFullName, finalEmail, finalPhone, finalDeliveryAddress, finalCity, finalProvince, finalPostalCode, finalAddressSearch, finalDeliveryAddress, total, 'pending', 'pending', 'Order Placed', 'Warehouse - Lephalale', '1-2 business days', initialHistory]
     );
     const orderId = orderResult.insertId;
     for (const item of items) {
@@ -736,7 +736,7 @@ app.put('/api/admin/orders/:id/tracking', auth, adminOnly, async (req, res, next
     if(!Array.isArray(hist)) hist=[];
     hist.push({ status: delivery_status || 'Updated', location: current_location || '', eta: eta || '', note: tracking_note || '', time: new Date().toISOString() });
     let sql = 'UPDATE orders SET delivery_status=?, current_location=?, eta=?, tracking_history=?';
-    const params = [delivery_status||'Order Placed', current_location||'Warehouse - Johannesburg', eta||'2-3 business days', JSON.stringify(hist)];
+    const params = [delivery_status||'Order Placed', current_location||'Warehouse - Lephalale', eta||'1-2 business days', JSON.stringify(hist)];
     if(status){
       const allowed = ['pending','paid','processing','shipped','delivered','cancelled','refunded','refund_pending','failed'];
       if(allowed.includes(String(status).toLowerCase())){
@@ -846,7 +846,7 @@ app.get('/api/admin/test-email', async (req, res) => {
   try{
     await transporter.verify();
     console.log('SMTP verify OK');
-    const testOrder = { id: 999, total: 123.45, customer_name: 'Test Customer', full_name: 'Test Customer', email: 'test@test.com', phone: '0821234567', delivery_address: '123 Soweto', address_search: 'Soweto Test', province: 'GP', postal_code: '1868', city: 'Soweto', delivery_status: 'Test', payment_status: 'paid', current_location: 'Warehouse', eta: '2 days' };
+    const testOrder = { id: 999, total: 123.45, customer_name: 'Test Customer', full_name: 'Test Customer', email: 'test@test.com', phone: '0821234567', delivery_address: '123 Ellisras', address_search: 'Ellisras Test', province: 'GP', postal_code: '1868', city: 'Ellisras', delivery_status: 'Test', payment_status: 'paid', current_location: 'Warehouse', eta: '2 days' };
     const testItems = [{ name: 'Test Product', quantity: 1, price: 123.45 }];
     const result = await sendDeliveryNoteEmail(testOrder, testItems);
     res.json({ ok: result.ok, result, message: result.ok ? `Test email sent to ${process.env.ADMIN_EMAIL}` : 'Failed: '+result.reason });
