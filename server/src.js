@@ -741,6 +741,38 @@ app.get('/api/admin/orders/:id/delivery-pdf', auth, adminOnly, async (req, res, 
   }catch(e){ next(e); }
 });
 
+app.get('/api/admin/test-email', auth, adminOnly, async (req, res) => {
+  console.log('TEST EMAIL REQUESTED');
+  console.log('ENV CHECK:', { 
+    SMTP_HOST: process.env.SMTP_HOST || 'MISSING', 
+    SMTP_PORT: process.env.SMTP_PORT || 'MISSING', 
+    SMTP_USER: process.env.SMTP_USER ? (process.env.SMTP_USER.slice(0,3)+'***') : 'MISSING', 
+    SMTP_PASS: process.env.SMTP_PASS ? 'SET ('+process.env.SMTP_PASS.length+' chars)' : 'MISSING', 
+    ADMIN_EMAIL: process.env.ADMIN_EMAIL || 'MISSING' 
+  });
+  const transporter = getTransporter();
+  if(!transporter){
+    return res.status(500).json({ error: 'SMTP not configured. Set SMTP_USER, SMTP_PASS, ADMIN_EMAIL', env: { 
+      host: process.env.SMTP_HOST, 
+      port: process.env.SMTP_PORT, 
+      user_set: !!process.env.SMTP_USER, 
+      pass_set: !!process.env.SMTP_PASS, 
+      admin: process.env.ADMIN_EMAIL 
+    }});
+  }
+  try{
+    await transporter.verify();
+    console.log('SMTP verify OK');
+    const testOrder = { id: 999, total: 123.45, customer_name: 'Test Customer', full_name: 'Test Customer', email: 'test@test.com', phone: '0821234567', delivery_address: '123 Soweto', address_search: 'Soweto Test', province: 'GP', postal_code: '1868', city: 'Soweto', delivery_status: 'Test', payment_status: 'paid', current_location: 'Warehouse', eta: '2 days' };
+    const testItems = [{ name: 'Test Product', quantity: 1, price: 123.45 }];
+    const result = await sendDeliveryNoteEmail(testOrder, testItems);
+    res.json({ ok: result.ok, result, message: result.ok ? `Test email sent to ${process.env.ADMIN_EMAIL}` : 'Failed: '+result.reason });
+  }catch(e){
+    console.error('TEST EMAIL FAILED', e);
+    res.status(500).json({ error: e.message, stack: e.stack });
+  }
+});
+
 function generateSignature(data, passphrase) {
   let pfOutput = '';
   for (let key in data) {
