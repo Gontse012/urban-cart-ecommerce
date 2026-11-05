@@ -3,18 +3,6 @@ import { createRoot } from 'react-dom/client';
 import { Search, ShoppingBag, ArrowUpRight, Plus, Minus, X, Menu, Check, ShieldCheck, Truck, RotateCcw, PackageCheck, UserRound, MapPin, Clock, FileText, AlertTriangle, Bell, Tag, Ban, MessageCircle, Printer, TrendingUp, DollarSign, Users, Crown, Eye, Archive } from 'lucide-react';
 import './styles.css';
 
-// New states
-const [resetToken,setResetToken]=useState(null);
-const [newPassword,setNewPassword]=useState('');
-const [resetConfirm,setResetConfirm]=useState('');
-const [resetMessage,setResetMessage]=useState('');
-// Auto-detect link from email
-useEffect(()=>{
-  const params = new URLSearchParams(window.location.search);
-  const t = params.get('reset_token') || params.get('token');
-  if(t){ setResetToken(t); }
-},[]);
-
 const RAW = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
 const API = RAW.includes('/api') ? RAW : RAW + '/api';
 
@@ -621,35 +609,35 @@ function App(){
       <section className="shop">
         <div className="shop-head"><h2>MY ORDERS & TRACKING</h2><button className="btn-ghost" onClick={()=>setActiveTab('shop')}>BACK TO SHOP</button></div>
         {!trackingOrders.length && <div className="empty">No orders yet - <button onClick={()=>setActiveTab('shop')}>Start shopping</button></div>}
-          {[...trackingOrders].sort((a,b)=> new Date(b.created_at) - new Date(a.created_at)).map(o=>(
-            <div key={o.id} style={{border:'2px solid #121212', marginBottom:16, background:'#FFFCF8'}}>
-              <div style={{padding:14, borderBottom:'2px solid #121212', display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:8}}>
-                <b>Order #{o.id} - {fmt(o.total)} - <span style={{background: o.status==='cancelled' ? '#ff3b30' : o.payment_status==='failed' ? '#F59E0B' : '#121212', color:'#fff', padding:'2px 6px'}}>{o.cancel_reason ? `Cancelled: ${o.cancel_reason}` : (o.payment_status ? `${o.payment_status.toUpperCase()} / ` : '') + (o.delivery_status || o.status)}</span></b>
-                <span style={{fontSize:11}}>{new Date(o.created_at).toLocaleDateString()} • {o.province} {o.postal_code}</span>
+        {[...trackingOrders].sort((a,b)=> new Date(b.created_at) - new Date(a.created_at)).map(o=>(
+          <div key={o.id} style={{border:'2px solid #121212', marginBottom:16, background:'#FFFCF8'}}>
+            <div style={{padding:14, borderBottom:'2px solid #121212', display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:8}}>
+              <b>Order #{o.id} - {fmt(o.total)} - <span style={{background: o.status==='cancelled' ? '#ff3b30' : o.payment_status==='failed' ? '#F59E0B' : '#121212', color:'#fff', padding:'2px 6px'}}>{o.cancel_reason ? `Cancelled: ${o.cancel_reason}` : (o.payment_status ? `${o.payment_status.toUpperCase()} / ` : '') + (o.delivery_status || o.status)}</span></b>
+              <span style={{fontSize:11}}>{new Date(o.created_at).toLocaleDateString()} • {o.province} {o.postal_code}</span>
+            </div>
+            <div style={{padding:14}}>
+              <p style={{fontSize:12}}><MapPin size={12} style={{display:'inline'}}/> <b>Deliver to:</b> {o.delivery_address}, {o.province}, {o.postal_code}</p>
+              <p style={{fontSize:12}}><Truck size={12} style={{display:'inline'}}/> <b>Current:</b> {o.current_location} | <Clock size={12} style={{display:'inline'}}/> <b>ETA:</b> {o.eta}</p>
+              <div style={{marginTop:14, borderLeft:'3px solid #121212', paddingLeft:14}}>
+                {(o.tracking_history||[]).map((h,i)=>(
+                  <div key={i} style={{marginBottom:12, position:'relative'}}>
+                    <div style={{width:12, height:12, background:'#121212', position:'absolute', left:-21, top:3, borderRadius:'50%'}}></div>
+                    <b style={{fontSize:13}}>{h.status}</b> <span style={{fontSize:10, opacity:.6, marginLeft:6}}>{new Date(h.time).toLocaleString()}</span>
+                    <p style={{fontSize:11, margin:'4px 0'}}>{h.location} {h.eta ? ` - ETA: ${h.eta}`:''}</p>
+                    {h.note && <p style={{fontSize:11, fontStyle:'italic', background:'#fff', border:'1px dashed #121212', padding:6, margin:'4px 0 0'}}>"{h.note}"</p>}
+                  </div>
+                ))}
               </div>
-              <div style={{padding:14}}>
-                <p style={{fontSize:12}}><MapPin size={12} style={{display:'inline'}}/> <b>Deliver to:</b> {o.delivery_address}, {o.province}, {o.postal_code}</p>
-                <p style={{fontSize:12}}><Truck size={12} style={{display:'inline'}}/> <b>Current:</b> {o.current_location} | <Clock size={12} style={{display:'inline'}}/> <b>ETA:</b> {o.eta}</p>
-                <div style={{marginTop:14, borderLeft:'3px solid #121212', paddingLeft:14}}>
-                  {(o.tracking_history||[]).map((h,i)=>(
-                    <div key={i} style={{marginBottom:12, position:'relative'}}>
-                      <div style={{width:12, height:12, background:'#121212', position:'absolute', left:-21, top:3, borderRadius:'50%'}}></div>
-                      <b style={{fontSize:13}}>{h.status}</b> <span style={{fontSize:10, opacity:.6, marginLeft:6}}>{new Date(h.time).toLocaleString()}</span>
-                      <p style={{fontSize:11, margin:'4px 0'}}>{h.location} {h.eta ? ` - ETA: ${h.eta}`:''}</p>
-                      {h.note && <p style={{fontSize:11, fontStyle:'italic', background:'#fff', border:'1px dashed #121212', padding:6, margin:'4px 0 0'}}>"{h.note}"</p>}
-                    </div>
-                  ))}
-                </div>
-                <div style={{marginTop:14}}>
-                  {o.items?.map((it, idx)=><div key={idx} style={{fontSize:11, borderTop:'1px solid #ddd', padding:'8px 0', display:'flex', gap:8, alignItems:'center'}}><img src={it.image_url || it.image} style={{width:48,height:48,objectFit:'cover', border:'1px solid #121212'}}/><span>{it.name} x {it.quantity} - {fmt(it.price)}</span></div>)}
-                </div>
-                <div style={{marginTop:12, display:'flex', gap:8}}>
-                  <button className="btn-ghost" style={{height:36, fontSize:11}} onClick={()=>printInvoice(o,'invoice')}><Printer size={12}/> INVOICE</button>
-                  <button className="btn-ghost" style={{height:36, fontSize:11}} onClick={()=>printInvoice(o,'delivery')}><FileText size={12}/> DELIVERY NOTE</button>
-                </div>
+              <div style={{marginTop:14}}>
+                {o.items?.map((it, idx)=><div key={idx} style={{fontSize:11, borderTop:'1px solid #ddd', padding:'8px 0', display:'flex', gap:8, alignItems:'center'}}><img src={it.image_url || it.image} style={{width:48,height:48,objectFit:'cover', border:'1px solid #121212'}}/><span>{it.name} x {it.quantity} - {fmt(it.price)}</span></div>)}
+              </div>
+              <div style={{marginTop:12, display:'flex', gap:8}}>
+                <button className="btn-ghost" style={{height:36, fontSize:11}} onClick={()=>printInvoice(o,'invoice')}><Printer size={12}/> INVOICE</button>
+                <button className="btn-ghost" style={{height:36, fontSize:11}} onClick={()=>printInvoice(o,'delivery')}><FileText size={12}/> DELIVERY NOTE</button>
               </div>
             </div>
-          ))}
+          </div>
+        ))}
       </section>
     ) : selectedProduct ? (
       <div className="product-view">
@@ -818,10 +806,7 @@ function App(){
           <input required type="email" placeholder="Email" value={authForm.email} onChange={e=>setAuthForm(f=>({...f,email:e.target.value}))}/>
           <input required type="password" placeholder="Password" value={authForm.password} onChange={e=>setAuthForm(f=>({...f,password:e.target.value}))}/>
           {/* === FIX A: Forgot link under login === */}
-          {authMode==='login' && 
-          <button type="button" className="forgot-link" onClick={()=>{setForgotOpen(true); 
-            setForgotEmail(authForm.email);}}>Forgot password?
-            </button>}
+          {authMode==='login' && <button type="button" className="forgot-link" onClick={()=>{setForgotOpen(true); setForgotEmail(authForm.email);}}>Forgot password?</button>}
           {authMode==='register' && (<div className="terms-box"><label className="terms-check"><input type="checkbox" checked={authForm.acceptTerms} onChange={e=>setAuthForm(f=>({...f, acceptTerms:e.target.checked}))}/><span>I agree to the <button type="button" onClick={()=>setShowTerms(true)} style={{textDecoration:'underline', background:'none', border:'none', fontWeight:700, cursor:'pointer'}}>Terms & Conditions</button></span></label></div>)}
           <button className="btn-black full" disabled={busy}>{busy?'WAIT...':authMode==='login'?'SIGN IN':'CREATE ACCOUNT'}</button>
         </form>
@@ -831,34 +816,19 @@ function App(){
 
   {/* === FIX A: Forgot modal === */}
   {forgotOpen && (
-  <div className="overlay" style={{zIndex:10004}} onMouseDown={e=>{if(e.target===e.currentTarget)setForgotOpen(false)}}>
-    <section className="modal" style={{maxWidth:420}}>
-      <div className="drawer-head"><h2>RESET PASSWORD</h2><button onClick={()=>setForgotOpen(false)}><X size={16}/></button></div>
-      <div style={{display:'flex', flexDirection:'column', gap:12, marginTop:12}}>
-        <p style={{fontSize:12, lineHeight:1.5}}>Enter your email. We'll send a reset link.</p>
-        <input autoFocus type="email" placeholder="you@example.com" value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)} style={{height:44, border:'2px solid #121212', padding:'0 12px'}}/>
-        {forgotMessage && <div style={{background: forgotMessage.includes('sent') || forgotMessage.includes('Contact') ? '#dcfce7' : '#FEF3C7', border:'2px solid #121212', padding:10, fontSize:11, fontWeight:700}}>{forgotMessage}</div>}
-        <button className="btn-black full" disabled={busy} onClick={handleForgot}>{busy?'SENDING...':'SEND RESET LINK'}</button>
-        <button className="btn-ghost full" onClick={()=>setForgotOpen(false)}>CANCEL</button>
-      </div>
-    </section>
-  </div>
-)}
-{resetToken && (
-  <div className="overlay" style={{zIndex:10005}} onMouseDown={e=>{if(e.target===e.currentTarget){ setResetToken(null); window.history.replaceState({}, '', window.location.pathname); }}}>
-    <section className="modal" style={{maxWidth:420}}>
-      <div className="drawer-head"><h2>SET NEW PASSWORD</h2><button onClick={()=>{ setResetToken(null); window.history.replaceState({}, '', window.location.pathname); }}><X size={16}/></button></div>
-      <form onSubmit={handleResetPassword} style={{display:'flex', flexDirection:'column', gap:12, marginTop:12}}>
-        <p style={{fontSize:12, lineHeight:1.5}}>Enter your new password. Link expires in 1 hour.</p>
-        <input autoFocus type="password" placeholder="New password (min 6 chars)" value={newPassword} onChange={e=>setNewPassword(e.target.value)} style={{height:44, border:'2px solid #121212', padding:'0 12px'}}/>
-        <input type="password" placeholder="Confirm new password" value={resetConfirm} onChange={e=>setResetConfirm(e.target.value)} style={{height:44, border:'2px solid #121212', padding:'0 12px'}}/>
-        {resetMessage && <div style={{background: resetMessage.includes('✅') ? '#dcfce7' : '#FEF3C7', border:'2px solid #121212', padding:10, fontSize:11, fontWeight:700}}>{resetMessage}</div>}
-        <button className="btn-black full" disabled={busy} type="submit">{busy?'RESETTING...':'RESET PASSWORD'}</button>
-        <button className="btn-ghost full" type="button" onClick={()=>{ setResetToken(null); window.history.replaceState({}, '', window.location.pathname); }}>CANCEL</button>
-      </form>
-    </section>
-  </div>
-)}
+    <div className="overlay" style={{zIndex:10004}} onMouseDown={e=>{if(e.target===e.currentTarget)setForgotOpen(false)}}>
+      <section className="modal" style={{maxWidth:420}}>
+        <div className="drawer-head"><h2>RESET PASSWORD</h2><button onClick={()=>setForgotOpen(false)}><X size={16}/></button></div>
+        <div style={{display:'flex', flexDirection:'column', gap:12, marginTop:12}}>
+          <p style={{fontSize:12, lineHeight:1.5}}>Enter your email. We'll send a reset link.</p>
+          <input autoFocus type="email" placeholder="you@example.com" value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)} style={{height:44, border:'2px solid #121212', padding:'0 12px'}}/>
+          {forgotMessage && <div style={{background: forgotMessage.includes('sent') || forgotMessage.includes('Contact') ? '#dcfce7' : '#FEF3C7', border:'2px solid #121212', padding:10, fontSize:11, fontWeight:700}}>{forgotMessage}</div>}
+          <button className="btn-black full" disabled={busy} onClick={handleForgot}>{busy?'SENDING...':'SEND RESET LINK'}</button>
+          <button className="btn-ghost full" onClick={()=>setForgotOpen(false)}>CANCEL</button>
+        </div>
+      </section>
+    </div>
+  )}
 
   {showTerms && (
     <div className="overlay" style={{zIndex:10003}} onMouseDown={e=>{if(e.target===e.currentTarget)setShowTerms(false)}}>
