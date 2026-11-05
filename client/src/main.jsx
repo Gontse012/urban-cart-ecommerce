@@ -891,21 +891,22 @@ async function handleResetSubmit(e){
           {authMode==='register'&&<input required placeholder="Full name" value={authForm.name} onChange={e=>setAuthForm(f=>({...f,name:e.target.value}))}/>}
           <input required type="email" placeholder="Email" value={authForm.email} onChange={e=>setAuthForm(f=>({...f,email:e.target.value}))}/>
           <input required type="password" placeholder="Password" value={authForm.password} onChange={e=>setAuthForm(f=>({...f,password:e.target.value}))}/>
-          {/* === FIX A: Forgot link under login === */}
           {authMode==='login' && (
-            <button 
-              type="button" 
-              className="forgot-link" 
-              style={{cursor:'pointer', background:'none', border:'none', color:'#E9D9BF', textDecoration:'underline', fontSize:'13px', marginTop:'8px'}}
-              onClick={()=>{
-                console.log('forgot clicked'); // for debug
-                setForgotOpen(true); 
-                setForgotEmail(authForm.email);
-                setForgotStatus('');
-              }}
-            >
-              Forgot password?
-            </button>
+        <button 
+          type="button" 
+          className="forgot-link" 
+          onClick={()=>{
+            setAccountOpen(false); // ✅ CLOSE login modal first
+            setTimeout(()=>{
+              setForgotOpen(true); 
+              setForgotEmail(authForm.email);
+              setForgotStatus('');
+            },150);
+          }}
+          style={{cursor:'pointer', background:'none', border:'none', color:'#E9D9BF', textDecoration:'underline', fontSize:'13px', marginTop:'8px', alignSelf:'flex-start'}}
+        >
+          Forgot password?
+        </button>
           )}
           {authMode==='register' && (<div className="terms-box"><label className="terms-check"><input type="checkbox" checked={authForm.acceptTerms} onChange={e=>setAuthForm(f=>({...f, acceptTerms:e.target.checked}))}/><span>I agree to the <button type="button" onClick={()=>setShowTerms(true)} style={{textDecoration:'underline', background:'none', border:'none', fontWeight:700, cursor:'pointer'}}>Terms & Conditions</button></span></label></div>)}
           <button className="btn-black full" disabled={busy}>{busy?'WAIT...':authMode==='login'?'SIGN IN':'CREATE ACCOUNT'}</button>
@@ -916,7 +917,7 @@ async function handleResetSubmit(e){
 
   {/* FORGOT PASSWORD MODAL */}
 {forgotOpen && (
-  <div className="modal-overlay" style={{zIndex:10003}} onClick={()=>setForgotOpen(false)}>
+  <div className="modal-overlay" style={{zIndex:10020}} onClick={()=>setForgotOpen(false)}>
     <div className="modal-box" onClick={e=>e.stopPropagation()} style={{maxWidth:'400px'}}>
       <div className="modal-head">
         <h3>Reset Password</h3>
@@ -941,7 +942,7 @@ async function handleResetSubmit(e){
 
 {/* RESET PASSWORD MODAL */}
 {resetOpen && (
-  <div className="modal-overlay" style={{zIndex:10004}} onClick={()=>{setResetOpen(false); window.history.replaceState({}, '', '/');}}>
+  <div className="modal-overlay" style={{zIndex:10021}} onClick={()=>{setResetOpen(false); window.history.replaceState({}, '', '/');}}>
     <div className="modal-box" onClick={e=>e.stopPropagation()} style={{maxWidth:'400px'}}>
       <div className="modal-head">
         <h3>Set New Password</h3>
