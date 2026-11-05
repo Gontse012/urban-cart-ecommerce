@@ -64,7 +64,12 @@ function isValidSAnumber(phone){
   return /^(?:\+27|27|0)[6-8][0-9]{8}$/.test(cleaned);
 }
 
-// ================= EMAIL DELIVERY NOTE =================
+// ================= FIXED EMAIL SECTION =================
+const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://urban-cart-ecommerce.vercel.app').replace(/\/$/, '');
+const RESEND_API_KEY = (process.env.RESEND_API_KEY || '').trim();
+const FROM_EMAIL = process.env.FROM_EMAIL || 'Urban Cart <onboarding@resend.dev>';
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'gontsewamodise01@gmail.com').trim();
+
 async function generateDeliveryPdfBuffer(order, items){
   return new Promise((resolve, reject)=>{
     const doc = new PDFDocument({ margin: 40, size: 'A4' });
@@ -128,14 +133,13 @@ async function generateDeliveryPdfBuffer(order, items){
 }
 
 async function sendViaResend({ to, subject, text, html, pdfBuffer, pdfName }){
-  const resendKey = (process.env.RESEND_API_KEY || '').trim();
-  if(!resendKey) return null;
+  if(!RESEND_API_KEY) return null;
   try{
     const payload = {
-      from: 'Urban Cart <onboarding@resend.dev>',
+      from: FROM_EMAIL,
       to: Array.isArray(to) ? to : [to],
       subject,
-      html: html || text,
+      html: html || text || '',
       text: text || ''
     };
     if(pdfBuffer){
@@ -143,7 +147,7 @@ async function sendViaResend({ to, subject, text, html, pdfBuffer, pdfName }){
     }
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+      headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
     const data = await r.json();
@@ -156,88 +160,40 @@ async function sendViaResend({ to, subject, text, html, pdfBuffer, pdfName }){
   }
 }
 
+async function sendEmailResend({ to, subject, html }){
+  return sendViaResend({ to, subject, html });
+}
+
 function getTransporter(){
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = Number(process.env.SMTP_PORT || 465);
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   if(!user || !pass) return null;
-
-  async function sendEmailResend({ to, subject, html }){
-    await fetch('https://api.resend.com/emails', {
-      method:'POST',
-      headers:{ 'Authorization': `Bearer ${RESEND_API_KEY}` },
-      body: JSON.stringify({ from: 'Urban Cart <onboarding@resend.dev>', to:[to], subject, html })
-    })
-  }
-  app.post('/api/auth/forgot-password', ...){
-    const token = crypto.randomBytes(32).toString('hex');
-    const resetLink = `${FRONTEND_URL}?reset_token=${token}`;
-    await sendEmailResend({ to: email, subject:'Reset Your Password', html: `<a href="${resetLink}">RESET</a>` })
-  }
-  }
+  return nodemailer.createTransport({
+    host, port,
+    secure: port===465,
+    auth: { user, pass }
+  });
+}
 
 async function sendDeliveryNoteEmail(order, items){
-  const adminEmail = (process.env.ADMIN_EMAIL || '').trim();
-  if(!adminEmail){
-    console.log('Email not configured - set SMTP_USER, SMTP_PASS, ADMIN_EMAIL');
+  if(!ADMIN_EMAIL){
+    console.log('ADMIN_EMAIL not set');
     return { ok:false, reason:'not_configured' };
   }
   try{
     const buffer = await generateDeliveryPdfBuffer(order, items);
     const itemList = items.map(i => `• ${i.name || 'Product'} x${i.quantity} - R${(Number(i.price)*Number(i.quantity)).toFixed(2)}`).join('\n');
     const subject = `📦 DELIVERY NOTE #${order.id} - R${Number(order.total).toFixed(2)} - ${order.customer_name || order.full_name}`;
-    const text = `New Order #${order.id}
-
-Customer: ${order.customer_name || order.full_name}
-Email: ${order.email}
-Phone: ${order.phone}
-Address: ${order.delivery_address || order.address}
-Search: ${order.address_search || ''}
-Province: ${order.province}, ${order.postal_code}
-City: ${order.city || ''}
-
-Items:
-${itemList}
-
-TOTAL: R${Number(order.total).toFixed(2)}
-Status: ${order.delivery_status} / ${order.payment_status || order.status}
-Location: ${order.current_location}
-ETA: ${order.eta}
-
-Delivery note PDF attached.
-
-Generated: ${new Date().toLocaleString()}
-`;
-    const html = `
-<div style="font-family:Arial,sans-serif;max-width:600px">
-<h2 style="margin:0">📦 DELIVERY NOTE #${order.id}</h2>
-<p style="color:#666">Total: <b>R${Number(order.total).toFixed(2)}</b> | ${new Date().toLocaleString()}</p>
-<div style="background:#f9f9f9;padding:12px;border-radius:8px;margin:12px 0">
-<b>Customer:</b> ${order.customer_name || order.full_name}<br/>
-<b>Email:</b> ${order.email}<br/>
-<b>Phone:</b> ${order.phone}<br/>
-<b>Delivery:</b> ${order.delivery_address || order.address}, ${order.province} ${order.postal_code}<br/>
-<b>Search:</b> ${order.address_search || ''}<br/>
-<b>City:</b> ${order.city || ''}<br/>
-</div>
-<div style="background:#fff;border:1px solid #eee;padding:12px;border-radius:8px">
-<pre style="margin:0;font-family:Arial">${itemList}</pre>
-<p><b>TOTAL: R${Number(order.total).toFixed(2)}</b></p>
-<p>Status: ${order.delivery_status} / ${order.payment_status || order.status}<br/>
-Location: ${order.current_location}<br/>
-ETA: ${order.eta}</p>
-</div>
-<p>PDF attached: DELIVERY-${order.id}.pdf</p>
-</div>`;
-    // Try Resend first (HTTPS - no timeout on Render free tier)
-    const resendResult = await sendViaResend({ to: adminEmail, subject, text, html, pdfBuffer: buffer, pdfName: `DELIVERY-${order.id}.pdf` });
+    const text = `New Order #${order.id}\nCustomer: ${order.customer_name || order.full_name}\nEmail: ${order.email}\nPhone: ${order.phone}\nAddress: ${order.delivery_address || order.address}\nProvince: ${order.province}, ${order.postal_code}\n\nItems:\n${itemList}\nTOTAL: R${Number(order.total).toFixed(2)}\nStatus: ${order.delivery_status} / ${order.payment_status || order.status}\nLocation: ${order.current_location}\nETA: ${order.eta}\nGenerated: ${new Date().toLocaleString()}`;
+    const html = `<div style="font-family:Arial,sans-serif;max-width:600px"><h2>📦 DELIVERY NOTE #${order.id}</h2><p>Total: <b>R${Number(order.total).toFixed(2)}</b></p><div style="background:#f9f9f9;padding:12px;border-radius:8px"><b>Customer:</b> ${order.customer_name || order.full_name}<br/><b>Email:</b> ${order.email}<br/><b>Phone:</b> ${order.phone}<br/><b>Delivery:</b> ${order.delivery_address || order.address}, ${order.province} ${order.postal_code}</div><pre>${itemList}</pre><p><b>TOTAL: R${Number(order.total).toFixed(2)}</b></p></div>`;
+    const resendResult = await sendViaResend({ to: ADMIN_EMAIL, subject, text, html, pdfBuffer: buffer, pdfName: `DELIVERY-${order.id}.pdf` });
     if(resendResult && resendResult.ok){
       try{ await sendViaResend({ to: order.email, subject: `Your Urban Cart Order #${order.id} Confirmed`, text, html }); }catch{}
-      console.log(`✅ Email Delivery #${order.id} sent to ${adminEmail} via Resend`);
+      console.log(`✅ Email Delivery #${order.id} sent via Resend`);
       return { ok:true, via:'resend' };
     }
-
     const transporter = getTransporter();
     if(!transporter){
       console.log('No Resend and no SMTP');
@@ -245,12 +201,10 @@ ETA: ${order.eta}</p>
     }
     await transporter.sendMail({
       from: `"Urban Cart" <${process.env.SMTP_USER}>`,
-      to: adminEmail,
-      subject,
-      text, html,
+      to: ADMIN_EMAIL,
+      subject, text, html,
       attachments: [{ filename: `DELIVERY-${order.id}.pdf`, content: buffer, contentType: 'application/pdf' }]
     });
-    console.log(`✅ Email Delivery #${order.id} sent to ${adminEmail}`);
     return { ok:true };
   }catch(e){
     console.error('Email send failed', e);
@@ -394,6 +348,7 @@ app.delete('/api/auth/me', auth, async (req, res, next) => {
   }catch(e){ await conn.rollback(); next(e); } finally{ conn.release(); }
 });
 
+// ===== FIXED FORGOT PASSWORD - USES RESEND, NOT SMTP =====
 app.post('/api/auth/forgot-password', async (req, res, next) => {
   try{
     const email = String(req.body.email || '').trim().toLowerCase();
@@ -405,17 +360,23 @@ app.post('/api/auth/forgot-password', async (req, res, next) => {
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 3600000);
     await pool.execute('INSERT INTO password_resets (email, token, expires_at) VALUES (?,?,?) ON DUPLICATE KEY UPDATE token=?, expires_at=?', [email, token, expires, token, expires]);
-    console.log(`FORGOT PASSWORD ${email} token ${token}`);
-    res.json({ message: 'Reset link sent to your email (check server logs).', token_hint: process.env.NODE_ENV!=='production' ? token : undefined });
-  }catch(e){ next(e); }
+    const resetLink = `${FRONTEND_URL}?reset_token=${token}`;
+    const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:2px solid #121212"><div style="background:#121212;color:#E9D9BF;padding:16px;font-weight:800">URBAN CART - PASSWORD RESET</div><div style="padding:24px;background:#FFFCF8"><h2>Reset Your Password</h2><p>Hi ${users[0].name}, click below - expires in 1 hour.</p><a href="${resetLink}" style="display:inline-block;background:#121212;color:#fff;padding:14px 22px;text-decoration:none;font-weight:700;margin:16px 0">RESET PASSWORD</a><p style="word-break:break-all;font-size:12px">${resetLink}</p></div></div>`;
+    await sendEmailResend({ to: email, subject: 'Urban Cart - Reset Your Password (1h expiry)', html });
+    console.log(`✅ Reset sent to ${email}: ${resetLink}`);
+    res.json({ message: 'Reset link sent to your email (check inbox & spam).' });
+  }catch(e){ console.error('forgot-password', e); next(e); }
 });
+
 app.post('/api/auth/reset-password', async (req, res, next) => {
   try{
-    const { token, newPassword } = req.body;
-    if(!token || !newPassword || String(newPassword).length < 8) return res.status(400).json({ error: 'Token and password (min 8 chars) required' });
-    const [rows] = await pool.execute('SELECT email, expires_at FROM password_resets WHERE token=?', [token]);
+    const { token, password } = req.body;
+    const newPassword = req.body.newPassword || req.body.password;
+    const t = token || req.body.reset_token;
+    if(!t || !newPassword || String(newPassword).length < 6) return res.status(400).json({ error: 'Token and password (min 6 chars) required' });
+    const [rows] = await pool.execute('SELECT email, expires_at FROM password_resets WHERE token=?', [t]);
     if(!rows.length) return res.status(400).json({ error: 'Invalid or expired token' });
-    if(new Date(rows[0].expires_at) < new Date()) return res.status(400).json({ error: 'Token expired, request a new link' });
+    if(new Date(rows[0].expires_at) < new Date()){ await pool.execute('DELETE FROM password_resets WHERE token=?',[t]); return res.status(400).json({ error: 'Token expired, request a new link' }); }
     const hash = await bcrypt.hash(String(newPassword), 12);
     await pool.execute('UPDATE customers SET password_hash=? WHERE email=?', [hash, rows[0].email]);
     await pool.execute('DELETE FROM password_resets WHERE email=?', [rows[0].email]);
@@ -520,14 +481,11 @@ app.post('/api/orders', async (req, res) => {
     }
     if(cid){ await conn.query('DELETE FROM carts WHERE user_id=?', [cid]); await conn.query('UPDATE customers SET total_spent = total_spent + ? WHERE id=?',[total, cid]); }
 
-    // === EMAIL AUTO SEND ===
     (async()=>{
       try{
         const [oRows] = await pool.query('SELECT * FROM orders WHERE id=?',[orderId]);
         const [iRows] = await pool.query('SELECT oi.*, p.name FROM order_items oi JOIN products p ON p.id=oi.product_id WHERE oi.order_id=?',[orderId]);
-        if(oRows.length){
-          await sendDeliveryNoteEmail(oRows[0], iRows);
-        }
+        if(oRows.length){ await sendDeliveryNoteEmail(oRows[0], iRows); }
       }catch(e){ console.log('Auto Email failed', e.message); }
     })();
 
@@ -761,7 +719,6 @@ app.get('/api/admin/orders/:id/invoice', auth, adminOnly, async (req, res, next)
   }catch(e){ next(e); }
 });
 
-// ===== EMAIL ENDPOINTS =====
 app.post('/api/admin/orders/:id/send-delivery-note', auth, adminOnly, async (req, res, next)=>{
   try{
     const id = Number(req.params.id);
@@ -770,9 +727,9 @@ app.post('/api/admin/orders/:id/send-delivery-note', auth, adminOnly, async (req
     const [items] = await pool.query('SELECT oi.*, p.name FROM order_items oi JOIN products p ON p.id=oi.product_id WHERE oi.order_id=?',[id]);
     const result = await sendDeliveryNoteEmail(orders[0], items);
     if(result.ok){
-      res.json({ ok:true, message:`Email Delivery Note #${id} sent to ${process.env.ADMIN_EMAIL}! PDF attached.` });
+      res.json({ ok:true, message:`Email Delivery Note #${id} sent to ${ADMIN_EMAIL}! PDF attached.` });
     }else{
-      const msg = result.reason==='not_configured' ? 'Set SMTP_USER, SMTP_PASS, ADMIN_EMAIL in Render env' : 'Failed: '+result.reason;
+      const msg = result.reason==='not_configured' ? 'Set RESEND_API_KEY, ADMIN_EMAIL in Render env' : 'Failed: '+result.reason;
       res.status(500).json({ error: msg });
     }
   }catch(e){ next(e); }
@@ -795,65 +752,39 @@ app.get('/api/admin/test-email', async (req, res) => {
   const key = req.query.key || req.query.token;
   if(key){
     if(key !== (process.env.ADMIN_PDF_TOKEN || 'urban-cart-secret-123')){
-      // allow anyway but log
+      console.log('Test email wrong key', key);
     }
   } else {
-    // try auth
     const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     try{ 
       const user = jwt.verify(token, process.env.JWT_SECRET || 'dev-only-change-this-secret');
       if(user.role !== 'admin') throw new Error('not admin');
     }catch{
-      // if no token, still allow test but warn - for debugging
       if(!key){
         return res.status(200).json({ 
-          info: 'Not signed in - showing config only. To actually send email, add ?key=YOUR_ADMIN_PDF_TOKEN or login.',
+          info: 'Add ?key=YOUR_ADMIN_PDF_TOKEN or login as admin to send real email',
           env_check: {
-            SMTP_HOST: process.env.SMTP_HOST || 'MISSING',
-            SMTP_PORT: process.env.SMTP_PORT || 'MISSING',
-            SMTP_USER: process.env.SMTP_USER ? process.env.SMTP_USER.slice(0,4)+'***' : 'MISSING',
-            SMTP_PASS: process.env.SMTP_PASS ? 'SET ('+String(process.env.SMTP_PASS).length+' chars - should be 16)' : 'MISSING',
-            ADMIN_EMAIL: process.env.ADMIN_EMAIL || 'MISSING',
-            ADMIN_PDF_TOKEN: process.env.ADMIN_PDF_TOKEN ? 'SET' : 'MISSING - set to urban-cart-secret-123'
+            RESEND_API_KEY: RESEND_API_KEY ? 'SET ('+RESEND_API_KEY.slice(0,5)+'***)' : 'MISSING - set re_... in Render',
+            FRONTEND_URL,
+            FROM_EMAIL,
+            ADMIN_EMAIL,
+            SMTP_FALLBACK: process.env.SMTP_USER ? 'Configured' : 'Not needed with Resend'
           }
         });
       }
     }
   }
-  // continue actual test
-  const _req = req;
-  {
-  req = _req;
-
   console.log('TEST EMAIL REQUESTED');
-  console.log('ENV CHECK:', { 
-    SMTP_HOST: process.env.SMTP_HOST || 'MISSING', 
-    SMTP_PORT: process.env.SMTP_PORT || 'MISSING', 
-    SMTP_USER: process.env.SMTP_USER ? (process.env.SMTP_USER.slice(0,3)+'***') : 'MISSING', 
-    SMTP_PASS: process.env.SMTP_PASS ? 'SET ('+process.env.SMTP_PASS.length+' chars)' : 'MISSING', 
-    ADMIN_EMAIL: process.env.ADMIN_EMAIL || 'MISSING' 
-  });
-  const transporter = getTransporter();
-  if(!transporter){
-    return res.status(500).json({ error: 'SMTP not configured. Set SMTP_USER, SMTP_PASS, ADMIN_EMAIL', env: { 
-      host: process.env.SMTP_HOST, 
-      port: process.env.SMTP_PORT, 
-      user_set: !!process.env.SMTP_USER, 
-      pass_set: !!process.env.SMTP_PASS, 
-      admin: process.env.ADMIN_EMAIL 
-    }});
-  }
   try{
-    await transporter.verify();
-    console.log('SMTP verify OK');
-    const testOrder = { id: 999, total: 123.45, customer_name: 'Test Customer', full_name: 'Test Customer', email: 'test@test.com', phone: '0821234567', delivery_address: '123 Soweto', address_search: 'Soweto Test', province: 'GP', postal_code: '1868', city: 'Soweto', delivery_status: 'Test', payment_status: 'paid', current_location: 'Warehouse', eta: '2 days' };
-    const testItems = [{ name: 'Test Product', quantity: 1, price: 123.45 }];
-    const result = await sendDeliveryNoteEmail(testOrder, testItems);
-    res.json({ ok: result.ok, result, message: result.ok ? `Test email sent to ${process.env.ADMIN_EMAIL}` : 'Failed: '+result.reason });
+    const result = await sendViaResend({ to: ADMIN_EMAIL, subject: 'Test - Urban Cart Resend Works', html: `<h1>✅ Resend OK - ${new Date().toISOString()}</h1><p>Frontend: ${FRONTEND_URL}</p>` });
+    if(result && result.ok){
+      res.json({ ok:true, message: `Test email sent to ${ADMIN_EMAIL} via Resend`, id: result.id });
+    }else{
+      res.status(500).json({ error: 'Failed: '+(result?.error||'no key'), env: { resend: !!RESEND_API_KEY, admin: ADMIN_EMAIL } });
+    }
   }catch(e){
     console.error('TEST EMAIL FAILED', e);
-    res.status(500).json({ error: e.message, stack: e.stack });
-  }
+    res.status(500).json({ error: e.message });
   }
 });
 
@@ -882,7 +813,7 @@ app.post('/api/payfast/checkout', async (req, res, next) => {
     const merchantId = process.env.PAYFAST_MERCHANT_ID; 
     const merchantKey = process.env.PAYFAST_MERCHANT_KEY;
     if (!merchantId || !merchantKey) return res.status(503).json({ error: 'PayFast is not configured yet.' });
-    const clientUrl = (process.env.CLIENT_URL || 'https://urban-cart-ecommerce.vercel.app').replace(/\/$/, '');
+    const clientUrl = FRONTEND_URL;
     const apiUrl = (process.env.API_URL || 'https://urban-cart-ecommerce.onrender.com').replace(/\/$/, '');
     const fullName = order.full_name || order.customer_name || 'Customer';
     const pfData = {
@@ -935,5 +866,5 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Unexpected server error: ' + err.message }); 
 });
 
-const port = Number(process.env.PORT || 4000); 
-app.listen(port, () => console.log(`Urban Cart API v6 EMAIL listening on http://localhost:${port}`));
+const port = Number(process.env.PORT || 10000); 
+app.listen(port, () => console.log(`Urban Cart API v6 EMAIL - Resend Fixed - listening on ${port}`));
