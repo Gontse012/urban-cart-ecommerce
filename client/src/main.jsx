@@ -16,7 +16,7 @@ const fallbackProducts = [
  {id:7,name:'Everyday Sneakers',category:'Lifestyle',description:'Comfort sneakers.',price:1099,image_url:'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=85',stock:14,is_active:true},
  {id:8,name:'Reusable Travel Bottle',category:'Accessories',description:'Reusable bottle.',price:249,image_url:'https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&w=900&q=85',stock:40,is_active:true}
 ];
-
+const sortByDateDesc = (a,b) => new Date(b.created_at) - new Date(a.created_at);
 const fmt = n => new Intl.NumberFormat('en-ZA',{style:'currency',currency:'ZAR',maximumFractionDigits:2}).format(Number(n||0));
 const PROVINCES = ['LIMPOPO','GAUTENG','WESTERN CAPE','EASTERN CAPE','KWAZULU-NATAL','FREE STATE','MPUMALANGA','NORTH WEST','NORTHERN CAPE'];
 
@@ -175,13 +175,12 @@ function App(){
    return ()=>window.removeEventListener('keydown', onKey);
  },[]);
 
- async function loadTracking(){
-   try{
-     const data = await api('/orders/my-orders');
-     setTrackingOrders(data);
-     setOrders(data);
-   }catch(e){ setNotice(e.message); }
- }
+  async function loadTracking(){
+    const data = await api('/orders/my-orders');
+    const sorted = [...(data||[])].sort(sortByDateDesc); // NEW
+    setTrackingOrders(sorted);
+    setOrders(sorted);
+  }
 
  const visible=useMemo(()=>products.filter(p=>(category==='All'|| (p.category||'').toLowerCase()===category.toLowerCase())&& `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())),[products,category,search]);
  const visibleAll=useMemo(()=>products.filter(p=> `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())),[products,search]);
@@ -610,35 +609,35 @@ function App(){
       <section className="shop">
         <div className="shop-head"><h2>MY ORDERS & TRACKING</h2><button className="btn-ghost" onClick={()=>setActiveTab('shop')}>BACK TO SHOP</button></div>
         {!trackingOrders.length && <div className="empty">No orders yet - <button onClick={()=>setActiveTab('shop')}>Start shopping</button></div>}
-        {trackingOrders.map(o=>(
-          <div key={o.id} style={{border:'2px solid #121212', marginBottom:16, background:'#FFFCF8'}}>
-            <div style={{padding:14, borderBottom:'2px solid #121212', display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:8}}>
-              <b>Order #{o.id} - {fmt(o.total)} - <span style={{background: o.status==='cancelled' ? '#ff3b30' : o.payment_status==='failed' ? '#F59E0B' : '#121212', color:'#fff', padding:'2px 6px'}}>{o.cancel_reason ? `Cancelled: ${o.cancel_reason}` : (o.payment_status ? `${o.payment_status.toUpperCase()} / ` : '') + (o.delivery_status || o.status)}</span></b>
-              <span style={{fontSize:11}}>{new Date(o.created_at).toLocaleDateString()} • {o.province} {o.postal_code}</span>
+          {[...trackingOrders].sort((a,b)=> new Date(b.created_at) - new Date(a.created_at)).map(o=>(
+            <div key={o.id} style={{border:'2px solid #121212', marginBottom:16, background:'#FFFCF8'}}>
+              <div style={{padding:14, borderBottom:'2px solid #121212', display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:8}}>
+                <b>Order #{o.id} - {fmt(o.total)} - <span style={{background: o.status==='cancelled' ? '#ff3b30' : o.payment_status==='failed' ? '#F59E0B' : '#121212', color:'#fff', padding:'2px 6px'}}>{o.cancel_reason ? `Cancelled: ${o.cancel_reason}` : (o.payment_status ? `${o.payment_status.toUpperCase()} / ` : '') + (o.delivery_status || o.status)}</span></b>
+                <span style={{fontSize:11}}>{new Date(o.created_at).toLocaleDateString()} • {o.province} {o.postal_code}</span>
+              </div>
+              <div style={{padding:14}}>
+                <p style={{fontSize:12}}><MapPin size={12} style={{display:'inline'}}/> <b>Deliver to:</b> {o.delivery_address}, {o.province}, {o.postal_code}</p>
+                <p style={{fontSize:12}}><Truck size={12} style={{display:'inline'}}/> <b>Current:</b> {o.current_location} | <Clock size={12} style={{display:'inline'}}/> <b>ETA:</b> {o.eta}</p>
+                <div style={{marginTop:14, borderLeft:'3px solid #121212', paddingLeft:14}}>
+                  {(o.tracking_history||[]).map((h,i)=>(
+                    <div key={i} style={{marginBottom:12, position:'relative'}}>
+                      <div style={{width:12, height:12, background:'#121212', position:'absolute', left:-21, top:3, borderRadius:'50%'}}></div>
+                      <b style={{fontSize:13}}>{h.status}</b> <span style={{fontSize:10, opacity:.6, marginLeft:6}}>{new Date(h.time).toLocaleString()}</span>
+                      <p style={{fontSize:11, margin:'4px 0'}}>{h.location} {h.eta ? ` - ETA: ${h.eta}`:''}</p>
+                      {h.note && <p style={{fontSize:11, fontStyle:'italic', background:'#fff', border:'1px dashed #121212', padding:6, margin:'4px 0 0'}}>"{h.note}"</p>}
+                    </div>
+                  ))}
+                </div>
+                <div style={{marginTop:14}}>
+                  {o.items?.map((it, idx)=><div key={idx} style={{fontSize:11, borderTop:'1px solid #ddd', padding:'8px 0', display:'flex', gap:8, alignItems:'center'}}><img src={it.image_url || it.image} style={{width:48,height:48,objectFit:'cover', border:'1px solid #121212'}}/><span>{it.name} x {it.quantity} - {fmt(it.price)}</span></div>)}
+                </div>
+                <div style={{marginTop:12, display:'flex', gap:8}}>
+                  <button className="btn-ghost" style={{height:36, fontSize:11}} onClick={()=>printInvoice(o,'invoice')}><Printer size={12}/> INVOICE</button>
+                  <button className="btn-ghost" style={{height:36, fontSize:11}} onClick={()=>printInvoice(o,'delivery')}><FileText size={12}/> DELIVERY NOTE</button>
+                </div>
+              </div>
             </div>
-            <div style={{padding:14}}>
-              <p style={{fontSize:12}}><MapPin size={12} style={{display:'inline'}}/> <b>Deliver to:</b> {o.delivery_address}, {o.province}, {o.postal_code}</p>
-              <p style={{fontSize:12}}><Truck size={12} style={{display:'inline'}}/> <b>Current:</b> {o.current_location} | <Clock size={12} style={{display:'inline'}}/> <b>ETA:</b> {o.eta}</p>
-              <div style={{marginTop:14, borderLeft:'3px solid #121212', paddingLeft:14}}>
-                {(o.tracking_history||[]).map((h,i)=>(
-                  <div key={i} style={{marginBottom:12, position:'relative'}}>
-                    <div style={{width:12, height:12, background:'#121212', position:'absolute', left:-21, top:3, borderRadius:'50%'}}></div>
-                    <b style={{fontSize:13}}>{h.status}</b> <span style={{fontSize:10, opacity:.6, marginLeft:6}}>{new Date(h.time).toLocaleString()}</span>
-                    <p style={{fontSize:11, margin:'4px 0'}}>{h.location} {h.eta ? ` - ETA: ${h.eta}`:''}</p>
-                    {h.note && <p style={{fontSize:11, fontStyle:'italic', background:'#fff', border:'1px dashed #121212', padding:6, margin:'4px 0 0'}}>"{h.note}"</p>}
-                  </div>
-                ))}
-              </div>
-              <div style={{marginTop:14}}>
-                {o.items?.map((it, idx)=><div key={idx} style={{fontSize:11, borderTop:'1px solid #ddd', padding:'8px 0', display:'flex', gap:8, alignItems:'center'}}><img src={it.image_url || it.image} style={{width:48,height:48,objectFit:'cover', border:'1px solid #121212'}}/><span>{it.name} x {it.quantity} - {fmt(it.price)}</span></div>)}
-              </div>
-              <div style={{marginTop:12, display:'flex', gap:8}}>
-                <button className="btn-ghost" style={{height:36, fontSize:11}} onClick={()=>printInvoice(o,'invoice')}><Printer size={12}/> INVOICE</button>
-                <button className="btn-ghost" style={{height:36, fontSize:11}} onClick={()=>printInvoice(o,'delivery')}><FileText size={12}/> DELIVERY NOTE</button>
-              </div>
-            </div>
-          </div>
-        ))}
+          ))}
       </section>
     ) : selectedProduct ? (
       <div className="product-view">
