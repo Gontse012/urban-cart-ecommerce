@@ -90,6 +90,8 @@ function App(){
  const [editingId,setEditingId]=useState(null);
  const [orderFilter,setOrderFilter]=useState('all');
  const [userSearch,setUserSearch]=useState('');
+
+ const API_URL = "https://urban-cart-ecommerce.onrender.com";
  // === FIX A: Forgot password states ===
  const [forgotOpen,setForgotOpen]=useState(false);
  const [forgotEmail,setForgotEmail]=useState('');
