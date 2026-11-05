@@ -36,6 +36,11 @@ const pool = mysql.createPool({
   enableKeepAlive: true
 });
 
+const FRONTEND_URL = (process.env.FRONTEND_URL || process.env.CLIENT_URL || 'https://urban-cart-ecommerce.vercel.app').replace(/\/$/, '');
+const RESEND_API_KEY = (process.env.RESEND_API_KEY || '').trim();
+const FROM_EMAIL = process.env.FROM_EMAIL || 'Urban Cart <onboarding@resend.dev>';
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'gontsewamodise01@gmail.com').trim();
+
 const money = n => Math.round(Number(n) * 100) / 100;
 const signToken = user => jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role }, process.env.JWT_SECRET || 'dev-only-change-this-secret', { expiresIn: '7d' });
 
@@ -67,7 +72,7 @@ function isValidSAnumber(phone){
 // ================= EMAIL DELIVERY NOTE =================
 async function generateDeliveryPdfBuffer(order, items){
   return new Promise((resolve, reject)=>{
-    const doc = new PDFDocument({ margin: 40, size: 'A4/' });
+    const doc = new PDFDocument({ margin: 40, size: 'A4' });
     const chunks = [];
     doc.on('data', c=>chunks.push(c));
     doc.on('end', ()=> resolve(Buffer.concat(chunks)));
@@ -669,6 +674,14 @@ app.patch('/api/admin/orders/:id/status', auth, adminOnly, async (req, res, next
     }catch{}
     const [r] = await pool.execute(query, params); 
     if (!r.affectedRows) return res.status(404).json({ error: 'Order not found.' }); 
+    // ✅ ADD IT HERE — If admin marks as PAID, send delivery note
+    if(status==='paid'){
+      try{
+        const [oRows] = await pool.query('SELECT * FROM orders WHERE id=?',[id]);
+        const [iRows] = await pool.query('SELECT oi.*, p.name FROM order_items oi JOIN products p ON p.id=oi.product_id WHERE oi.order_id=?',[id]);
+        if(oRows.length) await sendDeliveryNoteEmail(oRows[0], iRows);
+      }catch(e){ console.log('Admin paid email failed', e.message); }
+    }
     res.json({ ok: true, status, delivery_status }); 
   } catch (e) { next(e); } 
 });
@@ -899,6 +912,15 @@ app.post('/api/payfast/notify', express.urlencoded({ extended: false }), async (
     const status = (data.payment_status||'').toLowerCase();
     if(status==='complete'){
       await pool.execute("UPDATE orders SET payment_status='paid', status='paid', delivery_status='Paid - Processing' WHERE id=?",[orderId]);
+      // ✅ SEND DELIVERY NOTE ONLY AFTER PAYMENT
+      try{
+        const [oRows] = await pool.query('SELECT * FROM orders WHERE id=?',[orderId]);
+        const [iRows] = await pool.query('SELECT oi.*, p.name FROM order_items oi JOIN products p ON p.id=oi.product_id WHERE oi.order_id=?',[orderId]);
+        if(oRows.length){
+          await sendDeliveryNoteEmail(oRows[0], iRows);
+          console.log(`✅ Delivery Note #${orderId} sent AFTER PAYMENT to ${process.env.ADMIN_EMAIL}`);
+        }
+      }catch(e){ console.log('Post-payment email failed', e.message); }
     }else if(status==='failed'){
       await pool.execute("UPDATE orders SET payment_status='failed' WHERE id=?",[orderId]);
     }else if(status==='cancelled'){
