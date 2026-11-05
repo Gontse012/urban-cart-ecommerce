@@ -95,6 +95,10 @@ function App(){
  const [forgotEmail,setForgotEmail]=useState('');
  const [forgotMessage,setForgotMessage]=useState('');
  const categories=['All','Tech','Home','Lifestyle','Accessories'];
+ const [resetToken, setResetToken] = useState(null);
+const [resetOpen, setResetOpen] = useState(false);
+const [newPassword, setNewPassword] = useState('');
+const [resetMessage, setResetMessage] = useState('');
 
  useEffect(()=>{
    const key = getCartKey(user);
@@ -126,6 +130,16 @@ function App(){
      }).catch(()=>{});
    }
  },[user]);
+
+ useEffect(()=>{
+  const params = new URLSearchParams(window.location.search);
+  const t = params.get('reset_token') || params.get('token');
+  if(t){
+    setResetToken(t);
+    setResetOpen(true);
+    setShowAuth(true); // or set your login modal open
+  }
+},[]);
 
  useEffect(()=>{
    const key = getCartKey(user);
@@ -575,6 +589,34 @@ function App(){
      }
    } finally { setBusy(false); }
  }
+
+ async function handleResetPassword(e){
+  e?.preventDefault();
+  if(!newPassword || newPassword.length < 6){
+    setResetMessage('Password must be at least 6 characters');
+    return;
+  }
+  setBusy(true); setResetMessage('Resetting...');
+  try{
+    const data = await api('/auth/reset-password', {
+      method:'POST', 
+      body: JSON.stringify({ token: resetToken, newPassword })
+    });
+    setResetMessage(data.message || 'Password reset! You can now login.');
+    setTimeout(()=>{
+      setResetOpen(false);
+      setResetToken(null);
+      setNewPassword('');
+      setResetMessage('');
+      window.history.replaceState({}, '', window.location.pathname); // clean URL
+      setAuthMode('login');
+    }, 2000);
+  }catch(err){
+    setResetMessage(err.message || 'Invalid or expired link');
+  }finally{
+    setBusy(false);
+  }
+}
 
  return <div className="app">
   <div className="ticker"><div className="ticker-track"><span>● FREE DELIVERY OVER R1,000 ● SECURE PAYFAST ● CURATED IN SA ● EVERYDAY ELEVATED ●</span><span>● FREE DELIVERY OVER R1,000 ● SECURE PAYFAST ● CURATED IN SA ● EVERYDAY ELEVATED ●</span></div></div>

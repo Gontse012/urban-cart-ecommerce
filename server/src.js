@@ -67,7 +67,7 @@ function isValidSAnumber(phone){
 // ================= EMAIL DELIVERY NOTE =================
 async function generateDeliveryPdfBuffer(order, items){
   return new Promise((resolve, reject)=>{
-    const doc = new PDFDocument({ margin: 40, size: 'A6/' });
+    const doc = new PDFDocument({ margin: 40, size: 'A4/' });
     const chunks = [];
     doc.on('data', c=>chunks.push(c));
     doc.on('end', ()=> resolve(Buffer.concat(chunks)));
@@ -156,27 +156,36 @@ async function sendViaResend({ to, subject, text, html, pdfBuffer, pdfName }){
   }
 }
 
+async function sendViaResend({ to, subject, text, html, pdfBuffer, pdfName }){
+  if(!RESEND_API_KEY) return null;
+  try{
+    const payload = { from: FROM_EMAIL, to: Array.isArray(to) ? to : [to], subject, html: html || text || '', text: text || '' };
+    if(pdfBuffer){ payload.attachments = [{ filename: pdfName || 'delivery-note.pdf', content: pdfBuffer.toString('base64') }]; }
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await r.json();
+    if(!r.ok) throw new Error(JSON.stringify(data));
+    return { ok: true, id: data.id };
+  }catch(e){ return { ok: false, error: e.message }; }
+}
+async function sendEmailResend({ to, subject, html }){
+  return sendViaResend({ to, subject, html });
+}
 function getTransporter(){
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = Number(process.env.SMTP_PORT || 465);
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   if(!user || !pass) return null;
-
-  async function sendEmailResend({ to, subject, html }){
-    await fetch('https://api.resend.com/emails', {
-      method:'POST',
-      headers:{ 'Authorization': `Bearer ${RESEND_API_KEY}` },
-      body: JSON.stringify({ from: 'Urban Cart <onboarding@resend.dev>', to:[to], subject, html })
-    })
-  }
-  app.post('/api/auth/forgot-password', ...){
-    const token = crypto.randomBytes(32).toString('hex');
-    const resetLink = `${FRONTEND_URL}?reset_token=${token}`;
-    await sendEmailResend({ to: email, subject:'Reset Your Password', html: `<a href="${resetLink}">RESET</a>` })
-  }
-  }
-
+  return nodemailer.createTransport({
+    host, port,
+    secure: port===465,
+    auth: { user, pass }
+  });
+}
 async function sendDeliveryNoteEmail(order, items){
   const adminEmail = (process.env.ADMIN_EMAIL || '').trim();
   if(!adminEmail){
@@ -405,8 +414,9 @@ app.post('/api/auth/forgot-password', async (req, res, next) => {
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 3600000);
     await pool.execute('INSERT INTO password_resets (email, token, expires_at) VALUES (?,?,?) ON DUPLICATE KEY UPDATE token=?, expires_at=?', [email, token, expires, token, expires]);
-    console.log(`FORGOT PASSWORD ${email} token ${token}`);
-    res.json({ message: 'Reset link sent to your email (check server logs).', token_hint: process.env.NODE_ENV!=='production' ? token : undefined });
+    const resetLink = `${FRONTEND_URL}?reset_token=${token}`;
+    const html = `<div>...<a href="${resetLink}">RESET PASSWORD</a>...</div>`;
+    await sendViaResend({ to: email, subject: 'Reset Your Password', html });
   }catch(e){ next(e); }
 });
 app.post('/api/auth/reset-password', async (req, res, next) => {
