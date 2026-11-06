@@ -86,6 +86,7 @@ function App(){
  const [authForm,setAuthForm]=useState({name:'',email:'',password:'', acceptTerms:false});
  const [authError,setAuthError]=useState('');
  const [showTerms,setShowTerms]=useState(false);
+ const [termsTab,setTermsTab]=useState('Shipping');
  const [adminTab,setAdminTab]=useState('dashboard');
  const [prodForm,setProdForm]=useState({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',is_active:true});
  const [editingId,setEditingId]=useState(null);
@@ -784,9 +785,15 @@ const order = await api('/orders',{method:'POST',body:JSON.stringify({
           <button className="close-view" onClick={closeProduct}><X size={14}/> CLOSE</button>
           <h1>{selectedProduct.name}</h1>
           <p className="desc">{selectedProduct.description}</p>
-          <div className="price-row">
-            {selectedProduct.on_sale ? <><strong style={{color:'#92400E'}}>{fmt(effectivePrice(selectedProduct))}</strong><span style={{textDecoration:'line-through', fontSize:14}}>{fmt(selectedProduct.price)}</span></> : <strong>{fmt(effectivePrice(selectedProduct))}</strong>}
-            <span>ZAR • VAT INCL.</span>
+          <div className="price-row" style={{flexDirection:'column', alignItems:'flex-start', gap:4}}>
+            {selectedProduct.on_sale ? <>
+              <span style={{fontSize:11, fontWeight:700, letterSpacing:1, opacity:.6}}>WAS <span style={{textDecoration:'line-through'}}>{fmt(selectedProduct.price)}</span></span>
+              <span style={{fontSize:11, fontWeight:700, letterSpacing:1, color:'#92400E'}}>NOW <strong style={{fontSize:22, color:'#92400E'}}>{fmt(effectivePrice(selectedProduct))}</strong></span>
+            </> : <>
+              <span style={{fontSize:11, fontWeight:700, letterSpacing:1}}>PRICE</span>
+              <strong style={{fontSize:22}}>{fmt(effectivePrice(selectedProduct))}</strong>
+            </>}
+            <span style={{fontSize:11}}>ZAR • VAT INCL. {selectedProduct.on_sale && <span style={{background:'#F59E0B', color:'#fff', padding:'2px 6px', marginLeft:6}}>SAVE {fmt(Number(selectedProduct.price) - Number(effectivePrice(selectedProduct)))}</span>}</span>
           </div>
           <div className="buy-row">
             <button className="btn-black" disabled={isOutOfStock(selectedProduct)} onClick={()=>{add(selectedProduct);}} style={{opacity: isOutOfStock(selectedProduct)?0.4:1}}>
@@ -795,9 +802,9 @@ const order = await api('/orders',{method:'POST',body:JSON.stringify({
             <button className="btn-ghost" onClick={()=>setCartOpen(true)}>View bag ({count})</button>
           </div>
           <div className="micro-badges">
-            <span><Truck size={14}/> 2-4 DAY DELIVERY</span>
+            <span><Truck size={14}/> 1-2 DAY DELIVERY</span>
             <span><ShieldCheck size={14}/> PAYFAST SECURE</span>
-            <span><RotateCcw size={14}/> 14-DAY RETURNS</span>
+            <span><RotateCcw size={14}/> 5-DAY RETURNS</span>
           </div>
         </div>
       </div>
@@ -811,7 +818,7 @@ const order = await api('/orders',{method:'POST',body:JSON.stringify({
           {visibleAll.map((p)=>
             <article key={p.id} className="card" onClick={()=>openProduct(p)} style={{opacity: isOutOfStock(p)?0.6:1}}>
               <div className="card-img"><img src={p.image_url} alt={p.name} loading="lazy"/><span className="tag">{isOutOfStock(p)?'OUT OF STOCK': p.on_sale?'SALE':p.category}</span><button className="add" onClick={e=>{e.stopPropagation(); add(p);}} disabled={isOutOfStock(p)}><Plus size={16}/></button></div>
-              <div className="card-info"><div><h3>{p.name}</h3><small>{p.category}</small></div><div style={{textAlign:'right'}}>{p.on_sale?<><b style={{color:'#92400E'}}>{fmt(effectivePrice(p))}</b><br/><small style={{textDecoration:'line-through'}}>{fmt(p.price)}</small></>:<b>{fmt(p.price)}</b>}</div></div>
+              <div className="card-info"><div><h3>{p.name}</h3><small>{p.category}</small></div><div style={{textAlign:'right', lineHeight:1.2}}>{p.on_sale?<><small style={{fontSize:9, fontWeight:700, opacity:.6}}>WAS <span style={{textDecoration:'line-through'}}>{fmt(p.price)}</span></small><br/><small style={{fontSize:9, fontWeight:700, color:'#92400E'}}>NOW</small> <b style={{color:'#92400E'}}>{fmt(effectivePrice(p))}</b></>:<><small style={{fontSize:9, fontWeight:700, opacity:.6}}>PRICE</small><br/><b>{fmt(p.price)}</b></>}</div></div>
             </article>
           )}
         </div>
@@ -852,20 +859,20 @@ const order = await api('/orders',{method:'POST',body:JSON.stringify({
             {visible.map((p,i)=>
               <article key={p.id} className={i===0?"card big":"card"} onClick={()=>openProduct(p)} style={{opacity: isOutOfStock(p)?0.55:1}}>
                 <div className="card-img"><img src={p.image_url} alt={p.name} loading="lazy"/><span className="tag" style={{background: isOutOfStock(p)?'#ff3b30': p.on_sale?'#F59E0B':undefined, color: isOutOfStock(p)||p.on_sale?'#fff':undefined}}>{isOutOfStock(p)?'OUT OF STOCK': i===0?'BESTSELLER': p.on_sale?'SALE':p.category}</span><button className="add" onClick={e=>{e.stopPropagation(); add(p);}} disabled={isOutOfStock(p)}><Plus size={16}/></button></div>
-                <div className="card-info"><div><h3>{p.name}</h3><small>{p.category}</small></div><div style={{textAlign:'right'}}>{p.on_sale?<><b style={{color:'#92400E'}}>{fmt(effectivePrice(p))}</b><br/><small style={{textDecoration:'line-through', opacity:.6}}>{fmt(p.price)}</small></>:<b>{fmt(p.price)}</b>}</div></div>
+                <div className="card-info"><div><h3>{p.name}</h3><small>{p.category}</small></div><div style={{textAlign:'right', lineHeight:1.2}}>{p.on_sale?<><small style={{fontSize:9, fontWeight:700, opacity:.6}}>WAS <span style={{textDecoration:'line-through'}}>{fmt(p.price)}</span></small><br/><small style={{fontSize:9, fontWeight:700, color:'#92400E'}}>NOW</small> <b style={{color:'#92400E'}}>{fmt(effectivePrice(p))}</b></>:<><small style={{fontSize:9, fontWeight:700, opacity:.6}}>PRICE</small><br/><b>{fmt(p.price)}</b></>}</div></div>
               </article>
             )}
           </div>
         </section>
         <section id="story" className="manifesto">
           <div><h2>LESS NOISE.<br/>MORE<br/><em>MEANING.</em></h2></div>
-          <div><p>Urban Cart started with one question: what if we only sold things we'd keep?</p><p>We don't do 10,000 products. We do 30 that matter. Tech that doesn't shout. Homeware that lasts. Everyday stuff that makes the day feel a little more considered.</p><p>Proudly built in Ellisras. Shipping everywhere in South Africa.</p><a href="#shop" className="btn-outline">READ OUR RULES <ArrowUpRight size={14}/></a></div>
+          <div><p>Urban Cart started with one question: what if we only sold things we'd keep?</p><p>We don't do 10,000 products. We do 30 that matter. Tech that doesn't shout. Homeware that lasts. Everyday stuff that makes the day feel a little more considered.</p><p>Proudly built in Ellisras. Shipping everywhere in South Africa.</p><a onClick={()=>{setTermsTab('Terms of service'); setShowTerms(true);}} className="btn-outline" style={{cursor:'pointer'}}>READ OUR RULES <ArrowUpRight size={14}/></a></div>
         </section>
       </>
     )}
   </main>
   <footer className="footer">
-    <div className="foot-top"><span>© {new Date().getFullYear()} URBAN CART</span><span>Ellisras — Lephalale — SA</span><span>MADE FOR THE EVERYDAY ●</span></div>
+    <div className="foot-top"><span>© {new Date().getFullYear()} URBAN CART</span><span>Ellisras — Lephalale — SA</span><span onClick={()=>{setTermsTab('Shipping'); setShowTerms(true);}} style={{cursor:'pointer', textDecoration:'underline'}}>TERMS & POLICIES</span></div>
     <div className="foot-big">URBAN CART</div>
   </footer>
   {notice&&<div className="toast"><Check size={14}/>{notice}<button onClick={()=>setNotice('')}><X size={12}/></button></div>}
@@ -875,7 +882,8 @@ const order = await api('/orders',{method:'POST',body:JSON.stringify({
       <div className="drawer-head"><h2>BAG ({count})</h2><button onClick={()=>setCartOpen(false)}><X size={16}/></button></div>
       {!cart.length?<div className="empty-bag"><ShoppingBag size={28}/><h3>Bag is empty.</h3><p>Go add some good stuff.</p><button className="btn-black" onClick={()=>setCartOpen(false)}>SHOP NOW</button></div>:
       <>
-        <div className="cart-list">{cart.map(p=><div key={p.id} className="cart-item"><img src={p.image_url}/><div><h4>{p.name} {p.on_sale&&<span style={{background:'#F59E0B',fontSize:8,padding:'2px 4px'}}>SALE</span>}</h4><b>{fmt(effectivePrice(p))} {p.on_sale&&<small style={{textDecoration:'line-through',fontWeight:400}}>{fmt(p.original_price||p.price)}</small>}</b><div className="qty"><button onClick={()=>changeQty(p.id,-1)}><Minus size={10}/></button><span>{p.quantity}</span><button onClick={()=>changeQty(p.id,1)}><Plus size={10}/></button></div></div><button className="remove" onClick={()=>removeItem(p.id)}>REMOVE</button></div>)}
+        <div className="cart-list">{cart.map(p=><div key={p.id} className="cart-item"><img src={p.image_url}/><div><h4>{p.name} {p.on_sale&&<span style={{background:'#F59E0B',fontSize:8,padding:'2px 4px'}}>SALE</span>}</h4>
+{p.on_sale ? <div style={{fontSize:11}}><span style={{opacity:.6}}>WAS <span style={{textDecoration:'line-through'}}>{fmt(p.original_price||p.price)}</span></span> <b style={{color:'#92400E'}}>NOW {fmt(effectivePrice(p))}</b></div> : <b>{fmt(effectivePrice(p))}</b>}<div className="qty"><button onClick={()=>changeQty(p.id,-1)}><Minus size={10}/></button><span>{p.quantity}</span><button onClick={()=>changeQty(p.id,1)}><Plus size={10}/></button></div></div><button className="remove" onClick={()=>removeItem(p.id)}>REMOVE</button></div>)}
         </div>
         <div className="cart-foot">
           <div className="sum"><span>SUBTOTAL ({count} items)</span><b>{fmt(total)}</b></div>
@@ -903,10 +911,11 @@ const order = await api('/orders',{method:'POST',body:JSON.stringify({
             <span>Phone number *</span>
             <span style={{fontWeight:400, opacity:.6}}>SA only</span>
             </label>
-            <div style={{display:'flex', border:'2px solid #121212', height:44, marginTop:4}}>
-              <span style={{background:'#eee', padding:'0 10px', display:'grid', placeItems:'center', fontSize:12, fontWeight:700, borderRight:'2px solid #121212'}}>ZA +27</span>
-        <input required value={form.phone} onChange={e=>setField('phone',e.target.value)} placeholder="082 000 0000" style={{flex:1, border: '2px', padding:'0 12px'}}/>
-        </div>
+            <div style={{display:'flex', border:'2px solid #121212', borderBottom:'3px solid #121212', height:44, marginTop:4}}>
+            <span style={{background:'#eee', padding:'0 10px', display:'grid', placeItems:'center', fontSize:12, fontWeight:700, borderRight:'2px solid #121212'}}>ZA +27</span>
+            <input required type="tel" inputMode="numeric" pattern="[0-9+]*" autoComplete="tel" value={form.phone} onChange={e=>setField('phone',e.target.value.replace(/[^0-9+]/g,''))} placeholder="082 000 0000" style={{flex:1, border:'none', outline:'none', padding:'0 12px', fontSize:13, fontWeight:600}}/>
+          </div>
+          <div style={{height:2, background:'#121212', marginTop:0}}></div>
         </div>
         <div style={{display:'flex', gap:'8px', marginTop:'8px'}}>
           <button type="button" onClick={sendPhoneOtp} disabled={phoneVerified} className="btn-outline">
@@ -916,7 +925,7 @@ const order = await api('/orders',{method:'POST',body:JSON.stringify({
 
         {phoneOtpSent && !phoneVerified && (
           <div style={{display:'flex', gap:'8px', marginTop:'8px'}}>
-            <input value={phoneOtp} onChange={e=>setPhoneOtp(e.target.value)} placeholder="Enter 6-digit OTP" maxLength={6} />
+            <input type="tel" inputMode="numeric" pattern="[0-9]*" autoComplete="one-time-code" value={phoneOtp} onChange={e=>setPhoneOtp(e.target.value.replace(/[^0-9]/g,'').slice(0,6))} placeholder="Enter 6-digit OTP" maxLength={6} style={{height:44, flex:1, border:'2px solid #121212', padding:'0 12px', fontSize:16, fontWeight:700, letterSpacing:4, textAlign:'center'}} />
             <button type="button" onClick={verifyPhoneOtp} className="btn-black">Verify</button>
           </div>
         )}
@@ -925,7 +934,7 @@ const order = await api('/orders',{method:'POST',body:JSON.stringify({
         <input value={form.delivery_address} onChange={e=>setField('delivery_address',e.target.value)} placeholder="e.g. John Doe, 1234 Main Street, Apartment 56B, Springfield" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/></div>
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
           <div><label style={{fontSize:11, fontWeight:700}}>Province *</label><select required value={form.province} onChange={e=>setField('province',e.target.value)} style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}>{PROVINCES.map(p=><option key={p} value={p}>{p}</option>)}</select></div>
-          <div><label style={{fontSize:11, fontWeight:700}}>Postal code *</label><input required value={form.postal_code} onChange={e=>setField('postal_code',e.target.value)} placeholder="2196" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/></div>
+          <div><label style={{fontSize:11, fontWeight:700}}>Postal code *</label><input required type="tel" inputMode="numeric" pattern="[0-9]*" autoComplete="postal-code" value={form.postal_code} onChange={e=>setField('postal_code',e.target.value.replace(/[^0-9]/g,'').slice(0,4))} placeholder="2196" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/></div>
         </div>
         <div style={{border:'2px solid #121212', padding:12, background:'#FFFCF8'}}>
           <h4 style={{margin:'0 0 8px', fontFamily:'Anton', fontSize:13}}>PAYFAST SECURE</h4>
@@ -1001,12 +1010,15 @@ const order = await api('/orders',{method:'POST',body:JSON.stringify({
               setForgotStatus('');
             },150);
           }}
-          style={{cursor:'pointer', background:'none', border:'none', color:'#E9D9BF', textDecoration:'underline', fontSize:'13px', marginTop:'8px', alignSelf:'flex-start'}}
+          style={{cursor:'pointer', background:'none', border:'none', color:'#c7b18e', textDecoration:'underline', fontSize:'13px', marginTop:'8px', alignSelf:'flex-start'}}
         >
           Forgot password?
         </button>
           )}
-          {authMode==='register' && (<div className="terms-box"><label className="terms-check"><input type="checkbox" checked={authForm.acceptTerms} onChange={e=>setAuthForm(f=>({...f, acceptTerms:e.target.checked}))}/><span>I agree to the <button type="button" onClick={()=>setShowTerms(true)} style={{textDecoration:'underline', background:'none', border:'none', fontWeight:700, cursor:'pointer'}}>Terms & Conditions</button></span></label></div>)}
+          {authMode==='register' && (<div className="terms-box"><label className="terms-check"><input type="checkbox" checked={authForm.acceptTerms} onChange={e=>setAuthForm(f=>({...f, acceptTerms:e.target.checked}))}/><span>I agree to the <button type="button" onClick={()=>{
+  setAccountOpen(false);
+  setTimeout(()=>{ setTermsTab('Terms of service'); setShowTerms(true); }, 120);
+}} style={{textDecoration:'underline', background:'none', border:'none', fontWeight:700, cursor:'pointer'}}>Terms & Conditions</button></span></label></div>)}
           <button className="btn-black full" disabled={busy}>{busy?'WAIT...':authMode==='login'?'SIGN IN':'CREATE ACCOUNT'}</button>
         </form>
       </>}
@@ -1015,24 +1027,26 @@ const order = await api('/orders',{method:'POST',body:JSON.stringify({
 
   {/* FORGOT PASSWORD MODAL */}
 {forgotOpen && (
-  <div className="modal-overlay" style={{zIndex:10020}} onClick={()=>setForgotOpen(false)}>
-    <div className="modal-box" onClick={e=>e.stopPropagation()} style={{maxWidth:'400px'}}>
-      <div className="modal-head">
-        <h3>Reset Password</h3>
-        <button onClick={()=>setForgotOpen(false)} className="icon-x">✕</button>
+  <div className="modal-overlay" style={{zIndex:10020, position:'fixed', inset:0, background:'rgba(0,0,0,0.65)', display:'flex', alignItems:'center', justifyContent:'center', padding:16}} onClick={()=>setForgotOpen(false)}>
+    <div className="modal-box" onClick={e=>e.stopPropagation()} style={{maxWidth:'420px', width:'100%', background:'#FFFCF8', border:'2px solid #121212', borderRadius:0, boxShadow:'8px 8px 0 #121212', overflow:'hidden'}}>
+      <div className="modal-head" style={{background:'#121212', padding:'18px 20px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+        <h3 style={{margin:0, color:'#E9D9BF', fontFamily:'Anton, sans-serif', fontSize:20, letterSpacing:1}}>RESET PASSWORD</h3>
+        <button onClick={()=>setForgotOpen(false)} style={{background:'#FFFCF8', border:'none', width:30, height:30, fontWeight:900, cursor:'pointer', fontSize:14}}>✕</button>
       </div>
-      <form onSubmit={handleForgotSubmit} style={{padding:'16px', display:'flex', flexDirection:'column', gap:'12px'}}>
-        <p style={{fontSize:'13px', opacity:.7}}>Enter your email - we'll send you a reset link (expires in 1 hour).</p>
+      <form onSubmit={handleForgotSubmit} style={{padding:'22px 20px', display:'flex', flexDirection:'column', gap:'14px'}}>
+        <p style={{fontSize:'13px', color:'#57534E', lineHeight:'20px', margin:0}}>Enter your email — we'll send you a reset link <b style={{color:'#121212'}}>(expires in 1 hour)</b>. Check inbox & spam.</p>
+        <label style={{fontSize:11, fontWeight:700, letterSpacing:1}}>EMAIL ADDRESS *</label>
         <input 
           type="email" 
           required 
           value={forgotEmail} 
           onChange={e=>setForgotEmail(e.target.value)}
           placeholder="your@email.com"
-          style={{padding:'12px', border:'1px solid #ddd', borderRadius:'8px'}}
+          style={{height:48, padding:'0 14px', border:'2px solid #121212', borderBottom:'3px solid #121212', background:'#fff', fontSize:14, fontWeight:600, outline:'none', width:'100%', boxSizing:'border-box'}}
         />
-        <button type="submit" className="btn-primary">Send Reset Link</button>
-        {forgotStatus && <div style={{fontSize:'13px', padding:'8px', background:'#FEF3C7', borderRadius:'6px'}}>{forgotStatus}</div>}
+        <button type="submit" style={{height:48, background:'#121212', color:'#FFFCF8', border:'2px solid #121212', fontWeight:800, fontSize:13, letterSpacing:1, cursor:'pointer', fontFamily:'Anton, sans-serif'}}>SEND RESET LINK →</button>
+        {forgotStatus && <div style={{fontSize:'12px', padding:'10px 12px', background: forgotStatus.includes('✅') ? '#F0FDF4' : '#FEF3C7', border:'1px solid #121212', borderLeft:'4px solid #121212', fontWeight:600}}>{forgotStatus}</div>}
+        <p style={{fontSize:11, color:'#999', textAlign:'center', margin:0}}>Remember password? <button type="button" onClick={()=>{setForgotOpen(false); setAccountOpen(true);}} style={{background:'none', border:'none', textDecoration:'underline', fontWeight:700, cursor:'pointer'}}>Sign in</button></p>
       </form>
     </div>
   </div>
@@ -1063,15 +1077,87 @@ const order = await api('/orders',{method:'POST',body:JSON.stringify({
   </div>
 )}
 
-  {showTerms && (
-    <div className="overlay" style={{zIndex:10003}} onMouseDown={e=>{if(e.target===e.currentTarget)setShowTerms(false)}}>
-      <section className="modal" style={{maxWidth:600}}>
-        <div className="drawer-head"><h2>TERMS & CONDITIONS</h2><button onClick={()=>setShowTerms(false)}><X size={16}/></button></div>
-        <div style={{maxHeight:'70vh', overflow:'auto', fontSize:12, lineHeight:1.6}}><h3>2. WHAT URBAN CART IS NOT RESPONSIBLE FOR</h3><ul><li>Wrong address, courier delays, PayFast failures</li></ul></div>
-        <button className="btn-black full" style={{marginTop:12}} onClick={()=>setShowTerms(false)}>I UNDERSTAND</button>
-      </section>
-    </div>
-  )}
+{showTerms && (
+  <div className="overlay" style={{zIndex:10030}} onMouseDown={e=>{if(e.target===e.currentTarget)setShowTerms(false)}}>
+    <section className="modal" style={{maxWidth:520, maxHeight:'85vh', overflow:'auto'}}>
+      <div className="drawer-head"><h2>Terms and policies</h2><button onClick={()=>setShowTerms(false)}><X size={16}/></button></div>
+
+      <label style={{fontSize:11, fontWeight:700}}>Policy</label>
+      <select value={termsTab} onChange={e=>setTermsTab(e.target.value)} style={{width:'100%', height:46, border:'2px solid #121212', padding:'0 12px', margin:'6px 0 14px', fontSize:14, fontWeight:600, background:'#fff'}}>
+        <option>Shipping</option>
+        <option>Refund policy</option>
+        <option>Privacy policy</option>
+        <option>Terms of service</option>
+        <option>Contact</option>
+      </select>
+
+      <div style={{fontSize:13, lineHeight:1.7}}>
+      {termsTab==='Shipping' && (
+        <>
+          <ul>
+            <li>Orders are processed Monday to Friday within 5 business days</li>
+            <li>You will receive a shipping confirmation email with tracking once your order has been dispatched</li>
+            <li>Orders placed on weekends or holidays begin processing the next business day</li>
+            <li>During peak periods, processing times may be slightly longer</li>
+          </ul>
+          <h3>Shipping Rates &amp; Delivery Times — South Africa</h3>
+          <ul>
+            <li>Standard Shipping: <b>R99</b></li>
+            <li>Free Shipping: on orders over <b>R1,000</b></li>
+            <li>Gauteng: 1-3 business days after processing</li>
+            <li>Other Provinces: 2-5 business days</li>
+            <li>Rural / Outlying: 3-7 business days</li>
+          </ul>
+          <p>Dispatched from Warehouse - Lephalale, Limpopo via Courier Guy / Pudo / PostNet.</p>
+        </>
+      )}
+
+      {termsTab==='Refund policy' && (
+        <>
+          <p>Governed by the <b>Consumer Protection Act 68 of 2008 (CPA)</b> and <b>Electronic Communications and Transactions Act 25 of 2002 (ECTA)</b>.</p>
+          <ul>
+            <li><b>Cooling-off:</b> 7 days from delivery to cancel an online purchase in terms of ECTA s44, no reason needed</li>
+            <li><b>Defective / not as described:</b> Return within 30 days, full refund in terms of CPA s56</li>
+            <li><b>Refund time:</b> Within 14 days after we receive the return</li>
+            <li>Items must be unused, in original packaging. Sale items can be returned if defective.</li>
+            <li>To start a return, email gontsewamodise01@gmail.com with order #</li>
+          </ul>
+        </>
+      )}
+
+      {termsTab==='Privacy policy' && (
+        <>
+          <p>We comply with the <b>Protection of Personal Information Act 4 of 2013 (POPIA)</b>.</p>
+          <ul>
+            <li>We collect: name, email, phone, delivery address, order history</li>
+            <li>Used only to fulfil orders, delivery, PayFast payment, and support</li>
+            <li>We never sell your data. PayFast processes card payments securely - we don't store card numbers</li>
+            <li>You may request access, correction or deletion of your data at any time</li>
+            <li>Contact: gontsewamodise01@gmail.com</li>
+          </ul>
+        </>
+      )}
+
+      {termsTab==='Terms of service' && (
+        <ul>
+          <li>Prices in ZAR, VAT included. Prices may change without notice</li>
+          <li>You must be 18+ or have guardian consent to order</li>
+          <li>All orders subject to stock availability and PayFast payment confirmation</li>
+          <li>We are not liable for courier delays, wrong address provided, or PayFast failures</li>
+          <li>These terms are governed by South African law. Disputes: Lephalale Magistrate's Court</li>
+        </ul>
+      )}
+
+      {termsTab==='Contact' && (
+        <p><b>Urban Cart</b><br/>Lephalale, Limpopo, South Africa<br/>Email: gontsewamodise01@gmail.com<br/>Response within 2 business days</p>
+      )}
+      </div>
+
+      <p style={{fontSize:11, opacity:.6, marginTop:14}}>Last updated November 2026 | Governed by South African law</p>
+      <button className="btn-black full" style={{marginTop:12}} onClick={()=>setShowTerms(false)}>I UNDERSTAND</button>
+    </section>
+  </div>
+)}
 
   {adminOpen&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setAdminOpen(false)}}>
     <section className="modal wide-modal" style={{maxWidth:980, width:'96vw'}}>
