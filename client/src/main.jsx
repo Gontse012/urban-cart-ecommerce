@@ -893,30 +893,31 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
       </section>
         ) : selectedProduct ? (
           <div className="product-view">
-            <div className="product-view-left">
-      {(() => {
-        const imgs = getProductImages(selectedProduct);
-        const current = imgs[galleryIndex] || imgs[0];
-        return <>
-          <div style={{position:'relative', width:'100%'}}>
-            <img src={current} alt={selectedProduct.name} />
-            {imgs.length > 1 && <>
-              <button onClick={(e)=>{e.stopPropagation(); setGalleryIndex((galleryIndex - 1 + imgs.length) % imgs.length);}} style={{position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', width:36, height:36, background:'#121212', color:'#fff', border:'none', cursor:'pointer', fontSize:18}}>‹</button>
-              <button onClick={(e)=>{e.stopPropagation(); setGalleryIndex((galleryIndex + 1) % imgs.length);}} style={{position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', width:36, height:36, background:'#121212', color:'#fff', border:'none', cursor:'pointer', fontSize:18}}>›</button>
-              <span style={{position:'absolute', bottom:10, right:10, background:'#121212', color:'#fff', fontSize:10, padding:'4px 8px', fontWeight:700}}>{galleryIndex + 1} / {imgs.length}</span>
-            </>}
-          </div>
-          {imgs.length > 1 && (
-            <div style={{display:'flex', gap:8, marginTop:10, justifyContent:'center', flexWrap:'wrap'}}>
-              {imgs.map((img, i) => (
-                <img key={i} src={img} onClick={()=>setGalleryIndex(i)} style={{width:56, height:56, objectFit:'cover', cursor:'pointer', border: i===galleryIndex ? '3px solid #121212' : '2px solid #ddd', opacity: i===galleryIndex ? 1 : 0.6}} />
-              ))}
+            <div className="product-view-left" style={{display:'flex', gap:12, alignItems:'flex-start'}}>
+              {(() => {
+                const imgs = getProductImages(selectedProduct);
+                const current = imgs[galleryIndex] || imgs[0];
+                return <>
+                  {/* THUMBNAILS - VERTICAL LEFT, like your screenshot */}
+                  {imgs.length > 1 && (
+                    <div style={{display:'flex', flexDirection:'column', gap:8, flexShrink:0}}>
+                      {imgs.map((img, i) => (
+                        <img key={i} src={img} onClick={()=>setGalleryIndex(i)} style={{width:64, height:64, objectFit:'cover', cursor:'pointer', border: i===galleryIndex ? '2px solid #121212' : '1px solid #ddd', opacity: i===galleryIndex ? 1 : 0.6}} />
+                      ))}
+                    </div>
+                  )}
+                  {/* MAIN IMAGE - RIGHT */}
+                  <div style={{position:'relative', flex:1, minWidth:0}}>
+                    <img src={current} alt={selectedProduct.name} style={{width:'100%', display:'block'}} />
+                    {imgs.length > 1 && <>
+                      <button onClick={(e)=>{e.stopPropagation(); setGalleryIndex((galleryIndex - 1 + imgs.length) % imgs.length);}} style={{position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', width:40, height:40, background:'#fff', color:'#121212', border:'none', borderRadius:'50%', cursor:'pointer', fontSize:20, boxShadow:'0 2px 10px rgba(0,0,0,0.2)', display:'grid', placeItems:'center'}}>‹</button>
+                      <button onClick={(e)=>{e.stopPropagation(); setGalleryIndex((galleryIndex + 1) % imgs.length);}} style={{position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', width:40, height:40, background:'#fff', color:'#121212', border:'none', borderRadius:'50%', cursor:'pointer', fontSize:20, boxShadow:'0 2px 10px rgba(0,0,0,0.2)', display:'grid', placeItems:'center'}}>›</button>
+                    </>}
+                  </div>
+                </>;
+              })()}
+              <div className="img-meta"><span>{selectedProduct.category} {selectedProduct.on_sale && <b style={{background:'#F59E0B', color:'#000', padding:'2px 6px', marginLeft:8}}>SALE</b>}</span><span>{isOutOfStock(selectedProduct) ? 'OUT OF STOCK' : `${selectedProduct.stock} IN STOCK`}</span></div>
             </div>
-          )}
-          <div className="img-meta"><span>{selectedProduct.category} {selectedProduct.on_sale && <b style={{background:'#F59E0B', color:'#000', padding:'2px 6px', marginLeft:8}}>SALE</b>}</span><span>{isOutOfStock(selectedProduct) ? 'OUT OF STOCK' : `${selectedProduct.stock} IN STOCK`}</span></div>
-        </>;
-      })()}
-    </div>
         <div className="product-view-right">
           <button className="close-view" onClick={closeProduct}><X size={14}/> CLOSE</button>
           <h1>{selectedProduct.name}</h1>
