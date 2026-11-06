@@ -892,6 +892,7 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
         ))}
       </section>
         ) : selectedProduct ? (
+          <>
           <div className="product-view">
             <div className="product-view-left" style={{display:'flex', flexDirection:'column', gap:12}}>
             {getProductImages(selectedProduct).map((img, i) => (
@@ -926,6 +927,40 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
           </div>
         </div>
       </div>
+      {/* YOU MIGHT LIKE */}
+        <div style={{padding:'24px', background:'#FFFCF8', borderTop:'2px solid #121212'}}>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16}}>
+            <h3 style={{fontFamily:'Anton, sans-serif', fontSize:22, margin:0, letterSpacing:1}}>YOU MIGHT LIKE</h3>
+            <span style={{fontSize:11, letterSpacing:1, opacity:0.6}}>MORE {selectedProduct.category?.toUpperCase()}</span>
+          </div>
+          <div className="you-might-like-grid" style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:12}}>
+            {(() => {
+              const sameCat = products.filter(p => p.id !== selectedProduct.id && p.category === selectedProduct.category);
+              const others = products.filter(p => p.id !== selectedProduct.id && p.category !== selectedProduct.category);
+              const picks = [...sameCat, ...others].slice(0, 4);
+              return picks.map(p => {
+                const imgs = getProductImages(p);
+                return (
+                  <div key={p.id} onClick={()=>{ openProduct(p); window.scrollTo({top:0, behavior:'smooth'}); }} style={{cursor:'pointer', background:'#fff', border:'2px solid #121212'}}>
+                    <div style={{aspectRatio:'1/1', overflow:'hidden', background:'#EDE7DF'}}>
+                      <img src={imgs[0]} alt={p.name} style={{width:'100%', height:'100%', objectFit:'cover', display:'block'}} />
+                    </div>
+                    <div style={{padding:10}}>
+                      <div style={{fontSize:11, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{p.name}</div>
+                      <div style={{fontSize:10, opacity:0.6, margin:'2px 0 6px'}}>{p.category}</div>
+                      <div style={{display:'flex', alignItems:'center', gap:6}}>
+                        {p.on_sale && <span style={{fontSize:11, textDecoration:'line-through', opacity:0.5}}>{fmt(p.price)}</span>}
+                        <strong style={{fontSize:14}}>{fmt(effectivePrice(p))}</strong>
+                        {p.on_sale && <span style={{fontSize:9, background:'#F59E0B', color:'#000', padding:'2px 4px', fontWeight:800}}>SAVE {fmt(Number(p.price) - Number(effectivePrice(p)))}</span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
+        </>
     ) : showAll ? (
       <section className="shop">
         <div className="shop-head">

@@ -860,3 +860,9 @@ div:has(> div > strong:contains("PAYFAST")) {
     font-size:28px !important;
   }
 }
+
+@media (max-width: 768px){
+  .you-might-like-grid{
+    grid-template-columns:repeat(2, 1fr) !important;
+  }
+}
