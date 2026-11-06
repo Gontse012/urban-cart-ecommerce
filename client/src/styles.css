@@ -623,6 +623,11 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
 
 /* === PRODUCT PAGE IMAGE - SMALLER ON PHONE === */
 @media (max-width: 768px) {
+  .product-view {
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 12px !important;
+  }
   .product-view-left {
     width: 100% !important;
     max-width: 100% !important;
