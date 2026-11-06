@@ -62,6 +62,15 @@ async function api(path, options={}) {
 
 function getCartKey(user){ return `uc_cart_${user?.id || 'guest'}`; }
 function effectivePrice(p){ return p.on_sale && p.sale_price ? Number(p.sale_price) : Number(p.price); }
+function getProductImages(p){
+    if(!p) return [];
+    let extra = [];
+    try{
+      extra = Array.isArray(p.images) ? p.images : (typeof p.images === 'string' ? JSON.parse(p.images || '[]') : []);
+    }catch{ extra = []; }
+    const all = [p.image_url, ...extra].filter(Boolean);
+    return [...new Set(all)].slice(0,5);
+  }
 function isOutOfStock(p){ return !p.is_active || Number(p.stock) <= 0; }
 
 function printDoc(html){
