@@ -188,7 +188,7 @@ async function generateDeliveryPdfBuffer(order, items){
     let y = tableTop + 20;
     doc.font('Helvetica').fontSize(9);
     for(const it of items){
-      const name = it.name || `Product #${it.product_id}`;
+      const name = (it.name || `Product #${it.product_id}`) + formatUnitLabel(it);
       const lineH = 20;
       if(y+lineH> 750){ doc.addPage(); y=40; }
       doc.rect(40, y, 515, lineH).stroke();
@@ -724,7 +724,7 @@ app.post('/api/orders', async (req, res) => {
       [cid, finalFullName, finalFullName, finalEmail, finalPhone, finalDeliveryAddress, finalCity, finalProvince, finalPostalCode, finalAddressSearch, finalDeliveryAddress, total, 'pending', 'pending', 'Order Placed', 'Warehouse - Lephalale', '1-2 business days', initialHistory]
     );
     const orderId = orderResult.insertId;
-    
+
     for (const item of items) {
       const p = products.find(pr => pr.id == (item.id || item.product_id));
       const priceToUse = (p.on_sale && p.sale_price) ? Number(p.sale_price) : Number(p.price);
@@ -855,7 +855,7 @@ app.patch('/api/admin/users/:id/role', auth, adminOnly, async (req, res, next)=>
   }catch(e){ next(e); }
 });
 
-aapp.post('/api/admin/products', auth, adminOnly, async (req, res, next) => { 
+app.post('/api/admin/products', auth, adminOnly, async (req, res, next) => { 
   try { 
     let { name, description='', price, sale_price=null, on_sale=false, stock=0, category, category_id, is_active=true, active=1, image_url='', unit='none', unit_value=null } = req.body || {}; 
     const catId = category_id ? Number(category_id) : await getCategoryId(category);
