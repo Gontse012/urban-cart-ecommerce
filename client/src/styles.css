@@ -691,7 +691,7 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
 
 @media (max-width: 480px) {
   .product-view-left img {
-    max-width: 100% !important;
+    max-width: 260px !important;
     height: 220px !important;
   }
 }
@@ -762,4 +762,103 @@ div:has(> div > strong:contains("PAYFAST")) {
   background: #E9D9BF !important; /* soft beige */
   border: 1px solid #C9A87A !important;
   color: #121212 !important;
+}
+
+/* === PRODUCT PAGE - SAME LAYOUT ON ALL DEVICES === */
+
+/* Keep 2 columns on phone + tablet, just like desktop */
+.product-view{
+  display:grid !important;
+  grid-template-columns:1.2fr .8fr !important;
+  flex-direction:unset !important;
+  min-height:auto !important;
+  gap:0 !important;
+  padding:0 !important;
+}
+
+.product-view-left{
+  border-right:2px solid #121212 !important;
+  background:#EDE7DF !important;
+  display:grid !important;
+  place-items:center !important;
+  padding:16px !important;
+  overflow:hidden !important;
+  width:auto !important;
+  max-width:none !important;
+}
+
+.product-view-left img{
+  width:100% !important;
+  max-width:520px !important;
+  height:auto !important;
+  max-height:560px !important;
+  min-height:0 !important;
+  aspect-ratio:auto !important;
+  object-fit:contain !important;
+  display:block !important;
+  margin:0 auto !important;
+  border:2px solid #121212 !important;
+  background:#fff !important;
+}
+
+.product-view-right{
+  padding:20px !important;
+  width:auto !important;
+  max-width:none !important;
+}
+
+.img-meta{
+  position:absolute !important;
+  bottom:0 !important;
+  left:0 !important;
+  right:0 !important;
+  max-width:none !important;
+  margin:0 !important;
+}
+
+/* SMALL - same layout, just tighter */
+@media (max-width: 768px){
+  .product-view{
+    grid-template-columns:1.2fr .8fr !important;
+  }
+  .product-view-left{
+    padding:8px !important;
+  }
+  .product-view-left img{
+    max-height:320px !important;
+  }
+  .product-view-right{
+    padding:12px !important;
+  }
+  .product-view-right h1{
+    font-size:28px !important;
+    margin:12px 0 8px !important;
+  }
+  .price-row strong{
+    font-size:24px !important;
+  }
+  .desc{
+    font-size:12px !important;
+    line-height:1.5 !important;
+  }
+}
+
+/* VERY SMALL PHONES - still 2 columns, just compact */
+@media (max-width: 480px){
+  .product-view{
+    grid-template-columns:1fr 1fr !important;
+  }
+  .product-view-left img{
+    max-height:240px !important;
+  }
+  .product-view-right h1{
+    font-size:22px !important;
+  }
+  .product-view-right{
+    padding:10px !important;
+  }
+  .close-view{
+    font-size:9px !important;
+    padding:6px 8px !important;
+  }
 }
