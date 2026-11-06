@@ -147,6 +147,7 @@ function App(){
  const [phoneVerifiedToken, setPhoneVerifiedToken] = useState('');
  const [otpStatus, setOtpStatus] = useState('');
  const [galleryIndex, setGalleryIndex] = useState(0);
+ const [cookieConsent, setCookieConsent] = useState(() => localStorage.getItem('uc_cookie_consent') === 'yes');
 
  // === FIX A: Forgot password states ===
  const [forgotOpen,setForgotOpen]=useState(false);
@@ -1063,27 +1064,34 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
           <div className="sum"><span>SUBTOTAL ({count} items)</span><b>{fmt(total)}</b></div>
           <button className="btn-black full" onClick={handleCheckoutClick}>CHECKOUT — {fmt(total)} <ArrowUpRight size={14}/></button>
           {!user && <p style={{fontSize:11, color:'#ff3b30', textAlign:'center', marginTop:8}}>⚠ You must sign in to checkout</p>}
-                    {/* MINI ACCESSORIES - under checkout */}
-            {products.filter(p => p.id !== selectedProduct.id && p.category?.toLowerCase() === 'accessories').length > 0 && (
-              <div style={{marginTop:14, borderTop:'1px solid #E5DDD0', paddingTop:10}}>
-                <div style={{fontSize:9, fontWeight:800, letterSpacing:1.2, opacity:0.55, marginBottom:8}}>COMPLETE IT — ACCESSORIES</div>
-                <div style={{display:'flex', flexDirection:'column', gap:6}}>
-                  {products.filter(p => p.id !== selectedProduct.id && p.category?.toLowerCase() === 'accessories').slice(0, 3).map(p => {
-                    const img = getProductImages(p)[0] || p.image_url;
-                    return (
-                      <div key={p.id} style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer'}} onClick={()=>{ openProduct(p); window.scrollTo({top:0, behavior:'smooth'}); }}>
-                        <img src={img} alt={p.name} style={{width:36, height:36, objectFit:'cover', border:'1px solid #121212', flexShrink:0}} />
-                        <div style={{flex:1, minWidth:0}}>
-                          <div style={{fontSize:11, fontWeight:700, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{p.name}</div>
-                          <div style={{fontSize:11, opacity:0.7}}>{fmt(effectivePrice(p))}</div>
+          {/* MINI ACCESSORIES - under checkout */}
+            {(() => {
+              const picks = products.filter(p => 
+                p.category?.toLowerCase() === 'accessories' &&
+                !cart.some(c => c.id === p.id) // don't show what's already in bag
+              ).slice(0, 3);
+              if (!picks.length) return null;
+              return (
+                <div style={{marginTop:14, borderTop:'1px solid #E5DDD0', paddingTop:10}}>
+                  <div style={{fontSize:9, fontWeight:800, letterSpacing:1.2, opacity:0.55, marginBottom:8}}>COMPLETE IT — ACCESSORIES</div>
+                  <div style={{display:'flex', flexDirection:'column', gap:6}}>
+                    {picks.map(p => {
+                      const img = getProductImages(p)[0] || p.image_url;
+                      return (
+                        <div key={p.id} style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer'}} onClick={()=>{ setCartOpen(false); openProduct(p); window.scrollTo({top:0, behavior:'smooth'}); }}>
+                          <img src={img} alt={p.name} style={{width:36, height:36, objectFit:'cover', border:'1px solid #121212', flexShrink:0}} />
+                          <div style={{flex:1, minWidth:0}}>
+                            <div style={{fontSize:11, fontWeight:700, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{p.name}</div>
+                            <div style={{fontSize:11, opacity:0.7}}>{fmt(effectivePrice(p))}</div>
+                          </div>
+                          <button onClick={(e)=>{ e.stopPropagation(); add(p); }} style={{fontSize:10, fontWeight:800, background:'#121212', color:'#fff', border:'none', padding:'6px 8px', cursor:'pointer', flexShrink:0}}>+ ADD</button>
                         </div>
-                        <button onClick={(e)=>{ e.stopPropagation(); add(p); }} style={{fontSize:10, fontWeight:800, background:'#121212', color:'#fff', border:'none', padding:'6px 8px', cursor:'pointer', flexShrink:0}}>+ ADD</button>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           <button className="btn-ghost full" style={{marginTop:8}} onClick={clearCart}>CLEAR BAG</button>
         </div>
       </>}
@@ -1502,6 +1510,26 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
       )}
     </section>
   </div>}
+  {/* COOKIE BANNER */}
+    {!cookieConsent && (
+      <div style={{
+        position:'fixed', bottom:0, left:0, right:0, zIndex:9999,
+        background:'#121212', color:'#FFFCF8',
+        display:'flex', alignItems:'center', gap:12, flexWrap:'wrap',
+        padding:'12px 16px', borderTop:'2px solid #C9A87A',
+        fontSize:12, lineHeight:1.5
+      }}>
+        <span style={{flex:1, minWidth:220}}>
+          We use cookies to keep your bag saved and make checkout work. By continuing, you agree to our <span onClick={()=>{ setShowTerms(true); setTermsTab('privacy'); }} style={{textDecoration:'underline', cursor:'pointer', color:'#E9D9BF'}}>Privacy Policy</span>.
+        </span>
+        <button onClick={()=>{ localStorage.setItem('uc_cookie_consent','yes'); setCookieConsent(true); }} style={{
+          background:'#E9D9BF', color:'#121212', border:'none',
+          padding:'8px 16px', fontWeight:800, fontSize:11, letterSpacing:1, cursor:'pointer', flexShrink:0
+        }}>
+          GOT IT
+        </button>
+      </div>
+    )}
 </div>
 }
 createRoot(document.getElementById('root')).render(<React.StrictMode><App/></React.StrictMode>);
