@@ -1063,6 +1063,27 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
           <div className="sum"><span>SUBTOTAL ({count} items)</span><b>{fmt(total)}</b></div>
           <button className="btn-black full" onClick={handleCheckoutClick}>CHECKOUT — {fmt(total)} <ArrowUpRight size={14}/></button>
           {!user && <p style={{fontSize:11, color:'#ff3b30', textAlign:'center', marginTop:8}}>⚠ You must sign in to checkout</p>}
+                    {/* MINI ACCESSORIES - under checkout */}
+            {products.filter(p => p.id !== selectedProduct.id && p.category?.toLowerCase() === 'accessories').length > 0 && (
+              <div style={{marginTop:14, borderTop:'1px solid #E5DDD0', paddingTop:10}}>
+                <div style={{fontSize:9, fontWeight:800, letterSpacing:1.2, opacity:0.55, marginBottom:8}}>COMPLETE IT — ACCESSORIES</div>
+                <div style={{display:'flex', flexDirection:'column', gap:6}}>
+                  {products.filter(p => p.id !== selectedProduct.id && p.category?.toLowerCase() === 'accessories').slice(0, 3).map(p => {
+                    const img = getProductImages(p)[0] || p.image_url;
+                    return (
+                      <div key={p.id} style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer'}} onClick={()=>{ openProduct(p); window.scrollTo({top:0, behavior:'smooth'}); }}>
+                        <img src={img} alt={p.name} style={{width:36, height:36, objectFit:'cover', border:'1px solid #121212', flexShrink:0}} />
+                        <div style={{flex:1, minWidth:0}}>
+                          <div style={{fontSize:11, fontWeight:700, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{p.name}</div>
+                          <div style={{fontSize:11, opacity:0.7}}>{fmt(effectivePrice(p))}</div>
+                        </div>
+                        <button onClick={(e)=>{ e.stopPropagation(); add(p); }} style={{fontSize:10, fontWeight:800, background:'#121212', color:'#fff', border:'none', padding:'6px 8px', cursor:'pointer', flexShrink:0}}>+ ADD</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           <button className="btn-ghost full" style={{marginTop:8}} onClick={clearCart}>CLEAR BAG</button>
         </div>
       </>}
