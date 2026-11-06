@@ -96,7 +96,6 @@ function App(){
  const [phoneVerifiedToken, setPhoneVerifiedToken] = useState('');
  const [otpStatus, setOtpStatus] = useState('');
 
- const API_URL = "https://urban-cart-ecommerce.onrender.com";
  // === FIX A: Forgot password states ===
  const [forgotOpen,setForgotOpen]=useState(false);
  const [forgotEmail,setForgotEmail]=useState('');
@@ -152,15 +151,15 @@ const [resetStatus, setResetStatus] = useState('');
    }
  },[user]);
 
- async function sendPhoneOtp(){
+async function sendPhoneOtp(){
   const phone = form.phone?.trim();
-  if(!isValidSAnumber(phone)){ setOtpStatus('❌ Invalid SA phone'); return; }
+  if(!isValidSAphone(phone)){ setOtpStatus('❌ Invalid SA phone'); return; }
   setOtpStatus('Sending OTP...');
   try{
     const r = await fetch(`${API_URL}/api/auth/send-phone-otp`, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ phone })
+      body: JSON.stringify({ phone: form.phone, otp: phoneOtp })
     });
     const data = await r.json();
     if(!r.ok) throw new Error(data.error);
@@ -908,7 +907,6 @@ async function handleResetSubmit(e){
         </div>
         </div>
         <div style={{display:'flex', gap:'8px', marginTop:'8px'}}>
-          <input value={form.phone} onChange={e=>setform({...form, phone:e.target.value})} placeholder="0821234567" />
           <button type="button" onClick={sendPhoneOtp} disabled={phoneVerified} className="btn-outline">
             {phoneVerified ? '✓ Verified' : phoneOtpSent ? 'Resend OTP' : 'Send OTP'}
           </button>
