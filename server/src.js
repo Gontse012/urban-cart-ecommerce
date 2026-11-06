@@ -16,9 +16,10 @@ app.use(cors({
     'http://localhost:5173',
     'http://localhost:3000',
     'https://urban-cart-ecommerce.vercel.app',
+    'https://urban-cart-ecommerce-one.vercel.app', 
     'https://urban-cart-ecommerce-gontsewamodise02-7329.vercel.app',
     /.*\.vercel\.app$/
-  ], 
+  ],  
   credentials: true 
 }));
 app.use(express.json({ limit: '500kb' }));
@@ -167,64 +168,120 @@ function getTransporter(){
 async function sendDeliveryNoteEmail(order, items){
   const adminEmail = (process.env.ADMIN_EMAIL || '').trim();
   if(!adminEmail){
-    console.log('Email not configured - set SMTP_USER, SMTP_PASS, ADMIN_EMAIL');
+    console.log('Email not configured - set ADMIN_EMAIL');
     return { ok:false, reason:'not_configured' };
   }
   try{
     const buffer = await generateDeliveryPdfBuffer(order, items);
-    const itemList = items.map(i => `• ${i.name || 'Product'} x${i.quantity} - R${(Number(i.price)*Number(i.quantity)).toFixed(2)}`).join('\n');
-    const subject = `📦 ORDER PLACED - R${Number(order.total).toFixed(2)} - ${order.customer_name || order.full_name} ✅`;
-    const text = `New Order #${order.id}
-
-Customer: ${order.customer_name || order.full_name}
-Email: ${order.email}
-Phone: ${order.phone}
-Address: ${order.delivery_address || order.address}
-Search: ${order.address_search || ''}
-Province: ${order.province}, ${order.postal_code}
-City: ${order.city || ''}
-
-Items:
-${itemList}
-
-TOTAL: R${Number(order.total).toFixed(2)}
-Status: ${order.delivery_status} / ${order.payment_status || order.status}
-Location: ${order.current_location}
-ETA: ${order.eta}
-
-Delivery note PDF attached.
-
-Generated: ${new Date().toLocaleString()}
-`;
+    // Text version (fallback)
+    const itemListText = items.map(i => `• ${i.name || 'Product'} x${i.quantity} - R${(Number(i.price)*Number(i.quantity)).toFixed(2)}`).join('\n');
+    const text = `Order #${order.id} - PAID\nCustomer: ${order.customer_name || order.full_name}\nEmail: ${order.email}\nPhone: ${order.phone}\nAddress: ${order.delivery_address || order.address}, ${order.province} ${order.postal_code}\n\nItems:\n${itemListText}\nTOTAL PAID: R${Number(order.total).toFixed(2)}\nStatus: PAID - Ready to Ship\nLocation: ${order.current_location}\nETA: ${order.eta}`;
+    // Table rows for HTML
+    const itemRows = items.map(i => `
+      <tr>
+        <td style="padding:12px 16px;border-bottom:1px solid #F0EDE8;font-size:13px;color:#121212">${i.name || 'Product'}</td>
+        <td style="padding:12px 16px;border-bottom:1px solid #F0EDE8;font-size:13px;text-align:center;color:#121212">${i.quantity}</td>
+        <td style="padding:12px 16px;border-bottom:1px solid #F0EDE8;font-size:13px;text-align:right;color:#121212">R${Number(i.price).toFixed(2)}</td>
+        <td style="padding:12px 16px;border-bottom:1px solid #F0EDE8;font-size:13px;text-align:right;font-weight:700;color:#121212">R${(Number(i.price)*Number(i.quantity)).toFixed(2)}</td>
+      </tr>`).join('');
+    const subject = `✅ PAID - DELIVERY NOTE #${order.id} - R${Number(order.total).toFixed(2)} - ${order.customer_name || order.full_name} - Ready to Ship`;
     const html = `
-<div style="font-family:Arial,sans-serif;max-width:600px">
-<h2 style="margin:0">📦 DELIVERY NOTE #${order.id}</h2>
-<p style="color:#666">Total: <b>R${Number(order.total).toFixed(2)}</b> | ${new Date().toLocaleString()}</p>
-<div style="background:#f9f9f9;padding:12px;border-radius:8px;margin:12px 0">
-<b>Customer:</b> ${order.customer_name || order.full_name}<br/>
-<b>Email:</b> ${order.email}<br/>
-<b>Phone:</b> ${order.phone}<br/>
-<b>Delivery:</b> ${order.delivery_address || order.address}, ${order.province} ${order.postal_code}<br/>
-<b>Search:</b> ${order.address_search || ''}<br/>
-<b>City:</b> ${order.city || ''}<br/>
-</div>
-<div style="background:#fff;border:1px solid #eee;padding:12px;border-radius:8px">
-<pre style="margin:0;font-family:Arial">${itemList}</pre>
-<p><b>TOTAL: R${Number(order.total).toFixed(2)}</b></p>
-<p>Status: ${order.delivery_status} / ${order.payment_status || order.status}<br/>
-Location: ${order.current_location}<br/>
-ETA: ${order.eta}</p>
-</div>
-<p>PDF attached: DELIVERY-${order.id}.pdf</p>
-</div>`;
-    // Try Resend first (HTTPS - no timeout on Render free tier)
-    const resendResult = await sendViaResend({ to: adminEmail, subject, text, html, pdfBuffer: buffer, pdfName: `DELIVERY-${order.id}.pdf` });
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#F5F1EB;font-family:Inter,Arial,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F5F1EB;padding:24px 0">
+    <tr><td align="center">
+      <table width="640" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,0.08);max-width:95%">
+        <!-- HEADER -->
+        <tr><td style="background:#121212;padding:24px 32px">
+          <table width="100%"><tr>
+            <td>
+              <div style="color:#E9D9BF;font-weight:900;font-size:20px;letter-spacing:2px;line-height:1">URBAN CART</div>
+              <div style="color:#E9D9BF;font-size:10px;opacity:0.6;letter-spacing:2px;margin-top:4px">LEPHALALE • ELLISRAS • SOUTH AFRICA</div>
+            </td>
+            <td align="right">
+              <div style="background:#f0fdf4;color:#16a34a;font-weight:800;font-size:11px;padding:8px 14px;border-radius:20px;display:inline-block;letter-spacing:0.5px">✅ PAID - READY TO SHIP</div>
+            </td>
+          </tr></table>
+        </td></tr>
+        <!-- ORDER META -->
+        <tr><td style="padding:28px 32px 0 32px">
+          <table width="100%"><tr>
+            <td width="50%" style="vertical-align:top;padding-right:16px">
+              <div style="font-size:10px;color:#999;letter-spacing:1.5px;font-weight:700;margin-bottom:10px">BILL TO</div>
+              <div style="font-size:13px;line-height:21px;color:#121212">
+                <b style="font-size:14px">${order.customer_name || order.full_name}</b><br/>
+                ${order.email}<br/>
+                ${order.phone}<br/>
+                <span style="color:#57534E">${order.delivery_address || order.address}<br/>${order.province} ${order.postal_code}${order.city ? ` • ${order.city}` : ''}</span>
+                ${order.address_search ? `<br/><span style="font-size:11px;color:#999">📍 ${order.address_search}</span>` : ''}
+              </div>
+            </td>
+            <td width="50%" style="vertical-align:top">
+              <div style="font-size:10px;color:#999;letter-spacing:1.5px;font-weight:700;margin-bottom:10px">SHIPMENT DETAILS</div>
+              <div style="font-size:13px;line-height:21px;color:#121212">
+                Order: <b>#${order.id}</b><br/>
+                Date: ${new Date().toLocaleDateString('en-ZA', {day:'2-digit', month:'short', year:'numeric'})}<br/>
+                Payment: <b style="color:#16a34a">PAID via PayFast</b><br/>
+                Courier: ${order.current_location || 'Warehouse - Lephalale'}<br/>
+                ETA: <b>${order.eta || '1-2 business days'}</b><br/>
+                Total: <b style="font-size:16px;color:#121212">R${Number(order.total).toFixed(2)}</b>
+              </div>
+            </td>
+          </tr></table>
+        </td></tr>
+        <!-- ITEMS TABLE -->
+        <tr><td style="padding:28px 32px 0 32px">
+          <div style="border:1px solid #F0EDE8;border-radius:12px;overflow:hidden">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr style="background:#FFFCF8">
+                <th style="padding:12px 16px;text-align:left;font-size:10px;letter-spacing:1px;color:#999;font-weight:700">ITEM</th>
+                <th style="padding:12px 16px;text-align:center;font-size:10px;letter-spacing:1px;color:#999;font-weight:700">QTY</th>
+                <th style="padding:12px 16px;text-align:right;font-size:10px;letter-spacing:1px;color:#999;font-weight:700">UNIT</th>
+                <th style="padding:12px 16px;text-align:right;font-size:10px;letter-spacing:1px;color:#999;font-weight:700">TOTAL</th>
+              </tr>
+              ${itemRows}
+              <tr style="background:#121212">
+                <td colspan="3" style="padding:16px;color:#E9D9BF;font-weight:700;font-size:13px;text-align:right;letter-spacing:1px">TOTAL PAID</td>
+                <td style="padding:16px;color:#E9D9BF;font-weight:900;font-size:16px;text-align:right">R${Number(order.total).toFixed(2)}</td>
+              </tr>
+            </table>
+          </div>
+        </td></tr>
+        <!-- INSTRUCTIONS -->
+        <tr><td style="padding:20px 32px 0 32px">
+          <div style="background:#FFFCF8;border:1px dashed #E5D5B7;padding:14px 16px;border-radius:10px;display:flex;gap:12px">
+            <div style="font-size:20px">📦</div>
+            <div style="font-size:12px;line-height:18px;color:#57534E">
+              <b style="color:#121212">Delivery Instructions:</b> Order #${order.id} - Handle with care. Customer phone ${order.phone}. Signature required. Courier: ${order.current_location}. Search: ${order.address_search || 'N/A'}
+            </div>
+          </div>
+        </td></tr>
+        <!-- FOOTER -->
+        <tr><td style="background:#F5F1EB;padding:18px 32px;text-align:center;margin-top:24px;border-top:1px solid #F0EDE8">
+          <div style="font-size:11px;color:#999;line-height:16px">
+            📎 PDF attached: <b>DELIVERY-${order.id}.pdf</b> • Generated ${new Date().toLocaleString('en-ZA')} • Urban Cart Admin<br/>
+            © ${new Date().getFullYear()} Urban Cart • Ellisras - Lephalale • PayFast Secure Payments
+          </div>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+    // Send via Resend
+    const resendResult = await sendViaResend({ 
+      to: adminEmail, 
+      subject, 
+      text, 
+      html, 
+      pdfBuffer: buffer, 
+      pdfName: `DELIVERY-${order.id}.pdf` 
+    });
     if(resendResult && resendResult.ok){
-      //try{ await sendViaResend({ to: order.email, subject: `Your Urban Cart Order #${order.id} Confirmed`, text, html }); }catch{}
-      console.log(`✅ Email Delivery #${order.id} sent to ${adminEmail} via Resend`);
+      console.log(`✅ PROFESSIONAL PAID Delivery #${order.id} sent to ${adminEmail} via Resend`);
       return { ok:true, via:'resend' };
     }
-
     const transporter = getTransporter();
     if(!transporter){
       console.log('No Resend and no SMTP');
@@ -237,7 +294,7 @@ ETA: ${order.eta}</p>
       text, html,
       attachments: [{ filename: `DELIVERY-${order.id}.pdf`, content: buffer, contentType: 'application/pdf' }]
     });
-    console.log(`✅ Email Delivery #${order.id} sent to ${adminEmail}`);
+    console.log(`✅ PROFESSIONAL Delivery #${order.id} sent to ${adminEmail} via SMTP`);
     return { ok:true };
   }catch(e){
     console.error('Email send failed', e);
