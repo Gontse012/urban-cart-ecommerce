@@ -623,11 +623,6 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
 
 /* === PRODUCT PAGE IMAGE - SMALLER ON PHONE === */
 @media (max-width: 768px) {
-  .product-view {
-    flex-direction: column !important;
-    gap: 12px !important;
-    padding: 12px !important;
-  }
   .product-view-left {
     width: 100% !important;
     max-width: 100% !important;
@@ -649,6 +644,13 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
     max-width: 320px !important;
     margin: 6px auto 0 !important;
     font-size: 10px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .product-view-left img {
+    max-width: 260px !important;
+    height: 220px !important;
   }
 }
 
