@@ -765,7 +765,7 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
    const html = `
    <html><head>
    <link rel="icon" type="image/png" href="/favicon.png" />
-<link rel="apple-touch-icon" href="/favicon.png" />
+ <link rel="icon" type="image/png" href="https://i.im.ge/QQwblAT/urban-cart-logo-cutout.png" />
 <title>${type.toUpperCase()} #${o.id}</title>
    <style>body{font-family:monospace;padding:32px;color:#121212}h1{font-family:Anton,sans-serif;font-size:32px;margin:0} table{width:100%;border-collapse:collapse;margin-top:16px} td,th{border:1px solid #121212;padding:8px;font-size:12px} .head{display:flex;justify-content:space-between;border-bottom:3px solid #121212;padding-bottom:12px}</style>
    </head><body>
