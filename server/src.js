@@ -65,10 +65,80 @@ async function getCategoryId(nameOrId){
   const [rows] = await pool.execute('SELECT id FROM categories WHERE name=? LIMIT 1', [String(nameOrId).trim()]);
   return rows.length ? rows[0].id : null;
 }
-function isValidSAnumber(phone){
-  const cleaned = String(phone||'').replace(/\s/g,'');
-  return /^(?:\+27|27|0)[6-8][0-9]{8}$/.test(cleaned);
+
+function isValidSAnumber(phone) {
+    const cleaned = String(phone || '').replace(/\s/g, '');
+
+    return /^(?:\+27|27|0)[6-8][0-9]{8}$/.test(cleaned);
 }
+
+// ===== PHONE OTP =====
+function generateOTP(){ return Math.floor(100000 + Math.random()*900000).toString(); }
+
+app.post('/api/auth/send-phone-otp', async (req, res, next)=>{
+  try{
+    let phone = String(req.body.phone || '').replace(/\s/g,'').trim();
+    if(!isValidSAnumber(phone)) return res.status(400).json({ error: 'Invalid SA phone number. Use 0821234567 or +27821234567' });
+    
+    // Normalize to 0 format
+    if(phone.startsWith('+27')) phone = '0' + phone.slice(3);
+    if(phone.startsWith('27')) phone = '0' + phone.slice(2);
+    
+    const otp = generateOTP();
+    const expires = new Date(Date.now() + 5*60*1000); // 5 min
+    
+    await pool.execute('DELETE FROM phone_otps WHERE phone=?', [phone]);
+    await pool.execute('INSERT INTO phone_otps (phone, otp, expires_at) VALUES (?,?,?)', [phone, otp, expires]);
+    
+    console.log(`📱 OTP FOR ${phone}: ${otp} (expires 5min)`);
+    
+    // === FOR NOW - FREE METHOD (log + return for testing) ===
+    // TODO: Replace with real SMS via Africa's Talking / Twilio
+    // Example with Africa's Talking:
+    // await sendSMSviaAfricaTalking(phone, `Your Urban Cart OTP is ${otp}. Valid for 5 minutes.`);
+    
+    // For development: send OTP via email to admin so you see it
+    try{
+      await sendViaResend({
+        to: ADMIN_EMAIL,
+        subject: `📱 OTP ${otp} for ${phone}`,
+        html: `<h2>OTP ${otp}</h2><p>Phone ${phone} requested OTP at checkout. Expires in 5 min.</p><p>Order flow: customer must enter this OTP to confirm phone.</p>`
+      });
+    }catch{}
+    
+    // In production, DON'T return OTP. For testing, return it so you can test without SMS
+    const isDev = process.env.NODE_ENV !== 'production';
+    res.json({ 
+      message: 'OTP sent to your phone (check SMS)',
+      // Remove this in production when you have real SMS:
+      ...(isDev ? { debug_otp: otp, note: 'Remove debug_otp in production' } : {})
+    });
+  }catch(e){ next(e); }
+});
+
+app.post('/api/auth/verify-phone-otp', async (req, res, next)=>{
+  try{
+    let phone = String(req.body.phone || '').replace(/\s/g,'').trim();
+    const otp = String(req.body.otp || '').trim();
+    if(phone.startsWith('+27')) phone = '0' + phone.slice(3);
+    if(phone.startsWith('27')) phone = '0' + phone.slice(2);
+    
+    if(!otp || otp.length!==6) return res.status(400).json({ error: 'Enter 6-digit OTP' });
+    
+    const [rows] = await pool.execute('SELECT * FROM phone_otps WHERE phone=? AND otp=? ORDER BY created_at DESC LIMIT 1', [phone, otp]);
+    if(!rows.length) return res.status(400).json({ error: 'Invalid OTP' });
+    
+    const record = rows[0];
+    if(new Date(record.expires_at) < new Date()) return res.status(400).json({ error: 'OTP expired, request new one' });
+    
+    await pool.execute('UPDATE phone_otps SET verified=1 WHERE id=?', [record.id]);
+    
+    // Create a verified token valid for 30 min
+    const verifiedToken = jwt.sign({ phone, verified: true }, process.env.JWT_SECRET || 'dev-only', { expiresIn: '30m' });
+    
+    res.json({ ok:true, message:'Phone verified', phoneVerifiedToken: verifiedToken });
+  }catch(e){ next(e); }
+});
 
 // ================= EMAIL DELIVERY NOTE =================
 async function generateDeliveryPdfBuffer(order, items){
@@ -303,6 +373,19 @@ async function sendDeliveryNoteEmail(order, items){
 }
 
 async function ensureSchema(){
+  await pool.execute(`
+  CREATE TABLE IF NOT EXISTS phone_otps (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    phone VARCHAR(20) NOT NULL,
+    otp VARCHAR(6) NOT NULL,
+    verified TINYINT(1) DEFAULT 0,
+    expires_at DATETIME NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    KEY phone_idx (phone),
+    KEY expires_idx (expires_at)
+  )
+`);
+
   try{
     await pool.execute(`
       CREATE TABLE IF NOT EXISTS carts (
@@ -563,6 +646,15 @@ app.delete('/api/cart/:productId', auth, async (req, res, next) => {
 app.delete('/api/cart', auth, async (req, res, next) => {
   try{ await pool.execute('DELETE FROM carts WHERE user_id=?', [req.user.id]); res.json({ ok:true }); }catch(e){ next(e); }
 });
+
+const { phoneVerifiedToken } = req.body;
+if(!phoneVerifiedToken) return res.status(400).json({ error: 'Please verify your phone number with OTP first' });
+try{
+  const decoded = jwt.verify(phoneVerifiedToken, process.env.JWT_SECRET || 'dev-only-change-this-secret');
+  if(!decoded.verified) throw new Error('not verified');
+}catch{
+  return res.status(400).json({ error: 'Phone verification expired, please verify again' });
+}
 
 app.post('/api/orders', async (req, res) => {
   const conn = await pool.getConnection();

@@ -90,6 +90,11 @@ function App(){
  const [editingId,setEditingId]=useState(null);
  const [orderFilter,setOrderFilter]=useState('all');
  const [userSearch,setUserSearch]=useState('');
+ const [phoneOtpSent, setPhoneOtpSent] = useState(false);
+ const [phoneOtp, setPhoneOtp] = useState('');
+ const [phoneVerified, setPhoneVerified] = useState(false);
+ const [phoneVerifiedToken, setPhoneVerifiedToken] = useState('');
+ const [otpStatus, setOtpStatus] = useState('');
 
  const API_URL = "https://urban-cart-ecommerce.onrender.com";
  // === FIX A: Forgot password states ===
@@ -146,6 +151,38 @@ const [resetStatus, setResetStatus] = useState('');
      }).catch(()=>{});
    }
  },[user]);
+
+ async function sendPhoneOtp(){
+  const phone = checkoutForm.phone?.trim();
+  if(!isValidSAnumber(phone)){ setOtpStatus('❌ Invalid SA phone'); return; }
+  setOtpStatus('Sending OTP...');
+  try{
+    const r = await fetch(`${API_URL}/api/auth/send-phone-otp`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ phone })
+    });
+    const data = await r.json();
+    if(!r.ok) throw new Error(data.error);
+    setPhoneOtpSent(true);
+    setOtpStatus(`✅ OTP sent to ${phone}. Check SMS${data.debug_otp ? ` (TEST OTP: ${data.debug_otp})` : ''}`);
+  }catch(e){ setOtpStatus('❌ '+e.message); }
+}
+
+async function verifyPhoneOtp(){
+  try{
+    const r = await fetch(`${API_URL}/api/auth/verify-phone-otp`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ phone: checkoutForm.phone, otp: phoneOtp })
+    });
+    const data = await r.json();
+    if(!r.ok) throw new Error(data.error);
+    setPhoneVerified(true);
+    setPhoneVerifiedToken(data.phoneVerifiedToken);
+    setOtpStatus('✅ Phone verified! You can now place order.');
+  }catch(e){ setOtpStatus('❌ '+e.message); }
+}
 
 
 async function handleForgotSubmit(e){
@@ -289,6 +326,7 @@ async function handleResetSubmit(e){
      try{ await api('/cart',{method:'POST', body:JSON.stringify({product_id:p.id, quantity:1})}); }catch{}
    }
  }
+
  async function changeQty(id,d){
    const current = cart.find(x=>x.id===id);
    if(!current) return;
@@ -396,6 +434,12 @@ async function handleResetSubmit(e){
    }
    setCartOpen(false);
    setCheckoutOpen(true);
+   // Reset phone verification when opening checkout
+   setPhoneVerified(false);
+   setPhoneOtpSent(false);
+   setPhoneOtp('');
+   setOtpStatus('');
+   setPhoneVerifiedToken('');
  }
 
  async function placeOrder(e) {
@@ -853,8 +897,32 @@ async function handleResetSubmit(e){
       {checkoutError && <div className="checkout-error" style={{background:'#FEF3C7', border:'2px solid #F59E0B', color:'#92400E', padding:'10px 12px', fontSize:11, fontWeight:700, marginBottom:12, textAlign:'center', borderRadius:4}}>{checkoutError}</div>}
       <form onSubmit={placeOrder} className="checkout-form" style={{display:'flex', flexDirection:'column', gap:12}}>
         <div><label style={{fontSize:11, fontWeight:700}}>Full Name *</label><input required value={form.full_name} onChange={e=>setField('full_name',e.target.value)} style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/></div>
-        <div><label style={{fontSize:11, fontWeight:700, display:'flex', justifyContent:'space-between'}}><span>Phone number *</span><span style={{fontWeight:400, opacity:.6}}>SA only</span></label><div style={{display:'flex', border:'2px solid #121212', height:44, marginTop:4}}><span style={{background:'#eee', padding:'0 10px', display:'grid', placeItems:'center', fontSize:12, fontWeight:700, borderRight:'2px solid #121212'}}>ZA +27</span><input required value={form.phone} onChange={e=>setField('phone',e.target.value)} placeholder="082 000 0000" style={{flex:1, border:0, padding:'0 12px'}}/></div></div>
-        <div><label style={{fontSize:11, fontWeight:700}}>Delivery address *</label><input value={form.delivery_address} onChange={e=>setField('delivery_address',e.target.value)} placeholder="e.g. 24 Oak Avenue, Sandton" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/></div>
+        <div>
+          <label style={{fontSize:11, fontWeight:700, display:'flex', justifyContent:'space-between'}}>
+            <span>Phone number *</span>
+            <span style={{fontWeight:400, opacity:.6}}>SA only</span>
+            </label>
+            <div style={{display:'flex', border:'2px solid #121212', height:44, marginTop:4}}>
+              <span style={{background:'#eee', padding:'0 10px', display:'grid', placeItems:'center', fontSize:12, fontWeight:700, borderRight:'2px solid #121212'}}>ZA +27</span>
+        <input required value={form.phone} onChange={e=>setField('phone',e.target.value)} placeholder="082 000 0000" style={{flex:1, border: '2px', padding:'0 12px'}}/>
+        </div>
+        </div>
+        <div style={{display:'flex', gap:'8px', marginTop:'8px'}}>
+          <input value={checkoutForm.phone} onChange={e=>setCheckoutForm({...checkoutForm, phone:e.target.value})} placeholder="0821234567" />
+          <button type="button" onClick={sendPhoneOtp} disabled={phoneVerified} className="btn-outline">
+            {phoneVerified ? '✓ Verified' : phoneOtpSent ? 'Resend OTP' : 'Send OTP'}
+          </button>
+        </div>
+
+        {phoneOtpSent && !phoneVerified && (
+          <div style={{display:'flex', gap:'8px', marginTop:'8px'}}>
+            <input value={phoneOtp} onChange={e=>setPhoneOtp(e.target.value)} placeholder="Enter 6-digit OTP" maxLength={6} />
+            <button type="button" onClick={verifyPhoneOtp} className="btn-black">Verify</button>
+          </div>
+        )}
+        {otpStatus && <div style={{fontSize:'12px', marginTop:'6px', padding:'6px', background:'#FEF3C7', borderRadius:'6px'}}>{otpStatus}</div>}
+        <div><label style={{fontSize:11, fontWeight:700}}>Delivery address *</label>
+        <input value={form.delivery_address} onChange={e=>setField('delivery_address',e.target.value)} placeholder="e.g. John Doe, 1234 Main Street, Apartment 56B, Springfield" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/></div>
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
           <div><label style={{fontSize:11, fontWeight:700}}>Province *</label><select required value={form.province} onChange={e=>setField('province',e.target.value)} style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}>{PROVINCES.map(p=><option key={p} value={p}>{p}</option>)}</select></div>
           <div><label style={{fontSize:11, fontWeight:700}}>Postal code *</label><input required value={form.postal_code} onChange={e=>setField('postal_code',e.target.value)} placeholder="2196" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/></div>
@@ -865,8 +933,34 @@ async function handleResetSubmit(e){
             {['VISA','MasterCard','Capitec Pay','EFT Secure','Mobicred','SCode','Zapper'].map(m=><span key={m} style={{border:'1px solid #121212', padding:'4px 8px', fontSize:10, fontWeight:700, background:'#fff'}}>{m}</span>)}
           </div>
         </div>
-        <div style={{display:'flex', justifyContent:'space-between', fontWeight:700, borderTop:'2px solid #121212', paddingTop:10, fontSize:13}}><span>SUBTOTAL ({count} items)</span><span>{fmt(total)}</span></div>
-        <button className="btn-black full" disabled={busy || !user} type="submit" style={{height:48}}>{busy?'PREPARING...':`PAY ${fmt(total)} WITH PAYFAST`} <ShieldCheck size={14}/></button>
+        <div style={{display:'flex', justifyContent:'space-between', fontWeight:700, borderTop:'2px solid #121212', paddingTop:10, fontSize:13}}>
+          <span>SUBTOTAL ({count} items)</span>
+        <span>{fmt(total)}</span></div>
+        <button 
+            className="btn-black full" 
+            disabled={busy || !user || !phoneVerified} 
+            type="submit" 
+            style={{
+              height:48, 
+              opacity: (!phoneVerified || !user) ? 0.5 : 1,
+              cursor: (!phoneVerified || !user) ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {!user 
+              ? 'SIGN IN TO PAY' 
+              : !phoneVerified 
+                ? 'VERIFY PHONE TO PAY' 
+                : busy 
+                  ? 'PREPARING...' 
+                  : `PAY ${fmt(total)} WITH PAYFAST`
+            } 
+            <ShieldCheck size={14} style={{marginLeft:6}}/>
+          </button>
+          {!phoneVerified && user && (
+            <div style={{fontSize:'11px', color:'#92400E', background:'#FEF3C7', padding:'8px', borderRadius:'6px', marginTop:'8px', textAlign:'center'}}>
+              ⚠️ Verify your phone number with OTP before paying
+            </div>
+          )}
       </form>
     </section>
   </div>}
