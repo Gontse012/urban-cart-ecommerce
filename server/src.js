@@ -650,7 +650,7 @@ app.delete('/api/cart', auth, async (req, res, next) => {
 app.post('/api/orders', async (req, res) => {
   const conn = await pool.getConnection();
   try {
-    const { full_name, customer_name, email, phone, address_search, delivery_address, address, city, province, postal_code, items, customer_id } = req.body;
+    const { full_name, customer_name, email, phone, address_search, delivery_address, address, city, province, postal_code, items, customer_id, phoneVerifiedToken } = req.body;
         if(!phoneVerifiedToken){
       return res.status(400).json({ error: 'Please verify your phone number with OTP first' });
     }
@@ -667,7 +667,7 @@ app.post('/api/orders', async (req, res) => {
     }catch(e){
       return res.status(400).json({ error: 'Phone verification expired or invalid, please verify again' });
     }
-    
+
     const finalFullName = (full_name || customer_name || '').trim();
     const finalEmail = (email || '').trim().toLowerCase();
     const finalPhone = (phone || '').trim();

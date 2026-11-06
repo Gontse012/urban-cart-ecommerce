@@ -452,7 +452,8 @@ async function handleResetSubmit(e){
   if(!cart.length){ setNotice('Your bag is empty.'); return; }
   setBusy(true); setNotice('');
   try {
-    const order = await api('/orders',{method:'POST',body:JSON.stringify({
+const order = await api('/orders',{method:'POST',body:JSON.stringify({
+      phoneVerifiedToken: phoneVerifiedToken,
       full_name: form.full_name, customer_name: form.full_name, email: form.email, phone: form.phone,
       address_search: form.address_search, delivery_address: form.delivery_address, address: form.delivery_address,
       province: form.province, postal_code: form.postal_code, city: form.delivery_address, customer_id: user?.id,
