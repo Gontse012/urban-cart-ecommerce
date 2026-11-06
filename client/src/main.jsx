@@ -153,7 +153,7 @@ const [resetStatus, setResetStatus] = useState('');
  },[user]);
 
  async function sendPhoneOtp(){
-  const phone = checkoutForm.phone?.trim();
+  const phone = form.phone?.trim();
   if(!isValidSAnumber(phone)){ setOtpStatus('❌ Invalid SA phone'); return; }
   setOtpStatus('Sending OTP...');
   try{
@@ -174,7 +174,7 @@ async function verifyPhoneOtp(){
     const r = await fetch(`${API_URL}/api/auth/verify-phone-otp`, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ phone: checkoutForm.phone, otp: phoneOtp })
+      body: JSON.stringify({ phone: form.phone, otp: phoneOtp })
     });
     const data = await r.json();
     if(!r.ok) throw new Error(data.error);
@@ -908,7 +908,7 @@ async function handleResetSubmit(e){
         </div>
         </div>
         <div style={{display:'flex', gap:'8px', marginTop:'8px'}}>
-          <input value={checkoutForm.phone} onChange={e=>setCheckoutForm({...checkoutForm, phone:e.target.value})} placeholder="0821234567" />
+          <input value={form.phone} onChange={e=>setform({...form, phone:e.target.value})} placeholder="0821234567" />
           <button type="button" onClick={sendPhoneOtp} disabled={phoneVerified} className="btn-outline">
             {phoneVerified ? '✓ Verified' : phoneOtpSent ? 'Resend OTP' : 'Send OTP'}
           </button>

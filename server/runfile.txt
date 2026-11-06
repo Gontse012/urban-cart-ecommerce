@@ -1,3 +1,3 @@
 git add .
-git commit -m "URL bug debug" 
+git commit -m "URL bug debugging" 
 git push
