@@ -664,3 +664,65 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
 @media(max-width:900px){
   .header{ overflow:visible !important; }
 }
+
+/* === LUXURY FIX - PAYFAST BOX + WARNINGS === */
+
+/* 1. REMOVE BORDER around PAYFAST SECURE box */
+.checkout-form > div:has(.payfast),
+.checkout-form > div:last-of-type,
+div:has(> div > strong:contains("PAYFAST")) {
+  border: none !important;
+}
+
+/* If your PayFast box has its own class, this catches it too */
+.payfast-box,
+.payfast-secure,
+.payment-methods-box {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* Keep the payment method pills, but make them luxury - thin gold line, no heavy box */
+.payfast-secure button,
+.payment-methods-box button {
+  border: 1px solid #C9A87A !important;
+  background: #FFFCF8 !important;
+  color: #121212 !important;
+}
+
+/* 2. LUXURY WARNINGS - replace all yellow #FEF3C7 / #FFFBEB */
+
+/* OTP sent message - was yellow */
+.otp-status,
+.otp-message,
+.checkout-error,
+.auth-error,
+.phone-warning {
+  background: #F5EEDD !important; /* champagne */
+  border: 1px solid #C9A87A !important; /* thin gold */
+  border-left: 3px solid #C9A87A !important;
+  color: #121212 !important;
+  padding: 12px 14px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.3px !important;
+  border-radius: 0 !important;
+}
+
+/* Success OTP - was green check on yellow - make it black + gold */
+.otp-success,
+.otp-status.success {
+  background: #121212 !important;
+  color: #E9D9BF !important;
+  border: 1px solid #121212 !important;
+}
+
+/* Bottom warning "Verify your phone..." - was yellow */
+.verify-warning,
+.phone-verify-warning {
+  background: #E9D9BF !important; /* soft beige */
+  border: 1px solid #C9A87A !important;
+  color: #121212 !important;
+}
