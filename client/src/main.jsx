@@ -157,7 +157,7 @@ async function sendPhoneOtp(){
   if(!isValidSAphone(phone)){ setOtpStatus('❌ Invalid SA phone'); return; }
   setOtpStatus('Sending OTP...');
   try{
-    const r = await fetch(`${API_URL}/api/auth/send-phone-otp`, {
+    const r = await fetch(`${API_URL}/auth/send-phone-otp`, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ phone: form.phone, otp: phoneOtp })
@@ -171,7 +171,7 @@ async function sendPhoneOtp(){
 
 async function verifyPhoneOtp(){
   try{
-    const r = await fetch(`${API_URL}/api/auth/verify-phone-otp`, {
+    const r = await fetch(`${API_URL}/auth/verify-phone-otp`, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ phone: form.phone, otp: phoneOtp })
@@ -189,7 +189,7 @@ async function handleForgotSubmit(e){
   e.preventDefault();
   setForgotStatus('Sending...');
   try{
-    const r = await fetch(`${API_URL}/api/auth/forgot-password`, {
+    const r = await fetch(`${API_URL}/auth/forgot-password`, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ email: forgotEmail })
@@ -206,7 +206,7 @@ async function handleResetSubmit(e){
   e.preventDefault();
   setResetStatus('Resetting...');
   try{
-    const r = await fetch(`${API_URL}/api/auth/reset-password`, {
+    const r = await fetch(`${API_URL}/auth/reset-password`, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ token: resetToken, newPassword: resetPassword })
