@@ -763,7 +763,10 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
  function printInvoice(o, type='invoice'){
    const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}</td><td style="text-align:center">${it.quantity}</td><td style="text-align:right">${fmt(it.price)}</td><td style="text-align:right">${fmt(Number(it.price)*Number(it.quantity))}</td></tr>`).join('');
    const html = `
-   <html><head><title>${type.toUpperCase()} #${o.id}</title>
+   <html><head>
+   <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="https://i.im.ge/QQwblAT/urban-cart-logo-cutout.png" />
+  <title>Urban Cart</title><title>${type.toUpperCase()} #${o.id}</title>
    <style>body{font-family:monospace;padding:32px;color:#121212}h1{font-family:Anton,sans-serif;font-size:32px;margin:0} table{width:100%;border-collapse:collapse;margin-top:16px} td,th{border:1px solid #121212;padding:8px;font-size:12px} .head{display:flex;justify-content:space-between;border-bottom:3px solid #121212;padding-bottom:12px}</style>
    </head><body>
    <div class="head"><div><h1>URBAN CART</h1><small>Ellisras — Lephalale — SA<br/>PayFast Secure</small></div><div style="text-align:right"><b>${type.toUpperCase()}</b><br/>#${o.id}<br/>${new Date(o.created_at).toLocaleDateString()}<br/>${o.status.toUpperCase()} / ${(o.payment_status||'paid').toUpperCase()}</div></div>
