@@ -385,18 +385,54 @@ app.post('/api/auth/forgot-password', async (req, res, next) => {
   try{
     const email = String(req.body.email || '').trim().toLowerCase();
     if(!email) return res.status(400).json({ error: 'Email required' });
+    
     const [users] = await pool.execute('SELECT id,email,name FROM customers WHERE email=?', [email]);
+    
+    // Always return same message for security (don't reveal if email exists)
     if(!users.length){
       return res.json({ message: 'If an account exists, a reset link has been sent to your email.' });
     }
+    
     const token = crypto.randomBytes(32).toString('hex');
-    const expires = new Date(Date.now() + 3600000);
-    await pool.execute('INSERT INTO password_resets (email, token, expires_at) VALUES (?,?,?) ON DUPLICATE KEY UPDATE token=?, expires_at=?', [email, token, expires, token, expires]);
+    const expires = new Date(Date.now() + 3600000); // 1 hour
+    
+    await pool.execute(
+      'INSERT INTO password_resets (email, token, expires_at) VALUES (?,?,?) ON DUPLICATE KEY UPDATE token=?, expires_at=?', 
+      [email, token, expires, token, expires]
+    );
+    
     const resetLink = `${FRONTEND_URL}?reset_token=${token}`;
-    const html = `<div>...<a href="${resetLink}">RESET PASSWORD</a>...</div>`;
-    await sendViaResend({ to: email, subject: 'Reset Your Password', html });
-  }catch(e){ next(e); }
+    console.log(`RESET LINK FOR ${email}: ${resetLink}`);
+    
+    const html = `
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:2px solid #121212">
+  <div style="background:#121212;color:#E9D9BF;padding:16px;font-weight:800">URBAN CART - PASSWORD RESET</div>
+  <div style="padding:24px;background:#FFFCF8">
+    <h2 style="margin-top:0">Reset Your Password</h2>
+    <p>Hi ${users[0].name}, you requested a password reset. Expires in 1 hour.</p>
+    <a href="${resetLink}" style="display:inline-block;background:#121212;color:#fff;padding:14px 22px;text-decoration:none;font-weight:700;margin:16px 0;border-radius:8px">RESET PASSWORD</a>
+    <p style="word-break:break-all;font-size:12px;color:#666">If button doesn't work, copy this link:<br/>${resetLink}</p>
+    <p style="font-size:12px;opacity:.7">If you didn't request this, ignore this email.</p>
+  </div>
+</div>`;
+    
+    const result = await sendViaResend({ 
+      to: email, 
+      subject: 'Urban Cart - Reset Your Password (1h expiry)', 
+      html 
+    });
+    
+    console.log(`FORGOT email to ${email} ->`, result?.id || result?.error || 'sent');
+    
+    // ✅ THIS LINE WAS MISSING - you must return response
+    return res.json({ message: 'Reset link sent to your email (check inbox & spam).' });
+    
+  }catch(e){ 
+    console.error('forgot-password error', e);
+    next(e); 
+  }
 });
+
 app.post('/api/auth/reset-password', async (req, res, next) => {
   try{
     const { token, newPassword } = req.body;

@@ -105,6 +105,17 @@ const [forgotStatus, setForgotStatus] = useState('');
 const [resetPassword, setResetPassword] = useState('');
 const [resetStatus, setResetStatus] = useState('');
 
+  useEffect(()=>{
+    const params = new URLSearchParams(window.location.search);
+    const t = params.get('reset_token');
+    if(t){
+      setResetToken(t);
+      setResetOpen(true);
+      setAccountOpen(false);
+      setForgotOpen(false);
+    }
+  },[]);
+
  useEffect(()=>{
    const key = getCartKey(user);
    try{
@@ -136,15 +147,6 @@ const [resetStatus, setResetStatus] = useState('');
    }
  },[user]);
 
- // Check URL for ?reset_token= on load
-useEffect(()=>{
-  const params = new URLSearchParams(window.location.search);
-  const t = params.get('reset_token');
-  if(t){
-    setResetToken(t);
-    setResetOpen(true);
-  }
-},[]);
 
 async function handleForgotSubmit(e){
   e.preventDefault();
