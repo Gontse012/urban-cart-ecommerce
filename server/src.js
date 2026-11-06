@@ -647,19 +647,27 @@ app.delete('/api/cart', auth, async (req, res, next) => {
   try{ await pool.execute('DELETE FROM carts WHERE user_id=?', [req.user.id]); res.json({ ok:true }); }catch(e){ next(e); }
 });
 
-const { phoneVerifiedToken } = req.body;
-if(!phoneVerifiedToken) return res.status(400).json({ error: 'Please verify your phone number with OTP first' });
-try{
-  const decoded = jwt.verify(phoneVerifiedToken, process.env.JWT_SECRET || 'dev-only-change-this-secret');
-  if(!decoded.verified) throw new Error('not verified');
-}catch{
-  return res.status(400).json({ error: 'Phone verification expired, please verify again' });
-}
-
 app.post('/api/orders', async (req, res) => {
   const conn = await pool.getConnection();
   try {
     const { full_name, customer_name, email, phone, address_search, delivery_address, address, city, province, postal_code, items, customer_id } = req.body;
+        if(!phoneVerifiedToken){
+      return res.status(400).json({ error: 'Please verify your phone number with OTP first' });
+    }
+    try{
+      const decoded = jwt.verify(phoneVerifiedToken, process.env.JWT_SECRET || 'dev-only-change-this-secret');
+      if(!decoded.verified) throw new Error('not verified');
+      // Optional: check phone matches
+      let normalizedPhone = String(phone||'').replace(/\s/g,'');
+      if(normalizedPhone.startsWith('+27')) normalizedPhone = '0' + normalizedPhone.slice(3);
+      if(normalizedPhone.startsWith('27')) normalizedPhone = '0' + normalizedPhone.slice(2);
+      if(decoded.phone && decoded.phone !== normalizedPhone){
+        return res.status(400).json({ error: 'Phone number does not match verified number' });
+      }
+    }catch(e){
+      return res.status(400).json({ error: 'Phone verification expired or invalid, please verify again' });
+    }
+    
     const finalFullName = (full_name || customer_name || '').trim();
     const finalEmail = (email || '').trim().toLowerCase();
     const finalPhone = (phone || '').trim();
