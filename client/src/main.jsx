@@ -62,15 +62,54 @@ async function api(path, options={}) {
 
 function getCartKey(user){ return `uc_cart_${user?.id || 'guest'}`; }
 function effectivePrice(p){ return p.on_sale && p.sale_price ? Number(p.sale_price) : Number(p.price); }
+
 function getProductImages(p){
-    if(!p) return [];
-    let extra = [];
-    try{
-      extra = Array.isArray(p.images) ? p.images : (typeof p.images === 'string' ? JSON.parse(p.images || '[]') : []);
-    }catch{ extra = []; }
-    const all = [p.image_url, ...extra].filter(Boolean);
-    return [...new Set(all)].slice(0,5);
+  if(!p) return [];
+  let extra = [];
+  try{
+    extra = Array.isArray(p.images) ? p.images : (typeof p.images === 'string' ? JSON.parse(p.images || '[]') : []);
+  }catch{ extra = []; }
+  const all = [p.image_url, ...extra].filter(Boolean);
+  const unique = [...new Set(all)];
+
+  // If admin hasn't added extras yet, fill with category defaults
+  if(unique.length < 5){
+    const defaults = DEFAULT_GALLERY[p.category] || DEFAULT_GALLERY['Lifestyle'];
+    for(const d of defaults){
+      if(unique.length >= 5) break;
+      if(!unique.includes(d)) unique.push(d);
+    }
   }
+  return unique.slice(0,5);
+}
+
+const DEFAULT_GALLERY = {
+  'Tech': [
+    'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=85',
+    'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=85',
+    'https://images.unsplash.com/photo-1583394838336-acd977736f90?auto=format&fit=crop&w=900&q=85',
+    'https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&w=900&q=85',
+  ],
+  'Home': [
+    'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?auto=format&fit=crop&w=900&q=85',
+    'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?auto=format&fit=crop&w=900&q=85',
+    'https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=900&q=85',
+    'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=900&q=85',
+  ],
+  'Lifestyle': [
+    'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=900&q=85',
+    'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=85',
+    'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=85',
+    'https://images.unsplash.com/photo-1546868871-7041f2a55e12?auto=format&fit=crop&w=900&q=85',
+  ],
+  'Accessories': [
+    'https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=900&q=85',
+    'https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&w=900&q=85',
+    'https://images.unsplash.com/photo-1572635196237-14b3f281503f?auto=format&fit=crop&w=900&q=85',
+    'https://images.unsplash.com/photo-1611312449408-fcece27cdbb7?auto=format&fit=crop&w=900&q=85',
+  ],
+};
+
 function isOutOfStock(p){ return !p.is_active || Number(p.stock) <= 0; }
 
 function printDoc(html){
