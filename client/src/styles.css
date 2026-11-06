@@ -652,13 +652,6 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
   }
 }
 
-@media (max-width: 480px) {
-  .product-view-left img {
-    max-width: 260px !important;
-    height: 220px !important;
-  }
-}
-
 .app{ overflow-x:clip !important; }
 .header{ position:sticky !important; top:0 !important; z-index:100 !important; overflow:visible !important; }
 @media(max-width:900px){
