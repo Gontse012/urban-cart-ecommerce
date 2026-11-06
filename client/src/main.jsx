@@ -89,7 +89,7 @@ function App(){
  const [termsTab,setTermsTab]=useState('Shipping');
  const [termsFromSignup,setTermsFromSignup]=useState(false);
  const [adminTab,setAdminTab]=useState('dashboard');
- const [prodForm,setProdForm]=useState({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',is_active:true});
+ const [prodForm,setProdForm]=useState({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true});
  const [editingId,setEditingId]=useState(null);
  const [orderFilter,setOrderFilter]=useState('all');
  const [userSearch,setUserSearch]=useState('');
@@ -98,6 +98,7 @@ function App(){
  const [phoneVerified, setPhoneVerified] = useState(false);
  const [phoneVerifiedToken, setPhoneVerifiedToken] = useState('');
  const [otpStatus, setOtpStatus] = useState('');
+ const [galleryIndex, setGalleryIndex] = useState(0);
 
  // === FIX A: Forgot password states ===
  const [forgotOpen,setForgotOpen]=useState(false);
@@ -376,7 +377,12 @@ async function handleResetSubmit(e){
    const key=getCartKey(user);
    localStorage.removeItem(key);
  }
- function openProduct(p){ setSelectedProduct(p); setShowAll(false); setActiveTab('shop'); window.scrollTo({top:0, behavior:'smooth'}); }
+ function openProduct(p){
+   setSelectedProduct(p); 
+   setGalleryIndex(0);
+   setShowAll(false); 
+   setActiveTab('shop');
+    window.scrollTo({top:0, behavior:'smooth'}); }
  function closeProduct(){ setSelectedProduct(null); }
  function handleViewEverything(){ setCategory('All'); setSearch(''); setShowAll(true); setSelectedProduct(null); setActiveTab('shop'); window.scrollTo({top:0, behavior:'smooth'}); }
  function handleHome(){ setShowAll(false); closeProduct(); setCategory('All'); setSearch(''); setActiveTab('shop'); window.scrollTo({top:0, behavior:'smooth'}); }
@@ -520,7 +526,7 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
  async function createProduct(e){
     e.preventDefault();
     try{
-      const payload={...prodForm, price:Number(prodForm.price), sale_price: prodForm.sale_price?Number(prodForm.sale_price):null, stock:Number(prodForm.stock), on_sale: Boolean(prodForm.on_sale), is_active: Boolean(prodForm.is_active)};
+      const payload={...prodForm, images: prodForm.images.filter(Boolean).slice(0,4), price:Number(prodForm.price), sale_price: prodForm.sale_price?Number(prodForm.sale_price):null, stock:Number(prodForm.stock), on_sale: Boolean(prodForm.on_sale), is_active: Boolean(prodForm.is_active)};
       const p = await api('/admin/products',{method:'POST', body:JSON.stringify(payload)});
       setProducts(old=>[p,...old]); setNotice('Product created'); 
       setProdForm({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',is_active:true});
@@ -529,17 +535,31 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
   async function saveEdit(e){
     e.preventDefault();
     try{
-      const payload={...prodForm, price:Number(prodForm.price), sale_price: prodForm.sale_price?Number(prodForm.sale_price):null, stock:Number(prodForm.stock), on_sale: Boolean(prodForm.on_sale), is_active: Boolean(prodForm.is_active)};
+      const payload={...prodForm, images: prodForm.images.filter(Boolean).slice(0,4), price:Number(prodForm.price), sale_price: prodForm.sale_price?Number(prodForm.sale_price):null, stock:Number(prodForm.stock), on_sale: Boolean(prodForm.on_sale), is_active: Boolean(prodForm.is_active)};
       const p = await api(`/admin/products/${editingId}`,{method:'PUT', body:JSON.stringify(payload)});
       setProducts(old=>old.map(x=>x.id===editingId? p : x));
       setEditingId(null); setProdForm({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',is_active:true}); setNotice('Product updated');
     }catch(err){setNotice(err.message)}
   }
+
   function startEdit(p){
     setEditingId(p.id);
-    setProdForm({name:p.name, category:p.category||'Tech', price:String(p.price), sale_price: p.sale_price?String(p.sale_price):'', on_sale: !!p.on_sale, stock:String(p.stock), description:p.description, image_url:p.image_url, is_active: p.is_active ?? true});
+    const extra = getProductImages(p).slice(1); // skip main image, keep extras
+    setProdForm({
+      name:p.name, 
+      category:p.category||'Tech', 
+      price:String(p.price), 
+      sale_price: p.sale_price?String(p.sale_price):'', 
+      on_sale: !!p.on_sale, 
+      stock:String(p.stock), 
+      description:p.description, 
+      image_url:p.image_url, 
+      images: [...extra, '','','',''].slice(0,4), // fill up to 4 slots
+      is_active: p.is_active ?? true
+    });
     setAdminTab('products');
   }
+
   async function deleteProduct(id){
     if(!confirm('Delete this product?')) return;
     try{ await api(`/admin/products/${id}`,{method:'DELETE'}); setProducts(old=>old.filter(x=>x.id!==id)); setNotice('Product deleted'); }catch(err){setNotice(err.message)}
@@ -823,12 +843,32 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
           </div>
         ))}
       </section>
-    ) : selectedProduct ? (
-      <div className="product-view">
-        <div className="product-view-left">
-          <img src={selectedProduct.image_url} alt={selectedProduct.name}/>
+        ) : selectedProduct ? (
+          <div className="product-view">
+            <div className="product-view-left">
+      {(() => {
+        const imgs = getProductImages(selectedProduct);
+        const current = imgs[galleryIndex] || imgs[0];
+        return <>
+          <div style={{position:'relative', width:'100%'}}>
+            <img src={current} alt={selectedProduct.name} />
+            {imgs.length > 1 && <>
+              <button onClick={(e)=>{e.stopPropagation(); setGalleryIndex((galleryIndex - 1 + imgs.length) % imgs.length);}} style={{position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', width:36, height:36, background:'#121212', color:'#fff', border:'none', cursor:'pointer', fontSize:18}}>‹</button>
+              <button onClick={(e)=>{e.stopPropagation(); setGalleryIndex((galleryIndex + 1) % imgs.length);}} style={{position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', width:36, height:36, background:'#121212', color:'#fff', border:'none', cursor:'pointer', fontSize:18}}>›</button>
+              <span style={{position:'absolute', bottom:10, right:10, background:'#121212', color:'#fff', fontSize:10, padding:'4px 8px', fontWeight:700}}>{galleryIndex + 1} / {imgs.length}</span>
+            </>}
+          </div>
+          {imgs.length > 1 && (
+            <div style={{display:'flex', gap:8, marginTop:10, justifyContent:'center', flexWrap:'wrap'}}>
+              {imgs.map((img, i) => (
+                <img key={i} src={img} onClick={()=>setGalleryIndex(i)} style={{width:56, height:56, objectFit:'cover', cursor:'pointer', border: i===galleryIndex ? '3px solid #121212' : '2px solid #ddd', opacity: i===galleryIndex ? 1 : 0.6}} />
+              ))}
+            </div>
+          )}
           <div className="img-meta"><span>{selectedProduct.category} {selectedProduct.on_sale && <b style={{background:'#F59E0B', color:'#000', padding:'2px 6px', marginLeft:8}}>SALE</b>}</span><span>{isOutOfStock(selectedProduct) ? 'OUT OF STOCK' : `${selectedProduct.stock} IN STOCK`}</span></div>
-        </div>
+        </>;
+      })()}
+    </div>
         <div className="product-view-right">
           <button className="close-view" onClick={closeProduct}><X size={14}/> CLOSE</button>
           <h1>{selectedProduct.name}</h1>
@@ -1328,8 +1368,14 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
             </div>
             <div style={{display:'flex', gap:8, alignItems:'center', border:'2px solid #121212', padding:'0 10px', height:44}}><input type="checkbox" checked={prodForm.is_active} onChange={e=>setProdForm(f=>({...f,is_active:e.target.checked}))}/><label style={{fontSize:11, fontWeight:700}}>{prodForm.is_active ? 'ACTIVE (in stock)' : 'HIDDEN / OUT OF STOCK'}</label></div>
             <input required placeholder="Image URL https://..." value={prodForm.image_url} onChange={e=>setProdForm(f=>({...f,image_url:e.target.value}))}/>
+            <label style={{fontSize:11, fontWeight:700, marginTop:4}}>EXTRA IMAGES (up to 4 more - total 5)</label>
+              {[0,1,2,3].map(i=>(
+                <input key={i} placeholder={`Extra image ${i+1} URL https://...`} value={prodForm.images?.[i]||''} onChange={e=>{
+                  const imgs=[...(prodForm.images||['','','',''])]; imgs[i]=e.target.value; setProdForm(f=>({...f,images:imgs}));
+                }} />
+              ))}
             <textarea placeholder="Description" value={prodForm.description} onChange={e=>setProdForm(f=>({...f,description:e.target.value}))} style={{minHeight:80, border:'2px solid var(--ink)', padding:12, fontFamily:'Syne'}}/>
-            <div style={{display:'flex', gap:8}}><button className="btn-black full" type="submit">{editingId? 'SAVE CHANGES' : 'CREATE PRODUCT'}</button>{editingId && <button type="button" className="btn-ghost" onClick={()=>{setEditingId(null); setProdForm({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',is_active:true})}}>CANCEL</button>}</div>
+            <div style={{display:'flex', gap:8}}><button className="btn-black full" type="submit">{editingId? 'SAVE CHANGES' : 'CREATE PRODUCT'}</button>{editingId && <button type="button" className="btn-ghost" onClick={()=>{setEditingId(null); setProdForm({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true})}}>CANCEL</button>}</div>
           </form>
           <div style={{display:'flex', flexDirection:'column', gap:8, maxHeight:'35vh', overflow:'auto', marginTop:12}}>
             {products.map(p=><div key={p.id} className="admin-row" style={{opacity: isOutOfStock(p)?0.6:1}}>

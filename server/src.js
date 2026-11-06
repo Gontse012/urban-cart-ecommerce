@@ -415,6 +415,7 @@ async function ensureSchema(){
       "ADD COLUMN sale_price DECIMAL(10,2) NULL",
       "ADD COLUMN on_sale TINYINT(1) DEFAULT 0",
       "ADD COLUMN active TINYINT(1) DEFAULT 1",
+      "ADD COLUMN images JSON NULL",
       "ADD COLUMN is_active TINYINT(1) DEFAULT 1"
     ];
     for(const c of prodAlters){ try{ await pool.query(`ALTER TABLE products ${c}`);}catch{} }
@@ -462,7 +463,7 @@ app.get('/api/products', async (req, res, next) => {
     const q = String(req.query.q || '').slice(0, 100); 
     const category = Number(req.query.category || 0); 
     const [rows] = await pool.query(
-      `SELECT p.id,p.name,p.description,p.price,p.sale_price,p.on_sale,p.stock,p.image_url,p.active,p.is_active,c.name AS category 
+      `SELECT p.id,p.name,p.description,p.price,p.sale_price,p.on_sale,p.stock,p.image_url,p.images,p.active,p.is_active,c.name AS category 
        FROM products p 
        LEFT JOIN categories c ON c.id=p.category_id 
        WHERE (p.active=1 OR p.active IS NULL) 
@@ -471,6 +472,9 @@ app.get('/api/products', async (req, res, next) => {
        ORDER BY p.id DESC`, 
       [category, category, `%${q}%`, `%${q}%`]
     ); 
+    rows.forEach(r=>{
+    try{ r.images = r.images ? JSON.parse(r.images) : []; }catch{ r.images = []; }
+  });
     res.json(rows); 
   } catch (e) { next(e); } 
 });
