@@ -911,9 +911,9 @@ const order = await api('/orders',{method:'POST',body:JSON.stringify({
             <span>Phone number *</span>
             <span style={{fontWeight:400, opacity:.6}}>SA only</span>
             </label>
-            <div style={{display:'flex', border:'2px solid #121212', borderBottom:'3px solid #121212', height:44, marginTop:4}}>
+            <div style={{display:'flex', border:'0 solid #121212', borderBottom:'3px solid #121212', height:44, marginTop:4}}>
             <span style={{background:'#eee', padding:'0 10px', display:'grid', placeItems:'center', fontSize:12, fontWeight:700, borderRight:'2px solid #121212'}}>ZA +27</span>
-            <input required type="tel" inputMode="numeric" pattern="[0-9+]*" autoComplete="tel" value={form.phone} onChange={e=>setField('phone',e.target.value.replace(/[^0-9+]/g,''))} placeholder="082 000 0000" style={{flex:1, border:'none', outline:'none', padding:'0 12px', fontSize:13, fontWeight:600}}/>
+            <input required type="tel" inputMode="numeric" pattern="[0-9+]*" autoComplete="tel" value={form.phone} onChange={e=>setField('phone',e.target.value.replace(/[^0-9+]/g,''))} placeholder="082 000 0000" style={{flex:1, border:'2px', outline:'none', padding:'0 12px', fontSize:13, fontWeight:600}}/>
           </div>
           <div style={{height:2, background:'#121212', marginTop:0}}></div>
         </div>
