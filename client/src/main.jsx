@@ -5,6 +5,7 @@ import './styles.css';
 
 const RAW = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
 const API = RAW.includes('/api') ? RAW : RAW + '/api';
+const API_URL = API;
 
 const fallbackProducts = [
  {id:1,name:'Studio Wireless Headphones',category:'Tech',description:'Immersive sound, comfortable fit and all-day battery life.',price:1299,sale_price:999,on_sale:true,image_url:'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=85',stock:25,is_active:true},
