@@ -401,20 +401,39 @@ app.post('/api/auth/forgot-password', async (req, res, next) => {
       [email, token, expires, token, expires]
     );
     
-    const resetLink = `${FRONTEND_URL}?reset_token=${token}`;
-    console.log(`RESET LINK FOR ${email}: ${resetLink}`);
-    
-    const html = `
-<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:2px solid #121212">
-  <div style="background:#121212;color:#E9D9BF;padding:16px;font-weight:800">URBAN CART - PASSWORD RESET</div>
-  <div style="padding:24px;background:#FFFCF8">
-    <h2 style="margin-top:0">Reset Your Password</h2>
-    <p>Hi ${users[0].name}, you requested a password reset. Expires in 1 hour.</p>
-    <a href="${resetLink}" style="display:inline-block;background:#121212;color:#fff;padding:14px 22px;text-decoration:none;font-weight:700;margin:16px 0;border-radius:8px">RESET PASSWORD</a>
-    <p style="word-break:break-all;font-size:12px;color:#666">If button doesn't work, copy this link:<br/>${resetLink}</p>
-    <p style="font-size:12px;opacity:.7">If you didn't request this, ignore this email.</p>
-  </div>
-</div>`;
+      const resetLink = `${FRONTEND_URL}?reset_token=${token}`;
+      console.log(`RESET LINK FOR ${email}: ${resetLink}`);
+      const html = `
+      <!DOCTYPE html>
+      <html>
+      <body style="margin:0;padding:0;background:#F5F1EB;font-family:Inter,Arial,sans-serif">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#F5F1EB;padding:40px 0">
+          <tr><td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" style="background:#FFFCF8;border-radius:16px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,0.08);max-width:90%">
+              <tr><td style="background:#121212;padding:28px 32px;text-align:center">
+                <div style="color:#E9D9BF;font-weight:900;font-size:22px;letter-spacing:2px">URBAN CART</div>
+                <div style="color:#E9D9BF;font-size:10px;letter-spacing:3px;opacity:0.6;margin-top:4px">LEPHALALE • ELLISRAS • SOUTH AFRICA</div>
+              </td></tr>
+              <tr><td style="padding:36px 32px">
+                <h1 style="margin:0 0 8px 0;font-size:24px;color:#121212">Reset your password</h1>
+                <p style="margin:0 0 20px 0;color:#666;font-size:14px;line-height:22px">Hi ${users[0].name},<br/>We received a request to reset your password. Click below — expires in <b>1 hour</b>.</p>
+                <div style="text-align:center;margin:32px 0">
+                  <a href="${resetLink}" style="display:inline-block;background:#121212;color:#FFFCF8;padding:16px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:0.5px">RESET MY PASSWORD →</a>
+                </div>
+                <div style="background:#FEF3C7;border-left:4px solid #F59E0B;padding:12px 16px;border-radius:8px;margin:20px 0">
+                  <div style="font-size:12px;color:#92400E"><b>Didn't request this?</b> Ignore this email. Your password stays the same.</div>
+                </div>
+                <p style="font-size:11px;color:#999;margin-top:24px;word-break:break-all">If button doesn't work, copy this link:<br/><a href="${resetLink}" style="color:#121212">${resetLink}</a></p>
+              </td></tr>
+              <tr><td style="background:#F5F1EB;padding:20px 32px;text-align:center;border-top:1px solid #EDE8E0">
+                <div style="font-size:11px;color:#999">© ${new Date().getFullYear()} Urban Cart • PayFast Secure • Ellisras</div>
+                <div style="font-size:11px;color:#999;margin-top:4px">This is an automated email, please do not reply.</div>
+              </td></tr>
+            </table>
+          </td></tr>
+        </table>
+      </body>
+      </html>`;
     
     const result = await sendViaResend({ 
       to: email, 
@@ -424,7 +443,6 @@ app.post('/api/auth/forgot-password', async (req, res, next) => {
     
     console.log(`FORGOT email to ${email} ->`, result?.id || result?.error || 'sent');
     
-    // ✅ THIS LINE WAS MISSING - you must return response
     return res.json({ message: 'Reset link sent to your email (check inbox & spam).' });
     
   }catch(e){ 
