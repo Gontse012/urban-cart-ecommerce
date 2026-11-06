@@ -87,6 +87,7 @@ function App(){
  const [authError,setAuthError]=useState('');
  const [showTerms,setShowTerms]=useState(false);
  const [termsTab,setTermsTab]=useState('Shipping');
+ const [termsFromSignup,setTermsFromSignup]=useState(false);
  const [adminTab,setAdminTab]=useState('dashboard');
  const [prodForm,setProdForm]=useState({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',is_active:true});
  const [editingId,setEditingId]=useState(null);
@@ -238,6 +239,7 @@ async function handleResetSubmit(e){
       const key = getCartKey(user);
       localStorage.removeItem(key);
       localStorage.removeItem('lastOrderId'); 
+      localStorage.removeItem('uc_cart_backup'); // <-- ADD THIS LINE
       setCart([]);
       setNotice(`Payment successful! Order #${params.get('order')} received. Receipt sent to your email.`); 
       window.history.replaceState({}, '', window.location.pathname);
@@ -245,10 +247,33 @@ async function handleResetSubmit(e){
       loadTracking();
     }
 
-    if(params.get('payment')==='cancel'){ 
-      setNotice('Payment cancelled - your cart is saved.'); 
-      window.history.replaceState({}, '', window.location.pathname);
+  if(params.get('payment')==='cancel'){
+    const cancelledOrderId = params.get('order') || localStorage.getItem('lastOrderId');
+    if(cancelledOrderId){
+      // Mark it cancelled so it doesn't sit in TRACK ORDER as pending
+      api(`/orders/${cancelledOrderId}/cancel`, {method:'POST'}).catch(()=>{});
+      localStorage.removeItem('lastOrderId');
     }
+
+    // RESTORE CART - this is the new part
+    try{
+      const backup = JSON.parse(localStorage.getItem('uc_cart_backup') || '[]');
+      if(backup.length){
+        setCart(backup);
+        const key = getCartKey(user);
+        localStorage.setItem(key, JSON.stringify(backup));
+        // Put it back in DB cart too, so refresh doesn't wipe it
+        backup.forEach(async (item)=>{
+          try{ await api('/cart',{method:'POST', body:JSON.stringify({product_id:item.id, quantity:item.quantity})}); }catch{}
+        });
+      }
+    }catch{}
+
+    setNotice('Payment cancelled - order cancelled. Your items are still in your bag.');
+    window.history.replaceState({}, '', window.location.pathname);
+    loadTracking();
+  }
+
  },[user]);
 
  useEffect(()=>{api('/products').then((rows)=>{ if(Array.isArray(rows)&&rows.length) setProducts(rows); }).catch(()=>{}).finally(()=>setLoading(false));},[]);
@@ -404,6 +429,13 @@ async function handleResetSubmit(e){
   setNotice('You have signed out. Your bag is saved for next login.');
  }
 
+ async function loadTracking(){
+  const data = await api('/orders/my-orders');
+  const sorted = [...(data||[])].filter(o=>o.status!=='cancelled').sort(sortByDateDesc);
+  setTrackingOrders(sorted);
+  setOrders(sorted);
+}
+
  async function deleteAccount(){
   if(!confirm('Delete your account? This will permanently delete your account, orders and saved bag.')) return;
   if(!confirm('Are you absolutely sure? This cannot be undone.')) return;
@@ -443,6 +475,18 @@ async function handleResetSubmit(e){
    setPhoneVerifiedToken('');
  }
 
+ function closeTerms(){
+  const cameFromSignup = termsFromSignup;
+  setShowTerms(false);
+  setTermsFromSignup(false);
+  if(cameFromSignup){
+    setTimeout(()=>{
+      setAuthMode('register');
+      setAccountOpen(true);
+    }, 120);
+  }
+}
+
  async function placeOrder(e) {
   e.preventDefault();
   if(!user){ setAuthError('Please sign in first'); setAccountOpen(true); return; }
@@ -463,8 +507,11 @@ const order = await api('/orders',{method:'POST',body:JSON.stringify({
     })});
     const pay = await api('/payfast/checkout',{method:'POST',body:JSON.stringify({ orderId: order.orderId })});
     if (!pay.action || !pay.fields) throw new Error('PayFast is not configured yet on server');
-    localStorage.setItem('lastOrderId', order.orderId);
-    const formEl = document.createElement('form'); formEl.method='POST'; formEl.action=pay.action; formEl.style.display='none';
+localStorage.setItem('lastOrderId', order.orderId);
+// BACKUP cart before leaving for PayFast - so we can restore on cancel
+localStorage.setItem('uc_cart_backup', JSON.stringify(cart));
+localStorage.setItem(getCartKey(user), JSON.stringify(cart));
+const formEl = document.createElement('form'); formEl.method='POST'; formEl.action=pay.action; formEl.style.display='none';
     Object.entries(pay.fields).forEach(([name, value]) => { const input=document.createElement('input'); input.type='hidden'; input.name=name; input.value=String(value ?? ''); formEl.appendChild(input); });
     document.body.appendChild(formEl); setCheckoutOpen(false); formEl.submit();
   } catch (err) { setCheckoutError(err.message || 'Could not start PayFast checkout.'); } finally { setBusy(false); }
@@ -718,6 +765,7 @@ const order = await api('/orders',{method:'POST',body:JSON.stringify({
     <div className="header-left">
       <button className="icon-btn mobile-only" onClick={()=>setMenuOpen(!menuOpen)}><Menu size={20}/></button>
       <a className="brand" href="#" onClick={()=>{setCategory('All');setSearch('');closeProduct();setShowAll(false); setActiveTab('shop');}}>
+        <img src="https://i.im.ge/QQwblAT/urban-cart-logo-cutout.png" alt="Urban Cart" style={{height:38, width:'auto', objectFit:'contain'}} />
         <span className="brand-mark">U</span> URBAN CART <i>®</i>
       </a>
       <nav className={menuOpen?'nav open':'nav'}>
@@ -911,9 +959,9 @@ const order = await api('/orders',{method:'POST',body:JSON.stringify({
             <span>Phone number *</span>
             <span style={{fontWeight:400, opacity:.6}}>SA only</span>
             </label>
-            <div style={{display:'flex', border:'0 solid #121212', borderBottom:'3px solid #121212', height:44, marginTop:4}}>
+            <div style={{display:'flex', border:'2px solid #121212', borderBottom:'3px solid #121212', height:44, marginTop:4}}>
             <span style={{background:'#eee', padding:'0 10px', display:'grid', placeItems:'center', fontSize:12, fontWeight:700, borderRight:'2px solid #121212'}}>ZA +27</span>
-            <input required type="tel" inputMode="numeric" pattern="[0-9+]*" autoComplete="tel" value={form.phone} onChange={e=>setField('phone',e.target.value.replace(/[^0-9+]/g,''))} placeholder="082 000 0000" style={{flex:1, border:'2px', outline:'none', padding:'0 12px', fontSize:13, fontWeight:600}}/>
+            <input required type="tel" inputMode="numeric" pattern="[0-9+]*" autoComplete="tel" value={form.phone} onChange={e=>setField('phone',e.target.value.replace(/[^0-9+]/g,''))} placeholder="082 000 0000" style={{flex:1, border:'none', outline:'none', padding:'0 12px', fontSize:13, fontWeight:600}}/>
           </div>
           <div style={{height:2, background:'#121212', marginTop:0}}></div>
         </div>
@@ -1015,10 +1063,14 @@ const order = await api('/orders',{method:'POST',body:JSON.stringify({
           Forgot password?
         </button>
           )}
-          {authMode==='register' && (<div className="terms-box"><label className="terms-check"><input type="checkbox" checked={authForm.acceptTerms} onChange={e=>setAuthForm(f=>({...f, acceptTerms:e.target.checked}))}/><span>I agree to the <button type="button" onClick={()=>{
-  setAccountOpen(false);
-  setTimeout(()=>{ setTermsTab('Terms of service'); setShowTerms(true); }, 120);
-}} style={{textDecoration:'underline', background:'none', border:'none', fontWeight:700, cursor:'pointer'}}>Terms & Conditions</button></span></label></div>)}
+          {authMode==='register' && (<div className="terms-box"><label className="terms-check">
+            <input type="checkbox" checked={authForm.acceptTerms} onChange={e=>setAuthForm(f=>({...f, acceptTerms:e.target.checked}))}/>
+            <span>I agree to the 
+              <button type="button" onClick={()=>{
+              setTermsFromSignup(true);
+              setAccountOpen(false);
+              setTimeout(()=>{ setTermsTab('Terms of service'); setShowTerms(true); }, 120);
+            }}  style={{textDecoration:'underline', background:'none', border:'none', fontWeight:700, cursor:'pointer'}}>Terms & Conditions</button></span></label></div>)}
           <button className="btn-black full" disabled={busy}>{busy?'WAIT...':authMode==='login'?'SIGN IN':'CREATE ACCOUNT'}</button>
         </form>
       </>}
@@ -1078,9 +1130,9 @@ const order = await api('/orders',{method:'POST',body:JSON.stringify({
 )}
 
 {showTerms && (
-  <div className="overlay" style={{zIndex:10030}} onMouseDown={e=>{if(e.target===e.currentTarget)setShowTerms(false)}}>
+  <div className="overlay" style={{zIndex:10030}} onMouseDown={e=>{if(e.target===e.currentTarget)closeTerms()}}>
     <section className="modal" style={{maxWidth:520, maxHeight:'85vh', overflow:'auto'}}>
-      <div className="drawer-head"><h2>Terms and policies</h2><button onClick={()=>setShowTerms(false)}><X size={16}/></button></div>
+      <div className="drawer-head"><h2>Terms and policies</h2><button onClick={()=>closeTerms()}><X size={16}/></button></div>
 
       <label style={{fontSize:11, fontWeight:700}}>Policy</label>
       <select value={termsTab} onChange={e=>setTermsTab(e.target.value)} style={{width:'100%', height:46, border:'2px solid #121212', padding:'0 12px', margin:'6px 0 14px', fontSize:14, fontWeight:600, background:'#fff'}}>
@@ -1154,7 +1206,7 @@ const order = await api('/orders',{method:'POST',body:JSON.stringify({
       </div>
 
       <p style={{fontSize:11, opacity:.6, marginTop:14}}>Last updated November 2026 | Governed by South African law</p>
-      <button className="btn-black full" style={{marginTop:12}} onClick={()=>setShowTerms(false)}>I UNDERSTAND</button>
+      <button className="btn-black full" style={{marginTop:12}} onClick={()=>closeTerms()}>I UNDERSTAND</button>
     </section>
   </div>
 )}

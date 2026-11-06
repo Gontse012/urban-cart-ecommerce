@@ -717,7 +717,9 @@ app.post('/api/orders', async (req, res) => {
       await conn.query('INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?,?,?,?)', [orderId, item.id || item.product_id, item.quantity, priceToUse]);
       await conn.query('UPDATE products SET stock=stock-? WHERE id=?', [item.quantity, p.id]);
     }
-    if(cid){ await conn.query('DELETE FROM carts WHERE user_id=?', [cid]); await conn.query('UPDATE customers SET total_spent = total_spent + ? WHERE id=?',[total, cid]); }
+    if(cid){ await conn.query('UPDATE customers SET total_spent = total_spent + ? WHERE id=?',[total, cid]); }
+    // DON'T DELETE CART HERE - cart stays until PayFast confirms payment.
+    // If user cancels on PayFast, frontend restores from uc_cart_backup
 
 
     console.log(`NEW ORDER #${orderId} - ${finalFullName} - R${total}`);
@@ -727,6 +729,23 @@ app.post('/api/orders', async (req, res) => {
     res.status(500).json({ error: 'Could not create your order: ' + err.message });
   } finally { conn.release(); }
 });
+
+  // Customer cancels their own order after PayFast cancel
+  app.post('/api/orders/:id/cancel', auth, async (req,res)=>{
+    try{
+      const orderId = req.params.id;
+      const userId = req.user.id;
+      // Only allow cancelling own order, and only if not already paid/delivered
+      const [rows] = await pool.query('SELECT * FROM orders WHERE id=? AND customer_id=?', [orderId, userId]);
+      if(!rows.length) return res.status(404).json({error:'Order not found'});
+      const order = rows[0];
+      if(order.payment_status==='paid' || order.status==='paid' || order.status==='delivered' || order.status==='shipped'){
+        return res.status(400).json({error:'Cannot cancel a paid/shipped order'});
+      }
+      await pool.query("UPDATE orders SET status='cancelled', payment_status='cancelled', cancel_reason='Customer cancelled on PayFast' WHERE id=?", [orderId]);
+      res.json({message:'Order cancelled'});
+    }catch(e){ console.error(e); res.status(500).json({error:'Failed to cancel order'}); }
+  });
 
 app.get('/api/orders/mine', auth, async (req, res, next) => { 
   try { 
@@ -1113,6 +1132,14 @@ app.post('/api/payfast/notify', express.urlencoded({ extended: false }), async (
     const status = (data.payment_status||'').toLowerCase();
     if(status==='complete'){
       await pool.execute("UPDATE orders SET payment_status='paid', status='paid', delivery_status='Paid - Processing' WHERE id=?",[orderId]);
+      // NOW it's safe to clear cart - payment confirmed
+      try{
+        const [ord] = await pool.query('SELECT customer_id FROM orders WHERE id=?',[orderId]);
+        if(ord.length && ord[0].customer_id){
+          await pool.execute('DELETE FROM carts WHERE user_id=?',[ord[0].customer_id]);
+        }
+      }catch(e){ console.log('Clear cart after payment failed', e.message); }
+
       // ✅ SEND DELIVERY NOTE ONLY AFTER PAYMENT
       try{
         const [oRows] = await pool.query('SELECT * FROM orders WHERE id=?',[orderId]);
