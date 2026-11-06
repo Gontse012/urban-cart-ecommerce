@@ -16,7 +16,7 @@
 }
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font-family:'Syne',sans-serif;-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
-.app{overflow-x:hidden}
+.app{overflow-x:clip}
 .ticker{height:32px;background:var(--ink);color:var(--gold-light);display:flex;align-items:center;overflow:hidden;white-space:nowrap;font-size:10px;letter-spacing:1.8px;font-weight:700;border-bottom:2px solid var(--ink)}
 .ticker-track{display:flex;animation:marq 20s linear infinite}.ticker-track span{padding-right:40px}
 @keyframes marq{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
@@ -126,7 +126,6 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
   z-index: 10001;
 }
 @media(max-width:900px){
-  .header{height:56px !important;padding:0 10px !important;display:flex !important;align-items:center !important;justify-content:space-between !important;gap:8px !important;flex-wrap:nowrap !important;overflow:hidden !important}
   .header-left{flex:1 !important;gap:8px !important;min-width:0 !important;align-items:center !important}
   .brand{font-size:18px !important;white-space:nowrap !important;flex-shrink:0 !important}
   .brand-mark{width:28px !important;height:28px !important;font-size:14px !important;flex-shrink:0 !important}
@@ -303,14 +302,18 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
   display:flex !important; /* keep the bottom overlay button if you have it */
 }
 
+.ticker{
+  position:sticky;
+  top:0;
+  z-index:101;
+}
+.header{
+  position:sticky;
+  top:32px; /* height of ticker */
+  z-index:100;
+}
 
 /* ===== FINAL FIX: STICKY NAV + MOBILE TEXT OVER VIDEO ===== */
-.header{
-  position:sticky !important;
-  top:0 !important;
-  z-index:1000 !important;
-  background:var(--bg) !important;
-}
 
 @media(max-width:900px){
   /* Make hero video go under nav bar */
@@ -654,4 +657,10 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
     max-width: 260px !important;
     height: 220px !important;
   }
+}
+
+.app{ overflow-x:clip !important; }
+.header{ position:sticky !important; top:0 !important; z-index:100 !important; overflow:visible !important; }
+@media(max-width:900px){
+  .header{ overflow:visible !important; }
 }

@@ -766,7 +766,7 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
       <button className="icon-btn mobile-only" onClick={()=>setMenuOpen(!menuOpen)}><Menu size={20}/></button>
       <a className="brand" href="#" onClick={()=>{setCategory('All');setSearch('');closeProduct();setShowAll(false); setActiveTab('shop');}}>
         <img src="https://i.im.ge/QQwblAT/urban-cart-logo-cutout.png" alt="Urban Cart" style={{height:38, width:'auto', objectFit:'contain'}} />
-        <span className="brand-mark">U</span> URBAN CART <i>®</i>
+        URBAN CART <i>®</i>
       </a>
       <nav className={menuOpen?'nav open':'nav'}>
         <button className="nav-close" onClick={()=>setMenuOpen(false)} aria-label="Close menu"><X size={24}/></button>
