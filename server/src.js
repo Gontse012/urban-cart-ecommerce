@@ -31,7 +31,7 @@ const pool = mysql.createPool({
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'urban_cart',
   waitForConnections: true,
-  connectionLimit: 10,
+  connectionLimit: 2,
   decimalNumbers: true,
   ssl: process.env.DB_HOST?.includes('clever-cloud.com') ? { rejectUnauthorized: false } : undefined,
   enableKeepAlive: true
@@ -43,6 +43,15 @@ const FROM_EMAIL = process.env.FROM_EMAIL || 'Urban Cart <onboarding@resend.dev>
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'gontsewamodise01@gmail.com').trim();
 
 const money = n => Math.round(Number(n) * 100) / 100;
+
+function formatUnitLabel(it){
+  if(!it || !it.unit || it.unit === 'none') return '';
+  if(it.unit === 'size') return ` (Size: ${it.selected_size || it.size || ''})`.trim() === '(Size:)' ? '' : ` (Size: ${it.selected_size || it.size})`;
+  const val = Number(it.unit_value || 0);
+  if(!val) return ` (${it.unit})`;
+  return ` (${it.unit_value}${it.unit} each - Total: ${it.quantity * val}${it.unit})`;
+}
+
 const signToken = user => jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role }, process.env.JWT_SECRET || 'dev-only-change-this-secret', { expiresIn: '7d' });
 
 function auth(req, res, next) { 
@@ -463,7 +472,7 @@ app.get('/api/products', async (req, res, next) => {
     const q = String(req.query.q || '').slice(0, 100); 
     const category = Number(req.query.category || 0); 
     const [rows] = await pool.query(
-      `SELECT p.id,p.name,p.description,p.price,p.sale_price,p.on_sale,p.stock,p.image_url,p.images,p.active,p.is_active,c.name AS category 
+      `SELECT p.id,p.name,p.description,p.price,p.sale_price,p.unit, p.unit_value,p.on_sale,p.stock,p.image_url,p.images,p.active,p.is_active,c.name AS category 
        FROM products p 
        LEFT JOIN categories c ON c.id=p.category_id 
        WHERE (p.active=1 OR p.active IS NULL) 
@@ -715,10 +724,15 @@ app.post('/api/orders', async (req, res) => {
       [cid, finalFullName, finalFullName, finalEmail, finalPhone, finalDeliveryAddress, finalCity, finalProvince, finalPostalCode, finalAddressSearch, finalDeliveryAddress, total, 'pending', 'pending', 'Order Placed', 'Warehouse - Lephalale', '1-2 business days', initialHistory]
     );
     const orderId = orderResult.insertId;
+    
     for (const item of items) {
       const p = products.find(pr => pr.id == (item.id || item.product_id));
       const priceToUse = (p.on_sale && p.sale_price) ? Number(p.sale_price) : Number(p.price);
-      await conn.query('INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?,?,?,?)', [orderId, item.id || item.product_id, item.quantity, priceToUse]);
+      // Use what the customer picked in the bag, fall back to the product's own unit
+      const itemUnit = item.unit || p.unit || 'none';
+      const itemUnitValue = item.unit_value || p.unit_value || null;
+      const itemSize = item.selectedSize || item.selected_size || item.size || null;
+      await conn.query('INSERT INTO order_items (order_id, product_id, quantity, price, unit, unit_value, selected_size) VALUES (?,?,?,?,?,?,?)', [orderId, item.id || item.product_id, item.quantity, priceToUse, String(itemUnit), itemUnitValue ? String(itemUnitValue) : null, itemSize ? String(itemSize) : null]);
       await conn.query('UPDATE products SET stock=stock-? WHERE id=?', [item.quantity, p.id]);
     }
     if(cid){ await conn.query('UPDATE customers SET total_spent = total_spent + ? WHERE id=?',[total, cid]); }
@@ -841,29 +855,31 @@ app.patch('/api/admin/users/:id/role', auth, adminOnly, async (req, res, next)=>
   }catch(e){ next(e); }
 });
 
-app.post('/api/admin/products', auth, adminOnly, async (req, res, next) => { 
+aapp.post('/api/admin/products', auth, adminOnly, async (req, res, next) => { 
   try { 
-    let { name, description='', price, sale_price=null, on_sale=false, stock=0, category, category_id, is_active=true, active=1, image_url='' } = req.body || {}; 
+    let { name, description='', price, sale_price=null, on_sale=false, stock=0, category, category_id, is_active=true, active=1, image_url='', unit='none', unit_value=null } = req.body || {}; 
     const catId = category_id ? Number(category_id) : await getCategoryId(category);
     if (!String(name || '').trim() || !Number.isFinite(Number(price)) || Number(price) < 0 || !Number.isInteger(Number(stock)) || Number(stock) < 0) 
       return res.status(400).json({ error: 'Provide valid name price stock.' }); 
-    const [r] = await pool.execute('INSERT INTO products(name,description,price,sale_price,on_sale,stock,category_id,active,is_active,image_url) VALUES(?,?,?,?,?,?,?,?,?,?)', [String(name).trim(), String(description), money(price), sale_price?money(sale_price):null, on_sale?1:0, Number(stock), catId, active?1:0, is_active?1:0, String(image_url)]); 
-    const [rows] = await pool.query('SELECT p.id,p.name,p.description,p.price,p.sale_price,p.on_sale,p.stock,p.image_url,p.active,p.is_active,c.name AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?', [r.insertId]);
+    const [r] = await pool.execute('INSERT INTO products(name,description,price,sale_price,on_sale,stock,category_id,active,is_active,image_url,unit,unit_value) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)', [String(name).trim(), String(description), money(price), sale_price?money(sale_price):null, on_sale?1:0, Number(stock), catId, active?1:0, is_active?1:0, String(image_url), String(unit || 'none'), unit_value ? String(unit_value) : null]); 
+    const [rows] = await pool.query('SELECT p.id,p.name,p.description,p.unit, p.unit_value,p.price,p.sale_price,p.on_sale,p.stock,p.image_url,p.active,p.is_active,c.name AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?', [r.insertId]);
     res.status(201).json(rows[0]); 
   } catch (e) { next(e); } 
 });
+
 app.put('/api/admin/products/:id', auth, adminOnly, async (req, res, next) => {
   try{
     const id = Number(req.params.id);
-    let { name, description='', price, sale_price=null, on_sale=false, image_url='', stock=0, category, category_id, is_active=true, active } = req.body || {};
+    let { name, description='', price, sale_price=null, on_sale=false, image_url='', stock=0, category, category_id, is_active=true, active, unit='none', unit_value=null } = req.body || {};
     const catId = category_id ? Number(category_id) : await getCategoryId(category);
     if(active===undefined) active = is_active?1:0;
-    const [r] = await pool.execute('UPDATE products SET name=?, description=?, price=?, sale_price=?, on_sale=?, image_url=?, stock=?, category_id=?, active=?, is_active=? WHERE id=?', [String(name).trim(), String(description), money(price), sale_price?money(sale_price):null, on_sale?1:0, String(image_url), Number(stock), catId, active?1:0, is_active?1:0, id]);
+    const [r] = await pool.execute('UPDATE products SET name=?, description=?, price=?, sale_price=?, on_sale=?, image_url=?, stock=?, category_id=?, active=?, is_active=?, unit=?, unit_value=? WHERE id=?', [String(name).trim(), String(description), money(price), sale_price?money(sale_price):null, on_sale?1:0, String(image_url), Number(stock), catId, active?1:0, is_active?1:0, String(unit || 'none'), unit_value ? String(unit_value) : null, id]);
     if(!r.affectedRows) return res.status(404).json({ error: 'Product not found.' });
-    const [rows] = await pool.query('SELECT p.id,p.name,p.description,p.price,p.sale_price,p.on_sale,p.image_url,p.stock,p.active,p.is_active,c.name AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?', [id]);
+    const [rows] = await pool.query('SELECT p.id,p.name,p.description,p.unit,p.unit_value,p.price,p.sale_price,p.on_sale,p.image_url,p.stock,p.active,p.is_active,c.name AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?', [id]);
     res.json(rows[0]);
   }catch(e){ next(e); }
 });
+
 app.delete('/api/admin/products/:id', auth, adminOnly, async (req, res, next) => {
   try{
     const id = Number(req.params.id);

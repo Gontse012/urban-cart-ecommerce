@@ -137,7 +137,7 @@ function App(){
  const [termsTab,setTermsTab]=useState('Shipping');
  const [termsFromSignup,setTermsFromSignup]=useState(false);
  const [adminTab,setAdminTab]=useState('dashboard');
- const [prodForm,setProdForm]=useState({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true});
+ const [prodForm,setProdForm]=useState({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:''});
  const [editingId,setEditingId]=useState(null);
  const [orderFilter,setOrderFilter]=useState('all');
  const [userSearch,setUserSearch]=useState('');
@@ -394,6 +394,7 @@ async function handleResetSubmit(e){
  async function add(p){
    if(isOutOfStock(p)){ setNotice(`${p.name} is out of stock`); return; }
    setCart(old=>{
+     const cartKey = p.unit==='size' ? `${p.id}_${p.selectedSize}` : p.id;
      const found=old.find(x=>x.id===p.id);
      return found?old.map(x=>x.id===p.id?{...x,quantity:Math.min(x.quantity+1,99)}:x):[...old,{...p, price: effectivePrice(p), original_price: p.price, quantity:1}];
    });
@@ -416,6 +417,11 @@ async function handleResetSubmit(e){
      }catch{}
    }
  }
+
+ const changeSize = (id, newSize) => {
+  setCart(cart.map(item => item.id === id ? {...item, selectedSize: newSize} : item));
+};
+
  async function removeItem(id){
    setCart(old=>old.filter(x=>x.id!==id));
    if(user){ try{ await api(`/cart/${id}`,{method:'DELETE'});}catch{} }
@@ -430,6 +436,7 @@ async function handleResetSubmit(e){
    setSelectedProduct(p); 
    setGalleryIndex(0);
    setShowAll(false); 
+   setSelectedSize('');
    setActiveTab('shop');
     window.scrollTo({top:0, behavior:'smooth'}); }
  function closeProduct(){ setSelectedProduct(null); }
@@ -578,7 +585,7 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
       const payload={...prodForm, images: prodForm.images.filter(Boolean).slice(0,4), price:Number(prodForm.price), sale_price: prodForm.sale_price?Number(prodForm.sale_price):null, stock:Number(prodForm.stock), on_sale: Boolean(prodForm.on_sale), is_active: Boolean(prodForm.is_active)};
       const p = await api('/admin/products',{method:'POST', body:JSON.stringify(payload)});
       setProducts(old=>[p,...old]); setNotice('Product created'); 
-      setProdForm({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',is_active:true});
+      setProdForm({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:''});
     }catch(err){setNotice(err.message)}
   }
   async function saveEdit(e){
@@ -587,7 +594,7 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
       const payload={...prodForm, images: prodForm.images.filter(Boolean).slice(0,4), price:Number(prodForm.price), sale_price: prodForm.sale_price?Number(prodForm.sale_price):null, stock:Number(prodForm.stock), on_sale: Boolean(prodForm.on_sale), is_active: Boolean(prodForm.is_active)};
       const p = await api(`/admin/products/${editingId}`,{method:'PUT', body:JSON.stringify(payload)});
       setProducts(old=>old.map(x=>x.id===editingId? p : x));
-      setEditingId(null); setProdForm({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',is_active:true}); setNotice('Product updated');
+      setEditingId(null); setProdForm({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:''}); setNotice('Product updated');
     }catch(err){setNotice(err.message)}
   }
 
@@ -597,6 +604,8 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
     setProdForm({
       name:p.name, 
       category:p.category||'Tech', 
+      unit: p.unit || 'none',
+      unit_value: p.unit_value || '',
       price:String(p.price), 
       sale_price: p.sale_price?String(p.sale_price):'', 
       on_sale: !!p.on_sale, 
@@ -916,7 +925,13 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
             <span style={{fontSize:11}}>ZAR • VAT INCL. {selectedProduct.on_sale && <span style={{background:'#F59E0B', color:'#fff', padding:'2px 6px', marginLeft:6}}>SAVE {fmt(Number(selectedProduct.price) - Number(effectivePrice(selectedProduct)))}</span>}</span>
           </div>
           <div className="buy-row">
-            <button className="btn-black" disabled={isOutOfStock(selectedProduct)} onClick={()=>{add(selectedProduct);}} style={{opacity: isOutOfStock(selectedProduct)?0.4:1}}>
+            <button className="btn-black" disabled={isOutOfStock(selectedProduct)} onClick={()=>{
+              if(selectedProduct.unit==='size' && !selectedSize){
+                setNotice('Please select a size first');
+                return;
+              }
+              add({...selectedProduct, selectedSize: selectedProduct.unit==='size' ? selectedSize : null});
+            }} style={{opacity: isOutOfStock(selectedProduct)?0.4:1}}>
               {isOutOfStock(selectedProduct) ? 'OUT OF STOCK' : `ADD TO BAG — ${fmt(effectivePrice(selectedProduct))}`} <ArrowUpRight size={16}/>
             </button>
             <button className="btn-ghost" onClick={()=>setCartOpen(true)}>View bag ({count})</button>
@@ -1057,8 +1072,18 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
       <div className="drawer-head"><h2>BAG ({count})</h2><button onClick={()=>setCartOpen(false)}><X size={16}/></button></div>
       {!cart.length?<div className="empty-bag"><ShoppingBag size={28}/><h3>Bag is empty.</h3><p>Go add some good stuff.</p><button className="btn-black" onClick={()=>setCartOpen(false)}>SHOP NOW</button></div>:
       <>
-        <div className="cart-list">{cart.map(p=><div key={p.id} className="cart-item"><img src={p.image_url}/><div><h4>{p.name} {p.on_sale&&<span style={{background:'#F59E0B',fontSize:8,padding:'2px 4px'}}>SALE</span>}</h4>
-{p.on_sale ? <div style={{fontSize:11}}><span style={{opacity:.6}}>WAS <span style={{textDecoration:'line-through'}}>{fmt(p.original_price||p.price)}</span></span> <b style={{color:'#92400E'}}>NOW {fmt(effectivePrice(p))}</b></div> : <b>{fmt(effectivePrice(p))}</b>}<div className="qty"><button onClick={()=>changeQty(p.id,-1)}><Minus size={10}/></button><span>{p.quantity}</span><button onClick={()=>changeQty(p.id,1)}><Plus size={10}/></button></div></div><button className="remove" onClick={()=>removeItem(p.id)}>REMOVE</button></div>)}
+        <div className="cart-list">{cart.map(p=><div key={p.id} className="cart-item"><img src={p.image_url}/><div>
+          <h4>{p.name} {p.on_sale&&<span style={{background:'#F59E0B',fontSize:8,padding:'2px 4px'}}>SALE</span>}</h4>
+          {p.unit && p.unit !== 'none' && (
+            p.unit === 'size' ? (
+              <select value={p.selectedSize || ''} onChange={e=>changeSize(p.id, e.target.value)} style={{fontSize:11, padding:'4px 6px', border:'1px solid #121212', marginTop:4}}>
+                {(p.unit_value || '').split(',').map(s => <option key={s.trim()} value={s.trim()}>{s.trim()}</option>)}
+              </select>
+            ) : (
+              <div style={{fontSize:11, opacity:0.6}}>{p.unit_value}{p.unit} • {p.quantity * Number(p.unit_value || 0)}{p.unit} total</div>
+            )
+          )}
+          {p.on_sale ? <div style={{fontSize:11}}><span style={{opacity:.6}}>WAS <span style={{textDecoration:'line-through'}}>{fmt(p.original_price||p.price)}</span></span> <b style={{color:'#92400E'}}>NOW {fmt(effectivePrice(p))}</b></div> : <b>{fmt(effectivePrice(p))}</b>}<div className="qty"><button onClick={()=>changeQty(p.id,-1)}><Minus size={10}/></button><span>{p.quantity}</span><button onClick={()=>changeQty(p.id,1)}><Plus size={10}/></button></div></div><button className="remove" onClick={()=>removeItem(p.id)}>REMOVE</button></div>)}
         </div>
         <div className="cart-foot">
           <div className="sum"><span>SUBTOTAL ({count} items)</span><b>{fmt(total)}</b></div>
@@ -1136,8 +1161,29 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
         <div><label style={{fontSize:11, fontWeight:700}}>Delivery address *</label>
         <input value={form.delivery_address} onChange={e=>setField('delivery_address',e.target.value)} placeholder="e.g. John Doe, 1234 Main Street, Apartment 56B, Springfield" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/></div>
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
-          <div><label style={{fontSize:11, fontWeight:700}}>Province *</label><select required value={form.province} onChange={e=>setField('province',e.target.value)} style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}>{PROVINCES.map(p=><option key={p} value={p}>{p}</option>)}</select></div>
-          <div><label style={{fontSize:11, fontWeight:700}}>Postal code *</label><input required type="tel" inputMode="numeric" pattern="[0-9]*" autoComplete="postal-code" value={form.postal_code} onChange={e=>setField('postal_code',e.target.value.replace(/[^0-9]/g,'').slice(0,4))} placeholder="2196" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/></div>
+          <label>MEASURED IN
+            <select value={prodForm.unit || 'none'} onChange={e=>setProdForm(f=>({...f, unit:e.target.value}))} style={{width:'100%', padding:10, border:'2px solid #121212'}}>
+              <option value="none">No measurement</option>
+              <option value="kg">Kilograms (kg)</option>
+              <option value="g">Grams (g)</option>
+              <option value="L">Litres (L)</option>
+              <option value="ml">Millilitres (ml)</option>
+              <option value="pcs">Pieces (pcs)</option>
+              <option value="pack">Pack</option>
+              <option value="pair">Pair</option>
+              <option value="size">Size (S,M,L...)</option>
+            </select>
+          </label>
+          {prodForm.unit !== 'none' && (
+            <label>{prodForm.unit === 'size' ? 'SIZES - comma separated' : 'VALUE - e.g. 500'} 
+              <input 
+                value={prodForm.unit_value || ''} 
+                onChange={e=>setProdForm(f=>({...f, unit_value:e.target.value}))} 
+                placeholder={prodForm.unit === 'size' ? 'S,M,L,XL' : '500'} 
+                style={{width:'100%', padding:10, border:'2px solid #121212'}} 
+              />
+            </label>
+          )}
         </div>
         <div style={{border:'2px solid #121212', padding:12, background:'#FFFCF8'}}>
           <h4 style={{margin:'0 0 8px', fontFamily:'Anton', fontSize:13}}>PAYFAST SECURE</h4>
@@ -1477,6 +1523,33 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
               <input required type="number" step="0.01" placeholder="Price ZAR" value={prodForm.price} onChange={e=>setProdForm(f=>({...f,price:e.target.value}))}/>
               <input required type="number" placeholder="Stock" value={prodForm.stock} onChange={e=>setProdForm(f=>({...f,stock:e.target.value}))}/>
             </div>
+
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
+              <label>MEASURED IN
+                <select value={form.unit || 'none'} onChange={e=>setForm({...form, unit:e.target.value})} style={{width:'100%', padding:10, border:'2px solid #121212'}}>
+                  <option value="none">No measurement</option>
+                  <option value="kg">Kilograms (kg)</option>
+                  <option value="g">Grams (g)</option>
+                  <option value="L">Litres (L)</option>
+                  <option value="ml">Millilitres (ml)</option>
+                  <option value="pcs">Pieces (pcs)</option>
+                  <option value="pack">Pack</option>
+                  <option value="pair">Pair</option>
+                  <option value="size">Size (S,M,L...)</option>
+                </select>
+              </label>
+              {form.unit !== 'none' && (
+                <label>{form.unit === 'size' ? 'SIZES - comma separated' : 'VALUE - e.g. 500'} 
+                  <input 
+                    value={form.unit_value || ''} 
+                    onChange={e=>setForm({...form, unit_value:e.target.value})} 
+                    placeholder={form.unit === 'size' ? 'S,M,L,XL' : '500'} 
+                    style={{width:'100%', padding:10, border:'2px solid #121212'}} 
+                  />
+                </label>
+              )}
+            </div>
+
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
               <div style={{display:'flex', gap:8, alignItems:'center', border:'2px solid #121212', padding:'0 10px', height:44}}><input type="checkbox" checked={prodForm.on_sale} onChange={e=>setProdForm(f=>({...f,on_sale:e.target.checked}))}/><label style={{fontSize:11, fontWeight:700}}><Tag size={12} style={{display:'inline'}}/> ON SALE</label></div>
               <input type="number" step="0.01" placeholder="Sale price (if on sale)" value={prodForm.sale_price} onChange={e=>setProdForm(f=>({...f,sale_price:e.target.value}))} style={{height:44, border:'2px solid #121212', padding:'0 12px'}} disabled={!prodForm.on_sale}/>
@@ -1490,7 +1563,12 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
                 }} />
               ))}
             <textarea placeholder="Description" value={prodForm.description} onChange={e=>setProdForm(f=>({...f,description:e.target.value}))} style={{minHeight:80, border:'2px solid var(--ink)', padding:12, fontFamily:'Syne'}}/>
-            <div style={{display:'flex', gap:8}}><button className="btn-black full" type="submit">{editingId? 'SAVE CHANGES' : 'CREATE PRODUCT'}</button>{editingId && <button type="button" className="btn-ghost" onClick={()=>{setEditingId(null); setProdForm({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true})}}>CANCEL</button>}</div>
+              <button type="button" onClick={() => {
+                setEditingId(null);
+                setProdForm({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:''});
+              }} style={{height:44, border:'2px solid #121212', background:'#fff', fontWeight:800, cursor:'pointer'}}>CANCEL</button>
+              <button type="submit" className="btn-black full">{editingId ? 'SAVE CHANGES' : 'CREATE PRODUCT'}
+              </button>
           </form>
           <div style={{display:'flex', flexDirection:'column', gap:8, maxHeight:'35vh', overflow:'auto', marginTop:12}}>
             {products.map(p=><div key={p.id} className="admin-row" style={{opacity: isOutOfStock(p)?0.6:1}}>
