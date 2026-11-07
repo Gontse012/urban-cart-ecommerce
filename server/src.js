@@ -748,41 +748,57 @@ app.post('/api/auth/reset-password', async (req, res, next) => {
 app.get('/api/cart/mine', auth, async (req, res, next) => {
   try{
     const [rows] = await pool.execute(`
-      SELECT c.product_id, c.quantity, p.name, p.description, p.price, p.sale_price, p.on_sale, p.image_url, p.stock, p.is_active, cat.name AS category
+      SELECT c.product_id, c.quantity, c.selected_size, c.selected_color, p.name, p.description, p.price, p.sale_price, p.on_sale, p.image_url, p.stock, p.is_active, cat.name AS category
       FROM carts c JOIN products p ON p.id=c.product_id LEFT JOIN categories cat ON cat.id=p.category_id
       WHERE c.user_id=? ORDER BY c.updated_at DESC
     `, [req.user.id]);
     res.json(rows);
   }catch(e){ next(e); }
 });
+
 app.post('/api/cart', auth, async (req, res, next) => {
   try{
     const product_id = Number(req.body.product_id || req.body.id);
     let quantity = Number(req.body.quantity || 1);
+    const selected_size = String(req.body.selectedSize || req.body.selected_size || req.body.size || '');
+    const selected_color = String(req.body.selectedColor || req.body.selected_color || req.body.color || '');
     if(!Number.isInteger(product_id) || product_id<1) return res.status(400).json({ error: 'Invalid product.' });
     if(!Number.isInteger(quantity) || quantity<1) quantity=1; if(quantity>99) quantity=99;
     const [prod] = await pool.execute('SELECT id, stock, is_active, active FROM products WHERE id=?', [product_id]);
     if(!prod.length) return res.status(404).json({ error: 'Product not found.' });
     if(prod[0].stock < quantity || prod[0].is_active==0 || prod[0].active==0) return res.status(409).json({ error: 'Out of stock.' });
-    await pool.execute(`INSERT INTO carts (user_id, product_id, quantity) VALUES (?,?,?) ON DUPLICATE KEY UPDATE quantity = LEAST(99, quantity + VALUES(quantity))`, [req.user.id, product_id, quantity]);
-    const [rows] = await pool.execute(`SELECT c.product_id, c.quantity, p.name, p.price, p.sale_price, p.on_sale, p.image_url FROM carts c JOIN products p ON p.id=c.product_id WHERE c.user_id=? ORDER BY c.updated_at DESC`, [req.user.id]);
+    await pool.execute(`INSERT INTO carts (user_id, product_id, quantity, selected_size, selected_color) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE quantity = LEAST(99, quantity + VALUES(quantity))`, [req.user.id, product_id, quantity, selected_size, selected_color]);
+    const [rows] = await pool.execute(`SELECT c.product_id, c.quantity, c.selected_size, c.selected_color, p.name, p.price, p.sale_price, p.on_sale, p.image_url FROM carts c JOIN products p ON p.id=c.product_id WHERE c.user_id=? ORDER BY c.updated_at DESC`, [req.user.id]);
     res.json(rows);
   }catch(e){ next(e); }
 });
+
 app.patch('/api/cart/:productId', auth, async (req, res, next) => {
   try{
     const productId = Number(req.params.productId); let quantity = Number(req.body.quantity);
+    const selected_size = String(req.body.selectedSize || req.body.selected_size || '');
+    const selected_color = String(req.body.selectedColor || req.body.selected_color || '');
     if(!Number.isInteger(productId) || productId<1) return res.status(400).json({ error: 'Invalid product.' });
     if(!Number.isInteger(quantity) || quantity<0) return res.status(400).json({ error: 'Invalid quantity.' });
-    if(quantity===0){ await pool.execute('DELETE FROM carts WHERE user_id=? AND product_id=?', [req.user.id, productId]); }
-    else{ await pool.execute('UPDATE carts SET quantity=? WHERE user_id=? AND product_id=?', [Math.min(99, quantity), req.user.id, productId]); }
-    const [rows] = await pool.execute(`SELECT c.product_id, c.quantity, p.name, p.price, p.image_url FROM carts c JOIN products p ON p.id=c.product_id WHERE c.user_id=? ORDER BY c.updated_at DESC`, [req.user.id]);
+    if(quantity===0){ await pool.execute('DELETE FROM carts WHERE user_id=? AND product_id=? AND selected_size=? AND selected_color=?', [req.user.id, productId, selected_size, selected_color]); }
+    else{ await pool.execute('UPDATE carts SET quantity=? WHERE user_id=? AND product_id=? AND selected_size=? AND selected_color=?', [Math.min(99, quantity), req.user.id, productId, selected_size, selected_color]); }
+    const [rows] = await pool.execute(`SELECT c.product_id, c.quantity, c.selected_size, c.selected_color, p.name, p.price, p.image_url FROM carts c JOIN products p ON p.id=c.product_id WHERE c.user_id=? ORDER BY c.updated_at DESC`, [req.user.id]);
     res.json(rows);
   }catch(e){ next(e); }
 });
+
 app.delete('/api/cart/:productId', auth, async (req, res, next) => {
-  try{ await pool.execute('DELETE FROM carts WHERE user_id=? AND product_id=?', [req.user.id, Number(req.params.productId)]); res.json({ ok:true }); }catch(e){ next(e); }
+  try{
+    const selected_size = String(req.query.selected_size || req.query.selectedSize || '');
+    const selected_color = String(req.query.selected_color || req.query.selectedColor || '');
+    // If frontend sends variant in body, use it too
+    const bodySize = req.body?.selectedSize || req.body?.selected_size || selected_size;
+    const bodyColor = req.body?.selectedColor || req.body?.selected_color || selected_color;
+    await pool.execute('DELETE FROM carts WHERE user_id=? AND product_id=? AND selected_size=? AND selected_color=?', [req.user.id, Number(req.params.productId), String(bodySize||''), String(bodyColor||'')]);
+    res.json({ ok:true });
+  }catch(e){ next(e); }
 });
+
 app.delete('/api/cart', auth, async (req, res, next) => {
   try{ await pool.execute('DELETE FROM carts WHERE user_id=?', [req.user.id]); res.json({ ok:true }); }catch(e){ next(e); }
 });
