@@ -1715,6 +1715,37 @@ async function placeOrder(e) {
         </div>
       )}
 
+            {adminTab==='reviews' && (
+        <div>
+          <div style={{background:'#FEF3C7', border:'2px solid #121212', padding:10, marginBottom:12, fontSize:11}}>
+            <b>⭐ Reviews:</b> You also get an email for every new review. Delete spam / rude reviews here. Deleted reviews disappear from the product page instantly.
+          </div>
+          <button className="btn-ghost" style={{height:32, fontSize:11, marginBottom:12}} onClick={async()=>{ const rev = await api('/admin/reviews'); setAdminReviews(rev); setNotice('Reviews refreshed'); }}>↻ REFRESH</button>
+          <div style={{maxHeight:'60vh', overflow:'auto', display:'flex', flexDirection:'column', gap:8}}>
+            {!adminReviews.length && <div className="empty">No reviews yet.</div>}
+            {adminReviews.map(r=>(
+              <div key={r.id} style={{border:'2px solid #121212', padding:12, background:'#FFFCF8', display:'flex', gap:12}}>
+                <img src={r.image_url} style={{width:56, height:56, objectFit:'cover', border:'1px solid #121212', flexShrink:0}} />
+                <div style={{flex:1, minWidth:0}}>
+                  <div style={{display:'flex', justifyContent:'space-between', gap:8, flexWrap:'wrap'}}>
+                    <b style={{fontSize:12}}>{r.product_name || `Product #${r.product_id}`} — #{r.id}</b>
+                    <span style={{fontSize:12}}>{'⭐'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}</span>
+                  </div>
+                  <div style={{fontSize:11, opacity:.7}}>{r.customer_name} • {new Date(r.created_at).toLocaleString('en-ZA')}</div>
+                  <p style={{fontSize:13, margin:'6px 0 0', lineHeight:1.5}}>{r.comment}</p>
+                </div>
+                <button onClick={async()=>{
+                  if(!confirm(`Delete this review by ${r.customer_name}?`)) return;
+                  await api(`/admin/reviews/${r.id}`, {method:'DELETE'});
+                  setAdminReviews(old=>old.filter(x=>x.id!==r.id));
+                  setNotice('Review deleted');
+                }} style={{background:'#ff3b30', color:'#fff', border:'none', padding:'8px 12px', fontWeight:800, fontSize:11, cursor:'pointer', height:36, alignSelf:'flex-start'}}>DELETE</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {adminTab==='staff' && (
         <div>
           <div style={{background:'#fff3cd', border:'2px solid #121212', padding:10, marginBottom:12, fontSize:11}}><b>Staff management:</b> Make trusted users admin. Admins can see this panel. Be careful.</div>
