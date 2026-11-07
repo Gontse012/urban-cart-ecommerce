@@ -1229,7 +1229,6 @@ async function placeOrder(e) {
         </div>
       )}
       {checkoutError && <div className="checkout-error" style={{background:'#FEF3C7', border:'2px solid #F59E0B', color:'#92400E', padding:'10px 12px', fontSize:11, fontWeight:700, marginBottom:12, textAlign:'center', borderRadius:4}}>{checkoutError}</div>}
-      {/* --- NEW STYLE LIKE YOUR SCREENSHOT --- */}
         <style>{`
           .addr-input{width:100%; height:52px; border:1px solid #D6D3D1; border-radius:12px; padding:0 14px; font-size:14px; outline:none; background:#fff}
           .addr-input:focus{border-color:#121212}
@@ -1239,20 +1238,36 @@ async function placeOrder(e) {
           .type-btn.active{border:2px solid #121212; background:#121212; color:#fff}
         `}</style>
         <form onSubmit={placeOrder} style={{display:'flex', flexDirection:'column', gap:12}}>
-          {/* FULL NAME */}
           <div><span className="addr-label">Full Name *</span>
           <input required value={form.full_name} onChange={e=>setField('full_name',e.target.value)} placeholder="Full Name" className="addr-input"/></div>
-          {/* PHONE - keep your OTP as-is */}
+
+          {/* PHONE + OTP - COMPLETED */}
           <div><span className="addr-label">Phone number *</span>
-          <div style={{display:'flex', border:'1px solid #D6D3D1', borderRadius:12, height:52, overflow:'hidden'}}>
-            <span style={{background:'#F3F4F6', padding:'0 12px', display:'grid', placeItems:'center', fontSize:13, fontWeight:700}}>ZA +27</span>
-            <input required type="tel" value={form.phone} onChange={e=>setField('phone',e.target.value.replace(/[^0-9+]/g,''))} placeholder="082 000 0000" style={{flex:1, border:'none', outline:'none', padding:'0 14px'}}/>
-          </div></div>
-          {/* ... keep your Send OTP / Verify OTP buttons here ... */}
-          {/* EMAIL */}
+          <div style={{display:'flex', gap:10}}>
+            <div style={{display:'flex', flex:1, border:'1px solid #D6D3D1', borderRadius:12, height:52, overflow:'hidden'}}>
+              <span style={{background:'#F3F4F6', padding:'0 12px', display:'grid', placeItems:'center', fontSize:13, fontWeight:700}}>ZA +27</span>
+              <input required type="tel" inputMode="numeric" pattern="[0-9+]*" value={form.phone} onChange={e=>setField('phone',e.target.value.replace(/[^0-9+]/g,''))} placeholder="082 000 0000" style={{flex:1, border:'none', outline:'none', padding:'0 14px'}}/>
+            </div>
+            {!phoneVerified ? (
+              <button type="button" onClick={sendPhoneOtp} disabled={busy} style={{height:52, padding:'0 14px', borderRadius:12, border:'1px solid #121212', background: phoneOtpSent ? '#121212' : '#fff', color: phoneOtpSent ? '#fff' : '#121212', fontWeight:800, fontSize:12, whiteSpace:'nowrap', cursor:'pointer'}}>
+                {phoneOtpSent ? 'Resend OTP' : 'Send OTP'}
+              </button>
+            ) : (
+              <button type="button" disabled style={{height:52, padding:'0 14px', borderRadius:12, border:'1px solid #16A34A', background:'#DCFCE7', color:'#166534', fontWeight:800, fontSize:12}}>✓ Verified</button>
+            )}
+          </div>
+
+          {phoneOtpSent && !phoneVerified && (
+            <div style={{display:'flex', gap:10, marginTop:10}}>
+              <input type="tel" inputMode="numeric" pattern="[0-9]*" autoComplete="one-time-code" value={phoneOtp} onChange={e=>setPhoneOtp(e.target.value.replace(/[^0-9]/g,'').slice(0,6))} placeholder="Enter 6-digit OTP" maxLength={6} style={{flex:1, height:52, border:'1px solid #D6D3D1', borderRadius:12, padding:'0 14px', fontSize:16, fontWeight:700, letterSpacing:4, textAlign:'center', outline:'none'}} />
+              <button type="button" onClick={verifyPhoneOtp} disabled={phoneOtp.length!==6} style={{height:52, padding:'0 16px', borderRadius:12, background:'#121212', color:'#fff', fontWeight:800, fontSize:13, cursor:'pointer'}}>Verify</button>
+            </div>
+          )}
+          {otpStatus && <div style={{fontSize:'12px', marginTop:'6px', padding:'8px', background:'#FEF3C7', borderRadius:'6px'}}>{otpStatus}</div>}
+          </div>
+
           <div><span className="addr-label">Email *</span>
           <input required type="email" value={form.email} onChange={e=>setField('email',e.target.value)} placeholder="Email" className="addr-input"/></div>
-          {/* ===== ADDRESS TYPE - MUST PICK, NO DEFAULT ===== */}
           <div><span className="addr-label">Address type *</span>
           <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10}}>
             {[
@@ -1266,7 +1281,6 @@ async function placeOrder(e) {
               </button>
             ))}
           </div></div>
-          {/* ===== COMPLEX / FLAT FIELDS - ONLY SHOW WHEN NEEDED ===== */}
           {form.address_type==='Complex' && (
             <>
               <div><span className="addr-label">Complex / Estate Name *</span>
@@ -1287,7 +1301,6 @@ async function placeOrder(e) {
               </div>
             </>
           )}
-          {/* ===== ADDRESS SEARCH - LIKE GOOGLE PLACES ===== */}
           <div style={{position:'relative'}}><span className="addr-label">Address *</span>
           <input value={form.delivery_address} onChange={e=>{setField('delivery_address',e.target.value); searchAddress(e.target.value)}} placeholder="Start typing your street address..." className="addr-input" autoComplete="off"/>
           {addrResults.length>0 && (
@@ -1299,13 +1312,10 @@ async function placeOrder(e) {
               ))}
             </div>
           )}</div>
-          {/* APARTMENT / SUITE - LIKE YOUR SCREENSHOT */}
           <div><span className="addr-label">Apartment, suite, etc. (optional)</span>
           <input value={form.apt_suite} onChange={e=>setField('apt_suite',e.target.value)} placeholder="Apartment, suite, etc. (optional)" className="addr-input"/></div>
-          {/* SUBURB */}
           <div><span className="addr-label">Suburb *</span>
           <input required value={form.suburb} onChange={e=>setField('suburb',e.target.value)} placeholder="Suburb" className="addr-input"/></div>
-          {/* CITY + PROVINCE + POSTAL - EXACTLY LIKE YOUR SCREENSHOT */}
           <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10}}>
             <div><span className="addr-label">City *</span>
             <input required value={form.city} onChange={e=>setField('city',e.target.value)} placeholder="City" className="addr-input"/></div>
@@ -1316,10 +1326,8 @@ async function placeOrder(e) {
             <div><span className="addr-label">Postal code *</span>
             <input required value={form.postal_code} onChange={e=>setField('postal_code',e.target.value.replace(/[^0-9]/g,'').slice(0,4))} placeholder="Postal code" inputMode="numeric" maxLength={4} className="addr-input"/></div>
           </div>
-          {/* DELIVERY INSTRUCTIONS */}
           <div><span className="addr-label">Delivery instructions (optional)</span>
           <input value={form.access_instructions} onChange={e=>setField('access_instructions',e.target.value)} placeholder={form.address_type==='Complex' ? 'e.g. Gate code 1234, leave at security' : form.address_type==='Flat' ? 'e.g. Intercom 56, call on arrival' : 'e.g. Leave at front door'} className="addr-input"/></div>
-          {/* PREVIEW - SO THEY SEE MISTAKES BEFORE PAYING */}
           {form.delivery_address && (
             <div style={{background:'#FFFCF8', border:'1px solid #F59E0B', borderRadius:12, padding:'10px 12px', fontSize:12, lineHeight:1.5}}>
               <b>Deliver to:</b><br/>
@@ -1335,29 +1343,13 @@ async function placeOrder(e) {
         <div style={{display:'flex', justifyContent:'space-between', fontWeight:700, borderTop:'2px solid #121212', paddingTop:10, fontSize:13}}>
           <span>SUBTOTAL ({count} items)</span>
         <span>{fmt(total)}</span></div>
-        <button 
-            className="btn-black full" 
-            disabled={busy || !user || !phoneVerified} 
-            type="submit" 
-            style={{
-              height:48, 
-              opacity: (!phoneVerified || !user) ? 0.5 : 1,
-              cursor: (!phoneVerified || !user) ? 'not-allowed' : 'pointer'
-            }}
-          >
-            {!user 
-              ? 'SIGN IN TO PAY' 
-              : !phoneVerified 
-                ? 'VERIFY PHONE TO PAY' 
-                : busy 
-                  ? 'PREPARING...' 
-                  : `PAY ${fmt(total)} WITH PAYFAST`
-            } 
+        <button className="btn-black full" disabled={busy || !user || !phoneVerified} type="submit" style={{height:48, opacity: (!phoneVerified || !user) ? 0.5 : 1, cursor: (!phoneVerified || !user) ? 'not-allowed' : 'pointer'}}>
+            {!user ? 'SIGN IN TO PAY' : !phoneVerified ? 'VERIFY PHONE TO PAY' : busy ? 'PREPARING...' : `PAY ${fmt(total)} WITH PAYFAST`} 
             <ShieldCheck size={14} style={{marginLeft:6}}/>
           </button>
           {!phoneVerified && user && (
             <div style={{fontSize:'11px', color:'#92400E', background:'#FEF3C7', padding:'8px', borderRadius:'6px', marginTop:'8px', textAlign:'center'}}>
-              ⚠️ Verify your phone number with OTP before paying
+              ⚠ Verify your phone number with OTP before paying
             </div>
           )}
       </form>
