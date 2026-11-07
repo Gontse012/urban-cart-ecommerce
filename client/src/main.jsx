@@ -1482,12 +1482,20 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
               {form.complex_name ? form.complex_name + ', ' : ''}{form.unit_number ? 'Unit ' + form.unit_number + ', ' : ''}{form.delivery_address}, {form.suburb}, {form.city}, {form.province} {form.postal_code}
             </div>
           )}
-        <div style={{border:'2px solid #121212', padding:12, background:'#FFFCF8'}}>
-          <h4 style={{margin:'0 0 8px', fontFamily:'Anton', fontSize:13}}>PAYFAST SECURE</h4>
-          <div style={{display:'flex', flexWrap:'wrap', gap:6, marginBottom:8}}>
-            {['VISA','MasterCard','Capitec Pay','EFT Secure','Mobicred','SCode','Zapper'].map(m=><span key={m} style={{border:'1px solid #121212', padding:'4px 8px', fontSize:10, fontWeight:700, background:'#fff'}}>{m}</span>)}
+          <div style={{border:'2px solid #121212', padding:12, background:'#FFFCF8'}}>
+            <h4 style={{margin:'0 0 8px', fontFamily:'Anton', fontSize:13, letterSpacing:1}}>PAYFAST SECURE</h4>
+            <p style={{margin:'0 0 8px', fontSize:11, opacity:.7}}>We accept:</p>
+            <img
+              src="https://www.permanentmakeupsupplies.co.za/wp-content/uploads/2024/09/Payfast_Logos-2-1400x187.png"
+              alt="PayFast accepts Visa, Mastercard, Instant EFT, Capitec Pay, Mobicred, Zapper, SCode, SnapScan"
+              style={{width:'100%', maxWidth:480, height:'auto', display:'block', background:'#fff', border:'1px solid #E5DDD0', padding:6}}
+              loading="lazy"
+            />
+            <div style={{display:'flex', flexWrap:'wrap', gap:6, marginTop:8}}>
+              {['VISA','Mastercard','Instant EFT','Capitec Pay','Mobicred','Zapper','SCode','SnapScan','Apple Pay','Samsung Pay'].map(m=><span key={m} style={{border:'1px solid #121212', padding:'4px 8px', fontSize:10, fontWeight:700, background:'#fff'}}>{m}</span>)}
+            </div>
+            <p style={{margin:'8px 0 0', fontSize:10, opacity:.6}}>Payment methods shown at PayFast checkout may vary based on what is enabled on your account.</p>
           </div>
-        </div>
         <div style={{display:'flex', justifyContent:'space-between', fontWeight:700, borderTop:'2px solid #121212', paddingTop:10, fontSize:13}}>
           <span>SUBTOTAL ({count} items)</span>
         <span>{fmt(total)}</span></div>
