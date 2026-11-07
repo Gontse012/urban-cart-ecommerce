@@ -168,6 +168,7 @@ function App(){
  const [reviewMsg, setReviewMsg] = useState('');
  const [adminReviews, setAdminReviews] = useState([]);
  const [selectedColor, setSelectedColor] = useState('');
+ const [variantError, setVariantError] = useState('');
  const [cookieConsent, setCookieConsent] = useState(() => localStorage.getItem('uc_cookie_consent') === 'yes');
 
  // === FIX A: Forgot password states ===
@@ -371,17 +372,10 @@ async function handleResetSubmit(e){
    return ()=>window.removeEventListener('keydown', onKey);
  },[]);
 
-  async function loadTracking(){
-    const data = await api('/orders/my-orders');
-    const sorted = [...(data||[])].sort(sortByDateDesc); // NEW
-    setTrackingOrders(sorted);
-    setOrders(sorted);
-  }
-
  const visible=useMemo(()=>products.filter(p=>(category==='All'|| (p.category||'').toLowerCase()===category.toLowerCase())&& `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())).sort((a,b)=>(b.is_bestseller?1:0)-(a.is_bestseller?1:0) || b.id-a.id),[products,category,search]);
  const visibleAll=useMemo(()=>products.filter(p=> `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())).sort((a,b)=>(b.is_bestseller?1:0)-(a.is_bestseller?1:0) || b.id-a.id),[products,search]);
  const count = cart.reduce((s,p)=>s+p.quantity,0), total=cart.reduce((s,p)=>s+effectivePrice(p)*p.quantity,0);    
- const setField=(k,v)=>setForm(f=>({...f,[k]:v}));
+ const setField=(k,v)=>{setForm(f=>({...f,[k]:v}); setCheckoutError(''); };
  const hasOrders = trackingOrders.length > 0 || orders.length > 0;
 
  const analytics = useMemo(()=>{
@@ -415,41 +409,60 @@ async function handleResetSubmit(e){
 async function add(p){
     const size = p.selectedSize || selectedSize || '';
     const color = p.selectedColor || selectedColor || '';
-    if(p.unit==='size' && !size){ setNotice('Please select a size first'); return; }
-    if(p.colors && !color){ setNotice('Please select a colour first'); return; }
-    if(isOutOfStock(p)){ setNotice(`${p.name} is out of stock`); return; }
+
+    // CLEAR old error first
+    setVariantError('');
+
+    if(p.unit==='size' && !size){ 
+      setVariantError('⚠ Please select a size first'); 
+      return; 
+    }
+    if(p.colors && !color){ 
+      setVariantError('⚠ Please select a colour first'); 
+      return; 
+    }
+    if(isOutOfStock(p)){ 
+      setVariantError(`⚠ ${p.name} is out of stock`); 
+      return; 
+    }
+
     setCart(old=>{
       const found=old.find(x=>x.id===p.id && (x.selectedSize||'')===size && (x.selectedColor||'')===color);
-      return found?old.map(x=>x.id===p.id && (x.selectedSize||'')===size && (x.selectedColor||'')===color?{...x,quantity:Math.min(x.quantity+1,99)}:x):[...old,{...p, price: effectivePrice(p), original_price: p.price, quantity:1, selectedSize:size, selectedColor:color}];
+      return found ? old.map(x=>x.id===p.id && (x.selectedSize||'')===size && (x.selectedColor||'')===color ? {...x, quantity:Math.min(x.quantity+1,99)} : x) : [...old,{...p, price: effectivePrice(p), original_price: p.price, quantity:1, selectedSize:size, selectedColor:color}];
     });
+
+    // SUCCESS goes to notice, ERROR goes to variantError - never mix them
     setNotice(`${p.name} ${size ? `(Size ${size})` : ''} ${color ? `(${color})` : ''} added to bag`);
+    setTimeout(()=> setNotice(''), 3000); // auto-hide after 3s
+
     if(user){
       try{ await api('/cart',{method:'POST', body:JSON.stringify({product_id:p.id, quantity:1})}); }catch{}
     }
+}
+
+async function changeQty(id, d, size='', color=''){
+  const current = cart.find(x=>x.id===id && (x.selectedSize||'')===(size||'') && (x.selectedColor||'')===(color||''));
+  if(!current) return;
+  const newQty = current.quantity + d;
+  if(newQty <=0){ setCart(old=>old.filter(x=>!(x.id===id && (x.selectedSize||'')===(size||'') && (x.selectedColor||'')===(color||'')))); }
+  else{ setCart(old=>old.map(p=>(p.id===id && (p.selectedSize||'')===(size||'') && (p.selectedColor||'')===(color||'')) ? {...p, quantity:newQty} : p)); }
+  if(user){
+    try{
+      if(newQty<=0) await api(`/cart/${id}`,{method:'DELETE'});
+      else await api(`/cart/${id}`,{method:'PATCH', body:JSON.stringify({quantity:newQty})});
+    }catch{}
   }
+}
 
- async function changeQty(id,d){
-   const current = cart.find(x=>x.id===id);
-   if(!current) return;
-   const newQty = current.quantity + d;
-   if(newQty <=0){ setCart(old=>old.filter(x=>x.id!==id)); }
-   else{ setCart(old=>old.map(p=>p.id===id?{...p,quantity:newQty}:p)); }
-   if(user){
-     try{
-       if(newQty<=0) await api(`/cart/${id}`,{method:'DELETE'});
-       else await api(`/cart/${id}`,{method:'PATCH', body:JSON.stringify({quantity:newQty})});
-     }catch{}
-   }
- }
-
- const changeSize = (id, newSize) => {
-  setCart(cart.map(item => item.id === id ? {...item, selectedSize: newSize} : item));
+const changeSize = (id, newSize, color='') => {
+  setCart(cart.map(item => (item.id===id && (item.selectedColor||'')===(color||'')) ? {...item, selectedSize: newSize} : item));
 };
 
- async function removeItem(id){
-   setCart(old=>old.filter(x=>x.id!==id));
-   if(user){ try{ await api(`/cart/${id}`,{method:'DELETE'});}catch{} }
- }
+async function removeItem(id, size='', color=''){
+  setCart(old=>old.filter(x=>!(x.id===id && (x.selectedSize||'')===(size||'') && (x.selectedColor||'')===(color||''))));
+  if(user){ try{ await api(`/cart/${id}`,{method:'DELETE'});}catch{} }
+}
+
  async function clearCart(){
    setCart([]);
    if(user){ try{ await api('/cart',{method:'DELETE'});}catch{} }
@@ -461,6 +474,7 @@ async function add(p){
     setSelectedProduct(p); 
     setGalleryIndex(0);
     setShowAll(false); 
+    setVariantError('');
     setSelectedSize(''); // reset every time you open a product
     setActiveTab('shop');
     window.scrollTo({top:0, behavior:'smooth'}); 
@@ -604,9 +618,15 @@ async function add(p){
     setAddrResults([]);
   }
 
+if(!phoneVerified){
+  setCheckoutError('Please verify your phone with OTP first');
+  return;
+}
+
 async function placeOrder(e) {
   e.preventDefault();
   if(!user){ setAuthError('Please sign in first'); setAccountOpen(true); return; }
+  
 
   // --- NEW VALIDATION - FORCES CORRECT ADDRESS ---
   if(!form.full_name.trim()||!form.email.trim()||!form.phone.trim()){
@@ -624,7 +644,9 @@ async function placeOrder(e) {
   if(!form.delivery_address.trim()||!form.suburb.trim()||!form.city.trim()||!form.province.trim()||!form.postal_code.trim()){
     setCheckoutError('Please fill all: Address, Suburb, City, Province, Postal Code'); return;
   }
-  if(!isValidSAphone(form.phone)){ setCheckoutError('Invalid SA phone. Use +27 71 234 5678 or 0712345678'); return; }
+  if(!isValidSAphone(form.phone)){ setCheckoutError('Invalid SA phone.'); return; }
+  setCheckoutError('');
+
   if(!/^[0-9]{4}$/.test(form.postal_code.trim())){ setCheckoutError('Postal code must be 4 digits (SA) e.g. 2196'); return; }
   if(!cart.length){ setCheckoutError('Your bag is empty.'); return; }
 
@@ -679,7 +701,7 @@ async function placeOrder(e) {
   async function saveEdit(e){
     e.preventDefault();
     try{
-      const payload={...prodForm, images: prodForm.images.filter(Boolean).slice(0,4), price:Number(prodForm.price), sale_price: prodForm.sale_price?Number(prodForm.sale_price):null, stock:Number(prodForm.stock), on_sale: Boolean(prodForm.on_sale), is_active: Boolean(prodForm.is_active)};
+      const payload={...prodForm, colors: prodForm.has_colors ? prodForm.colors : '', images: prodForm.images.filter(Boolean).slice(0,4), price:Number(prodForm.price), sale_price: prodForm.sale_price?Number(prodForm.sale_price):null, stock:Number(prodForm.stock), on_sale: Boolean(prodForm.on_sale), is_active: Boolean(prodForm.is_active)};
       const p = await api(`/admin/products/${editingId}`,{method:'PUT', body:JSON.stringify(payload)});
       setProducts(old=>old.map(x=>x.id===editingId? p : x));
       setEditingId(null); setProdForm({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:''}); setNotice('Product updated');
@@ -1028,27 +1050,27 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
             </>}
             <span style={{fontSize:11}}>ZAR • VAT INCL. {selectedProduct.on_sale && <span style={{background:'#F59E0B', color:'#fff', padding:'2px 6px', marginLeft:6}}>SAVE {fmt(Number(selectedProduct.price) - Number(effectivePrice(selectedProduct)))}</span>}</span>
           </div>
-
-          {selectedProduct.unit === 'size' && (
-            <div style={{margin:'16px 0'}}>
-              <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
-                <label style={{fontSize:11,fontWeight:700,letterSpacing:1}}>SELECT SIZE *</label>
-                {selectedSize && <span style={{fontSize:11,fontWeight:700,background:'#121212',color:'#fff',padding:'2px 8px'}}>SELECTED: {selectedSize}</span>}
+            {selectedProduct.unit === 'size' && (
+              <div style={{margin:'16px 0'}}>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+                  <label style={{fontSize:11,fontWeight:700,letterSpacing:1}}>SELECT SIZE *</label>
+                  {selectedSize && <span style={{fontSize:11,fontWeight:700,background:'#121212',color:'#fff',padding:'2px 8px'}}>SELECTED: {selectedSize}</span>}
+                </div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+                  {(selectedProduct.unit_value || 'S,M,L,XL,XXL').split(',').map(s=>{
+                    const size = s.trim();
+                    return (
+                      <button key={size} type="button" onClick={()=>{ setSelectedSize(size); setVariantError(''); }}
+                        style={{minWidth:48,height:44,padding:'0 14px',border:selectedSize===size?'3px solid #121212':'2px solid #121212',background:selectedSize===size?'#121212':'#FFFCF8',color:selectedSize===size?'#fff':'#121212',fontSize:12,fontWeight:700,cursor:'pointer'}}>
+                        {size}
+                      </button>
+                    )
+                  })}
+                </div>
+                {/* ONLY show when add() actually failed - not just because nothing is picked yet */}
+                {variantError && <p style={{fontSize:11,color:'#92400E',marginTop:6,fontWeight:700}}>{variantError}</p>}
               </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-                {(selectedProduct.unit_value || 'S,M,L,XL,XXL').split(',').map(s=>{
-                  const size = s.trim();
-                  return (
-                    <button key={size} type="button" onClick={()=>setSelectedSize(size)}
-                      style={{minWidth:48,height:44,padding:'0 14px',border:selectedSize===size?'3px solid #121212':'2px solid #121212',background:selectedSize===size?'#121212':'#FFFCF8',color:selectedSize===size?'#fff':'#121212',fontSize:12,fontWeight:700,cursor:'pointer'}}>
-                      {size}
-                    </button>
-                  )
-                })}
-              </div>
-              {!selectedSize && <p style={{fontSize:11,color:'#92400E',marginTop:6}}>⚠ Please select a size before adding to bag</p>}
-            </div>
-          )}
+            )}
 
           {selectedProduct.colors && (
             <div style={{margin:'16px 0'}}>
@@ -1060,7 +1082,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
                 {selectedProduct.colors.split(',').map(c=>{
                   const col = c.trim();
                   return (
-                    <button key={col} type="button" onClick={()=>setSelectedColor(col)}
+                    <button key={col} type="button" onClick={()=>{ setSelectedColor(col); setVariantError(''); }}
                       style={{display:'flex',alignItems:'center',gap:6,height:44,padding:'0 14px',border:selectedColor===col?'3px solid #121212':'2px solid #121212',background:selectedColor===col?'#121212':'#FFFCF8',color:selectedColor===col?'#fff':'#121212',fontSize:12,fontWeight:700,cursor:'pointer'}}>
                       <span style={{width:18,height:18,borderRadius:'50%',background:col.toLowerCase(),border:'1px solid #999',display:'inline-block'}} />
                       {col}
@@ -1068,18 +1090,18 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
                   )
                 })}
               </div>
-              {!selectedColor && <p style={{fontSize:11,color:'#92400E',marginTop:6}}>⚠ Please select a colour before adding to bag</p>}
+              {variantError && <p style={{fontSize:11,color:'#92400E',marginTop:6,fontWeight:700}}>{variantError}</p>}
             </div>
           )}
 
           <div className="buy-row">
             <button className="btn-black" disabled={isOutOfStock(selectedProduct)} onClick={()=>{
               if(selectedProduct.unit==='size' && !selectedSize){
-                setNotice('Please select a size first');
+              setVariantError('⚠ Please select a size first');
                 return;
               }
               if(selectedProduct.colors && !selectedColor){
-                setNotice('Please select a colour first');
+                setVariantError('⚠ Please select a colour first');
                 return;
               }
               add({...selectedProduct, selectedSize: selectedProduct.unit==='size' ? selectedSize : null, selectedColor: selectedProduct.colors ? selectedColor : null});
@@ -1351,7 +1373,11 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
           PLEASE SIGN IN FIRST - <button onClick={()=>{setCheckoutOpen(false); setAccountOpen(true);}} style={{background:'#fff', color:'#121212', border:'none', padding:'4px 10px', fontWeight:700, marginLeft:6, cursor:'pointer'}}>SIGN IN / SIGN UP</button>
         </div>
       )}
-      {checkoutError && <div className="checkout-error" style={{background:'#FEF3C7', border:'2px solid #F59E0B', color:'#92400E', padding:'10px 12px', fontSize:11, fontWeight:700, marginBottom:12, textAlign:'center', borderRadius:4}}>{checkoutError}</div>}
+      {checkoutError && (
+          <div style={{background:'#FEE2E2', color:'#991B1B', padding:'12px', borderRadius:'10px', fontSize:'13px', fontWeight:700, marginBottom:'12px'}}>
+            ⚠ {checkoutError}
+          </div>
+        )}
         <style>{`
           .addr-input{width:100%; height:52px; border:1px solid #D6D3D1; border-radius:12px; padding:0 14px; font-size:14px; outline:none; background:#fff}
           .addr-input:focus{border-color:#121212}
@@ -1470,9 +1496,9 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
             {!user ? 'SIGN IN TO PAY' : !phoneVerified ? 'VERIFY PHONE TO PAY' : busy ? 'PREPARING...' : `PAY ${fmt(total)} WITH PAYFAST`} 
             <ShieldCheck size={14} style={{marginLeft:6}}/>
           </button>
-          {!phoneVerified && user && (
-            <div style={{fontSize:'11px', color:'#92400E', background:'#FEF3C7', padding:'8px', borderRadius:'6px', marginTop:'8px', textAlign:'center'}}>
-              ⚠ Verify your phone number with OTP before paying
+          {!phoneVerified && checkoutError && (
+            <div style={{background:'#FEF3C7', color:'#92400E', padding:'10px', borderRadius:'8px', fontSize:'12px', fontWeight:700}}>
+              ⚠ {checkoutError}
             </div>
           )}
       </form>
