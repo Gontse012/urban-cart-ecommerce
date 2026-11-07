@@ -645,7 +645,7 @@ async function placeOrder(e) {
       address_search: form.delivery_address,
       province: form.province, postal_code: form.postal_code, city: form.city,
       customer_id: user?.id,
-      items: cart.map(p => ({ id: p.id, product_id: p.id, quantity: p.quantity, price: effectivePrice(p) }))
+      items: cart.map(p => ({ id: p.id, product_id: p.id, quantity: p.quantity, price: effectivePrice(p), selectedSize: p.selectedSize, selectedColor: p.selectedColor, unit: p.unit, unit_value: p.unit_value }))
     })});
     const pay = await api('/payfast/checkout',{method:'POST',body:JSON.stringify({ orderId: order.orderId })});
     if (!pay.action || !pay.fields) throw new Error('PayFast is not configured yet on server');
