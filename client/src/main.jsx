@@ -151,7 +151,7 @@ function App(){
  const [termsTab,setTermsTab]=useState('Shipping');
  const [termsFromSignup,setTermsFromSignup]=useState(false);
  const [adminTab,setAdminTab]=useState('dashboard');
- const [prodForm,setProdForm]=useState({name:'',category:'Tech',price:'',sale_price:'',is_bestseller: 0, on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:''});
+ const [prodForm,setProdForm]=useState({name:'',category:'Tech',price:'',sale_price:'',is_bestseller: 0, on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:'', colors:''});
  const [editingId,setEditingId]=useState(null);
  const [orderFilter,setOrderFilter]=useState('all');
  const [userSearch,setUserSearch]=useState('');
@@ -167,6 +167,7 @@ function App(){
  const [reviewComment, setReviewComment] = useState('');
  const [reviewMsg, setReviewMsg] = useState('');
  const [adminReviews, setAdminReviews] = useState([]);
+ const [selectedColor, setSelectedColor] = useState('');
  const [cookieConsent, setCookieConsent] = useState(() => localStorage.getItem('uc_cookie_consent') === 'yes');
 
  // === FIX A: Forgot password states ===
@@ -411,15 +412,17 @@ async function handleResetSubmit(e){
    return {todayRev, monthRev, totalRev, pending, failed, best, totalOrders: adminOrders.length};
  },[adminOrders]);
 
-  async function add(p){
+async function add(p){
     const size = p.selectedSize || selectedSize || '';
+    const color = p.selectedColor || selectedColor || '';
     if(p.unit==='size' && !size){ setNotice('Please select a size first'); return; }
+    if(p.colors && !color){ setNotice('Please select a colour first'); return; }
     if(isOutOfStock(p)){ setNotice(`${p.name} is out of stock`); return; }
     setCart(old=>{
-      const found=old.find(x=>x.id===p.id && (x.selectedSize||'')===size);
-      return found?old.map(x=>x.id===p.id && (x.selectedSize||'')===size?{...x,quantity:Math.min(x.quantity+1,99)}:x):[...old,{...p, price: effectivePrice(p), original_price: p.price, quantity:1, selectedSize:size}];
+      const found=old.find(x=>x.id===p.id && (x.selectedSize||'')===size && (x.selectedColor||'')===color);
+      return found?old.map(x=>x.id===p.id && (x.selectedSize||'')===size && (x.selectedColor||'')===color?{...x,quantity:Math.min(x.quantity+1,99)}:x):[...old,{...p, price: effectivePrice(p), original_price: p.price, quantity:1, selectedSize:size, selectedColor:color}];
     });
-    setNotice(`${p.name} ${size ? `(Size ${size})` : ''} added to bag`);
+    setNotice(`${p.name} ${size ? `(Size ${size})` : ''} ${color ? `(${color})` : ''} added to bag`);
     if(user){
       try{ await api('/cart',{method:'POST', body:JSON.stringify({product_id:p.id, quantity:1})}); }catch{}
     }
@@ -463,6 +466,7 @@ async function handleResetSubmit(e){
     window.scrollTo({top:0, behavior:'smooth'}); 
     // REVIEWS - load when product opens
     setReviews([]); 
+    setSelectedColor('');
     setReviewComment(''); 
     setReviewRating(5); 
     setReviewMsg('');
@@ -661,6 +665,7 @@ async function placeOrder(e) {
       const payload={...prodForm, 
         images: prodForm.images.filter(Boolean).slice(0,4), 
         price:Number(prodForm.price), 
+        colors: prodForm.has_colors ? prodForm.colors : '',
         sale_price: prodForm.sale_price?Number(prodForm.sale_price):null,
         stock:Number(prodForm.stock), on_sale: Boolean(prodForm.on_sale),
          is_active: Boolean(prodForm.is_active)};
@@ -692,6 +697,8 @@ async function placeOrder(e) {
       price:String(p.price), 
       is_bestseller: p.is_bestseller || 0,
       sale_price: p.sale_price?String(p.sale_price):'', 
+      colors: p.colors || '',
+      has_colors: !!(p.colors),
       on_sale: !!p.on_sale, 
       stock:String(p.stock), 
       description:p.description, 
@@ -1035,18 +1042,45 @@ async function placeOrder(e) {
             </div>
           )}
 
+          {selectedProduct.colors && (
+            <div style={{margin:'16px 0'}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+                <label style={{fontSize:11,fontWeight:700,letterSpacing:1}}>SELECT COLOUR *</label>
+                {selectedColor && <span style={{fontSize:11,fontWeight:700,background:'#121212',color:'#fff',padding:'2px 8px'}}>SELECTED: {selectedColor}</span>}
+              </div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+                {selectedProduct.colors.split(',').map(c=>{
+                  const col = c.trim();
+                  return (
+                    <button key={col} type="button" onClick={()=>setSelectedColor(col)}
+                      style={{display:'flex',alignItems:'center',gap:6,height:44,padding:'0 14px',border:selectedColor===col?'3px solid #121212':'2px solid #121212',background:selectedColor===col?'#121212':'#FFFCF8',color:selectedColor===col?'#fff':'#121212',fontSize:12,fontWeight:700,cursor:'pointer'}}>
+                      <span style={{width:18,height:18,borderRadius:'50%',background:col.toLowerCase(),border:'1px solid #999',display:'inline-block'}} />
+                      {col}
+                    </button>
+                  )
+                })}
+              </div>
+              {!selectedColor && <p style={{fontSize:11,color:'#92400E',marginTop:6}}>⚠ Please select a colour before adding to bag</p>}
+            </div>
+          )}
+
           <div className="buy-row">
             <button className="btn-black" disabled={isOutOfStock(selectedProduct)} onClick={()=>{
               if(selectedProduct.unit==='size' && !selectedSize){
                 setNotice('Please select a size first');
                 return;
               }
-              add({...selectedProduct, selectedSize: selectedProduct.unit==='size' ? selectedSize : null});
+              if(selectedProduct.colors && !selectedColor){
+                setNotice('Please select a colour first');
+                return;
+              }
+              add({...selectedProduct, selectedSize: selectedProduct.unit==='size' ? selectedSize : null, selectedColor: selectedProduct.colors ? selectedColor : null});
             }} style={{opacity: isOutOfStock(selectedProduct)?0.4:1}}>
               {isOutOfStock(selectedProduct) ? 'OUT OF STOCK' : `ADD TO BAG — ${fmt(effectivePrice(selectedProduct))}`} <ArrowUpRight size={16}/>
             </button>
             <button className="btn-ghost" onClick={()=>setCartOpen(true)}>View bag ({count})</button>
           </div>
+
           {/* MINI ACCESSORIES - under checkout */}
             {products.filter(p => p.id !== selectedProduct.id && p.category?.toLowerCase() === 'accessories').length > 0 && (
               <div style={{marginTop:14, borderTop:'1px solid #E5DDD0', paddingTop:10}}>
@@ -1247,19 +1281,22 @@ async function placeOrder(e) {
       <div className="drawer-head"><h2>BAG ({count})</h2><button onClick={()=>setCartOpen(false)}><X size={16}/></button></div>
       {!cart.length?<div className="empty-bag"><ShoppingBag size={28}/><h3>Bag is empty.</h3><p>Go add some good stuff.</p><button className="btn-black" onClick={()=>setCartOpen(false)}>SHOP NOW</button></div>:
       <>
-        <div className="cart-list">{cart.map(p=><div key={p.id} className="cart-item"><img src={p.image_url}/><div>
+        <div className="cart-list">{cart.map(p=><div key={`${p.id}-${p.selectedSize||''}-${p.selectedColor||''}`} className="cart-item"><img src={p.image_url}/><div>
           <h4>{p.name} {p.on_sale&&<span style={{background:'#F59E0B',fontSize:8,padding:'2px 4px'}}>SALE</span>}</h4>
           {p.unit && p.unit !== 'none' && (
             p.unit === 'size' ? (
-              <select value={p.selectedSize || ''} onChange={e=>changeSize(p.id, e.target.value)} style={{fontSize:11, padding:'4px 6px', border:'1px solid #121212', marginTop:4}}>
+              <select value={p.selectedSize || ''} onChange={e=>changeSize(p.id, e.target.value, p.selectedColor)} style={{fontSize:11, padding:'4px 6px', border:'1px solid #121212', marginTop:4}}>
                 {(p.unit_value || '').split(',').map(s => <option key={s.trim()} value={s.trim()}>{s.trim()}</option>)}
               </select>
             ) : (
               <div style={{fontSize:11, opacity:0.6}}>{p.unit_value}{p.unit} • {p.quantity * Number(p.unit_value || 0)}{p.unit} total</div>
             )
           )}
-          {p.on_sale ? <div style={{fontSize:11}}><span style={{opacity:.6}}>WAS <span style={{textDecoration:'line-through'}}>{fmt(p.original_price||p.price)}</span></span> <b style={{color:'#92400E'}}>NOW {fmt(effectivePrice(p))}</b></div> : <b>{fmt(effectivePrice(p))}</b>}<div className="qty"><button onClick={()=>changeQty(p.id,-1)}><Minus size={10}/></button><span>{p.quantity}</span><button onClick={()=>changeQty(p.id,1)}><Plus size={10}/></button></div></div><button className="remove" onClick={()=>removeItem(p.id)}>REMOVE</button></div>)}
+          {p.selectedColor && <div style={{fontSize:11, fontWeight:700, marginTop:4, display:'flex', alignItems:'center', gap:6}}><span style={{width:12,height:12,borderRadius:'50%',background:p.selectedColor.toLowerCase(),border:'1px solid #999',display:'inline-block'}} /> Colour: {p.selectedColor}</div>}
+          {p.selectedSize && p.unit==='size' && <div style={{fontSize:11, opacity:.7}}>Size: {p.selectedSize}</div>}
+          {p.on_sale ? <div style={{fontSize:11}}><span style={{opacity:.6}}>WAS <span style={{textDecoration:'line-through'}}>{fmt(p.original_price||p.price)}</span></span> <b style={{color:'#92400E'}}>NOW {fmt(effectivePrice(p))}</b></div> : <b>{fmt(effectivePrice(p))}</b>}<div className="qty"><button onClick={()=>changeQty(p.id,-1, p.selectedSize, p.selectedColor)}><Minus size={10}/></button><span>{p.quantity}</span><button onClick={()=>changeQty(p.id,1, p.selectedSize, p.selectedColor)}><Plus size={10}/></button></div></div><button className="remove" onClick={()=>removeItem(p.id, p.selectedSize, p.selectedColor)}>REMOVE</button></div>)}
         </div>
+        
         <div className="cart-foot">
           <div className="sum"><span>SUBTOTAL ({count} items)</span><b>{fmt(total)}</b></div>
           <button className="btn-black full" onClick={handleCheckoutClick}>CHECKOUT — {fmt(total)} <ArrowUpRight size={14}/></button>
@@ -1792,6 +1829,23 @@ async function placeOrder(e) {
                 </label>
               )}
             </div>
+
+            <div style={{border:'2px solid #121212', padding:12}}>
+              <label style={{fontSize:11, fontWeight:700, display:'flex', gap:8, alignItems:'center'}}>
+                <input type="checkbox" checked={!!prodForm.has_colors} onChange={e=>setProdForm(f=>({...f, has_colors:e.target.checked, colors: e.target.checked ? f.colors : ''}))} />
+                🎨 THIS PRODUCT HAS DIFFERENT COLOURS
+              </label>
+              {prodForm.has_colors && (
+                <input
+                  value={prodForm.colors || ''}
+                  onChange={e=>setProdForm(f=>({...f, colors:e.target.value}))}
+                  placeholder="e.g. Black, White, Beige, Brown"
+                  style={{width:'100%', padding:10, border:'2px solid #121212', marginTop:8}}
+                />
+              )}
+              <small style={{fontSize:10, opacity:.6}}>Separate with commas. Leave unticked if product has 1 colour.</small>
+            </div>  
+
 
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
               <div style={{display:'flex', gap:8, alignItems:'center', border:'2px solid #121212', padding:'0 10px', height:44}}><input type="checkbox" checked={prodForm.on_sale} onChange={e=>setProdForm(f=>({...f,on_sale:e.target.checked}))}/><label style={{fontSize:11, fontWeight:700}}><Tag size={12} style={{display:'inline'}}/> ON SALE</label></div>

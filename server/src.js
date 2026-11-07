@@ -413,6 +413,8 @@ await pool.query(`
   )
 `);
 
+ try{ await pool.query(`ALTER TABLE order_items ADD COLUMN selected_color VARCHAR(50) NULL`); }catch{}
+
   try{
     await pool.execute(`
       CREATE TABLE IF NOT EXISTS carts (
@@ -444,6 +446,7 @@ await pool.query(`
       "ADD COLUMN on_sale TINYINT(1) DEFAULT 0",
       "ADD COLUMN active TINYINT(1) DEFAULT 1",
       "ADD COLUMN images JSON NULL",
+      "ADD COLUMN colors TEXT NULL",
       "ADD COLUMN is_active TINYINT(1) DEFAULT 1"
     ];
     for(const c of prodAlters){ try{ await pool.query(`ALTER TABLE products ${c}`);}catch{} }
@@ -545,7 +548,7 @@ app.post('/api/reviews', auth, async (req, res) => {
         });
         console.log('Review email result:', emailResult);
       }
-      
+
     } catch(e){ console.log('Review notify failed:', e.message); }
 
     res.json(newReview);
@@ -576,7 +579,7 @@ app.get('/api/products', async (req, res, next) => {
     const q = String(req.query.q || '').slice(0, 100); 
     const category = Number(req.query.category || 0); 
     const [rows] = await pool.query(
-      `SELECT p.id,p.name,p.description,p.price,p.is_bestseller,p.sale_price,p.unit, p.unit_value,p.on_sale,p.stock,p.image_url,p.images,p.active,p.is_active,c.name AS category 
+      `SELECT p.id,p.name,p.description,p.price,p.is_bestseller,p.sale_price,p.colors,p.unit, p.unit_value,p.on_sale,p.stock,p.image_url,p.images,p.active,p.is_active,c.name AS category 
        FROM products p 
        LEFT JOIN categories c ON c.id=p.category_id 
        WHERE (p.active=1 OR p.active IS NULL) 
@@ -836,9 +839,11 @@ app.post('/api/orders', async (req, res) => {
       const itemUnit = item.unit || p.unit || 'none';
       const itemUnitValue = item.unit_value || p.unit_value || null;
       const itemSize = item.selectedSize || item.selected_size || item.size || null;
-      await conn.query('INSERT INTO order_items (order_id, product_id, quantity, price, unit, unit_value, selected_size) VALUES (?,?,?,?,?,?,?)', [orderId, item.id || item.product_id, item.quantity, priceToUse, String(itemUnit), itemUnitValue ? String(itemUnitValue) : null, itemSize ? String(itemSize) : null]);
+      const itemColor = item.selectedColor || item.selected_color || item.color || null;
+      await conn.query('INSERT INTO order_items (order_id, product_id, quantity, price, unit, unit_value, selected_size, selected_color) VALUES (?,?,?,?,?,?,?,?)', [orderId, item.id || item.product_id, item.quantity, priceToUse, String(itemUnit), itemUnitValue ? String(itemUnitValue) : null, itemSize ? String(itemSize) : null, itemColor ? String(itemColor) : null]);
       await conn.query('UPDATE products SET stock=stock-? WHERE id=?', [item.quantity, p.id]);
     }
+
     if(cid){ await conn.query('UPDATE customers SET total_spent = total_spent + ? WHERE id=?',[total, cid]); }
     // DON'T DELETE CART HERE - cart stays until PayFast confirms payment.
     // If user cancels on PayFast, frontend restores from uc_cart_backup
@@ -961,12 +966,12 @@ app.patch('/api/admin/users/:id/role', auth, adminOnly, async (req, res, next)=>
 
 app.post('/api/admin/products', auth, adminOnly, async (req, res, next) => { 
   try { 
-    let { name, description='', price, sale_price=null, on_sale=false, is_bestseller=false, stock=0, category, category_id, is_active=true, active=1, image_url='', unit='none', unit_value=null } = req.body || {}; 
+    let { name, description='', price, sale_price=null, colors='', on_sale=false, is_bestseller=false, stock=0, category, category_id, is_active=true, active=1, image_url='', unit='none', unit_value=null } = req.body || {}; 
     const catId = category_id ? Number(category_id) : await getCategoryId(category);
     if (!String(name || '').trim() || !Number.isFinite(Number(price)) || Number(price) < 0 || !Number.isInteger(Number(stock)) || Number(stock) < 0) 
       return res.status(400).json({ error: 'Provide valid name price stock.' }); 
-    const [r] = await pool.execute('INSERT INTO products(name,description,price,sale_price,on_sale,is_bestseller,stock,category_id,active,is_active,image_url,unit,unit_value) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)', [String(name).trim(), String(description), money(price), sale_price?money(sale_price):null, on_sale?1:0, is_bestseller?1:0, Number(stock), catId, active?1:0, is_active?1:0, String(image_url), String(unit || 'none'), unit_value ? String(unit_value) : null]); 
-    const [rows] = await pool.query('SELECT p.id,p.name,p.description,p.unit, p.unit_value,p.price,p.sale_price,p.on_sale,p.is_bestseller,p.stock,p.image_url,p.active,p.is_active,c.name AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?', [r.insertId]);
+    const [r] = await pool.execute('INSERT INTO products(name,description,price,sale_price,colors,on_sale,is_bestseller,stock,category_id,active,is_active,image_url,unit,unit_value) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [String(name).trim(), String(description), money(price), sale_price?money(sale_price):null, colors ? String(colors) : null, on_sale?1:0, is_bestseller?1:0, Number(stock), catId, active?1:0, is_active?1:0, String(image_url), String(unit || 'none'), unit_value ? String(unit_value) : null]); 
+    const [rows] = await pool.query('SELECT p.id,p.name,p.description,p.unit, p.unit_value,p.price,p.sale_price,p.colors,p.on_sale,p.is_bestseller,p.stock,p.image_url,p.active,p.is_active,c.name AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?', [r.insertId]);
     res.status(201).json(rows[0]); 
   } catch (e) { next(e); } 
 });
@@ -974,12 +979,12 @@ app.post('/api/admin/products', auth, adminOnly, async (req, res, next) => {
 app.put('/api/admin/products/:id', auth, adminOnly, async (req, res, next) => {
   try{
     const id = Number(req.params.id);
-    let { name, description='', price, sale_price=null, on_sale=false, is_bestseller=false, image_url='', stock=0, category, category_id, is_active=true, active, unit='none', unit_value=null } = req.body || {};
+    let { name, description='', price, sale_price=null, colors='', on_sale=false, is_bestseller=false, image_url='', stock=0, category, category_id, is_active=true, active, unit='none', unit_value=null } = req.body || {};
     const catId = category_id ? Number(category_id) : await getCategoryId(category);
     if(active===undefined) active = is_active?1:0;
     const [r] = await pool.execute('UPDATE products SET name=?, description=?, price=?, sale_price=?, on_sale=?, is_bestseller=?, image_url=?, stock=?, category_id=?, active=?, is_active=?, unit=?, unit_value=? WHERE id=?', [String(name).trim(), String(description), money(price), sale_price?money(sale_price):null, on_sale?1:0, is_bestseller?1:0, String(image_url), Number(stock), catId, active?1:0, is_active?1:0, String(unit || 'none'), unit_value ? String(unit_value) : null, id]);
     if(!r.affectedRows) return res.status(404).json({ error: 'Product not found.' });
-    const [rows] = await pool.query('SELECT p.id,p.name,p.description,p.unit,p.unit_value,p.price,p.sale_price,p.on_sale,p.is_bestseller,p.image_url,p.stock,p.active,p.is_active,c.name AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?', [id]);
+    const [rows] = await pool.query('SELECT p.id,p.name,p.description,p.unit,p.unit_value,p.price,p.sale_price,p.colors,p.on_sale,p.is_bestseller,p.image_url,p.stock,p.active,p.is_active,c.name AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?', [id]);
     res.json(rows[0]);
   }catch(e){ next(e); }
 });
