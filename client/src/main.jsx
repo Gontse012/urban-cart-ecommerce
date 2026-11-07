@@ -375,7 +375,7 @@ async function handleResetSubmit(e){
  const visible=useMemo(()=>products.filter(p=>(category==='All'|| (p.category||'').toLowerCase()===category.toLowerCase())&& `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())).sort((a,b)=>(b.is_bestseller?1:0)-(a.is_bestseller?1:0) || b.id-a.id),[products,category,search]);
  const visibleAll=useMemo(()=>products.filter(p=> `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())).sort((a,b)=>(b.is_bestseller?1:0)-(a.is_bestseller?1:0) || b.id-a.id),[products,search]);
  const count = cart.reduce((s,p)=>s+p.quantity,0), total=cart.reduce((s,p)=>s+effectivePrice(p)*p.quantity,0);    
- const setField=(k,v)=>{setForm(f=>({...f,[k]:v}); setCheckoutError(''); };
+ const setField=(k,v)=>{setForm(f=>({...f,[k]:v})); setCheckoutError(''); };
  const hasOrders = trackingOrders.length > 0 || orders.length > 0;
 
  const analytics = useMemo(()=>{
