@@ -422,6 +422,7 @@ async function ensureSchema(){
     `);
     const prodAlters = [
       "ADD COLUMN sale_price DECIMAL(10,2) NULL",
+      "ADD COLUMN is_bestseller TINYINT(1) NOT NULL DEFAULT 0",
       "ADD COLUMN on_sale TINYINT(1) DEFAULT 0",
       "ADD COLUMN active TINYINT(1) DEFAULT 1",
       "ADD COLUMN images JSON NULL",

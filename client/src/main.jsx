@@ -1722,7 +1722,8 @@ async function placeOrder(e) {
                 <button className="btn-black" style={{height:32, background:'#ff3b30'}} onClick={()=>deleteProduct(p.id)}>DEL</button>
                   <button onClick={async()=>{
                     await api(`/admin/products/${p.id}/bestseller`, {method:'PUT'});
-                    loadProducts();
+                    const rows = await api('/products');
+                    setProducts(rows);
                   }} style={{background: p.is_bestseller ? '#121212' : '#fff', color: p.is_bestseller ? '#fff' : '#121212', border:'1px solid #121212', padding:'6px 10px', fontSize:11, fontWeight:800, cursor:'pointer'}}>
                     {p.is_bestseller ? '★ BESTSELLER' : 'MAKE BESTSELLER'}
                   </button>
