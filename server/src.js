@@ -433,13 +433,22 @@ await pool.query(`
         user_id INT NOT NULL,
         product_id INT NOT NULL,
         quantity INT NOT NULL DEFAULT 1,
+        selected_size VARCHAR(50) NULL DEFAULT '',
+        selected_color VARCHAR(50) NULL DEFAULT '',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY unique_user_product (user_id, product_id),
+        UNIQUE KEY unique_user_product_variant (user_id, product_id, selected_size, selected_color),
         FOREIGN KEY (user_id) REFERENCES customers(id) ON DELETE CASCADE,
         FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
       )
     `);
+
+    // Migrate old carts table to support variants
+    try{ await pool.query(`ALTER TABLE carts ADD COLUMN selected_size VARCHAR(50) NULL DEFAULT ''`); }catch{}
+    try{ await pool.query(`ALTER TABLE carts ADD COLUMN selected_color VARCHAR(50) NULL DEFAULT ''`); }catch{}
+    try{ await pool.query(`ALTER TABLE carts DROP INDEX unique_user_product`); }catch{}
+    try{ await pool.query(`ALTER TABLE carts ADD UNIQUE KEY unique_user_product_variant (user_id, product_id, selected_size, selected_color)`); }catch{}
+
     await pool.execute(`
       CREATE TABLE IF NOT EXISTS password_resets (
         id INT AUTO_INCREMENT PRIMARY KEY,
