@@ -147,6 +147,7 @@ function App(){
  const [phoneVerifiedToken, setPhoneVerifiedToken] = useState('');
  const [otpStatus, setOtpStatus] = useState('');
  const [galleryIndex, setGalleryIndex] = useState(0);
+ const [selectedSize, setSelectedSize] = useState('');
  const [cookieConsent, setCookieConsent] = useState(() => localStorage.getItem('uc_cookie_consent') === 'yes');
 
  // === FIX A: Forgot password states ===
@@ -155,12 +156,12 @@ function App(){
  const [forgotMessage,setForgotMessage]=useState('');
  const categories=['All','Tech','Home','Lifestyle','Accessories'];
  const [resetToken, setResetToken] = useState(null);
-const [resetOpen, setResetOpen] = useState(false);
-const [newPassword, setNewPassword] = useState('');
-const [resetMessage, setResetMessage] = useState('');
-const [forgotStatus, setForgotStatus] = useState('');
-const [resetPassword, setResetPassword] = useState('');
-const [resetStatus, setResetStatus] = useState('');
+ const [resetOpen, setResetOpen] = useState(false);
+ const [newPassword, setNewPassword] = useState('');
+ const [resetMessage, setResetMessage] = useState('');
+ const [forgotStatus, setForgotStatus] = useState('');
+ const [resetPassword, setResetPassword] = useState('');
+ const [resetStatus, setResetStatus] = useState('');
 
   useEffect(()=>{
     const params = new URLSearchParams(window.location.search);
@@ -391,18 +392,19 @@ async function handleResetSubmit(e){
    return {todayRev, monthRev, totalRev, pending, failed, best, totalOrders: adminOrders.length};
  },[adminOrders]);
 
- async function add(p){
-   if(isOutOfStock(p)){ setNotice(`${p.name} is out of stock`); return; }
-   setCart(old=>{
-     const cartKey = p.unit==='size' ? `${p.id}_${p.selectedSize}` : p.id;
-     const found=old.find(x=>x.id===p.id);
-     return found?old.map(x=>x.id===p.id?{...x,quantity:Math.min(x.quantity+1,99)}:x):[...old,{...p, price: effectivePrice(p), original_price: p.price, quantity:1}];
-   });
-   setNotice(`${p.name} added to bag`);
-   if(user){
-     try{ await api('/cart',{method:'POST', body:JSON.stringify({product_id:p.id, quantity:1})}); }catch{}
-   }
- }
+  async function add(p){
+    const size = p.selectedSize || selectedSize || '';
+    if(p.unit==='size' && !size){ setNotice('Please select a size first'); return; }
+    if(isOutOfStock(p)){ setNotice(`${p.name} is out of stock`); return; }
+    setCart(old=>{
+      const found=old.find(x=>x.id===p.id && (x.selectedSize||'')===size);
+      return found?old.map(x=>x.id===p.id && (x.selectedSize||'')===size?{...x,quantity:Math.min(x.quantity+1,99)}:x):[...old,{...p, price: effectivePrice(p), original_price: p.price, quantity:1, selectedSize:size}];
+    });
+    setNotice(`${p.name} ${size ? `(Size ${size})` : ''} added to bag`);
+    if(user){
+      try{ await api('/cart',{method:'POST', body:JSON.stringify({product_id:p.id, quantity:1})}); }catch{}
+    }
+  }
 
  async function changeQty(id,d){
    const current = cart.find(x=>x.id===id);
@@ -432,13 +434,16 @@ async function handleResetSubmit(e){
    const key=getCartKey(user);
    localStorage.removeItem(key);
  }
- function openProduct(p){
-   setSelectedProduct(p); 
-   setGalleryIndex(0);
-   setShowAll(false); 
-   setSelectedSize('');
-   setActiveTab('shop');
-    window.scrollTo({top:0, behavior:'smooth'}); }
+
+  function openProduct(p){
+    setSelectedProduct(p); 
+    setGalleryIndex(0);
+    setShowAll(false); 
+    setSelectedSize(''); // reset every time you open a product
+    setActiveTab('shop');
+    window.scrollTo({top:0, behavior:'smooth'}); 
+  }
+
  function closeProduct(){ setSelectedProduct(null); }
  function handleViewEverything(){ setCategory('All'); setSearch(''); setShowAll(true); setSelectedProduct(null); setActiveTab('shop'); window.scrollTo({top:0, behavior:'smooth'}); }
  function handleHome(){ setShowAll(false); closeProduct(); setCategory('All'); setSearch(''); setActiveTab('shop'); window.scrollTo({top:0, behavior:'smooth'}); }
@@ -582,12 +587,19 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
  async function createProduct(e){
     e.preventDefault();
     try{
-      const payload={...prodForm, images: prodForm.images.filter(Boolean).slice(0,4), price:Number(prodForm.price), sale_price: prodForm.sale_price?Number(prodForm.sale_price):null, stock:Number(prodForm.stock), on_sale: Boolean(prodForm.on_sale), is_active: Boolean(prodForm.is_active)};
+      const payload={...prodForm, 
+        images: prodForm.images.filter(Boolean).slice(0,4), 
+        price:Number(prodForm.price), 
+        sale_price: prodForm.sale_price?Number(prodForm.sale_price):null,
+        stock:Number(prodForm.stock), on_sale: Boolean(prodForm.on_sale),
+         is_active: Boolean(prodForm.is_active)};
+
       const p = await api('/admin/products',{method:'POST', body:JSON.stringify(payload)});
       setProducts(old=>[p,...old]); setNotice('Product created'); 
       setProdForm({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:''});
     }catch(err){setNotice(err.message)}
   }
+
   async function saveEdit(e){
     e.preventDefault();
     try{
@@ -927,6 +939,32 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
             </>}
             <span style={{fontSize:11}}>ZAR • VAT INCL. {selectedProduct.on_sale && <span style={{background:'#F59E0B', color:'#fff', padding:'2px 6px', marginLeft:6}}>SAVE {fmt(Number(selectedProduct.price) - Number(effectivePrice(selectedProduct)))}</span>}</span>
           </div>
+
+          {selectedProduct.unit === 'size' && (
+            <div style={{margin:'16px 0'}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+                <label style={{fontSize:11,fontWeight:700,letterSpacing:1}}>SELECT SIZE *</label>
+                {selectedSize && <span style={{fontSize:11,fontWeight:700,background:'#121212',color:'#fff',padding:'2px 8px'}}>SELECTED: {selectedSize}</span>}
+              </div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+                {(selectedProduct.unit_value || 'S,M,L,XL,XXL').split(',').map(s=>{
+                  const size = s.trim();
+                  return (
+                    <button key={size} type="button" onClick={()=>setSelectedSize(size)}
+                      style={{minWidth:48,height:44,padding:'0 14px',border:selectedSize===size?'3px solid #121212':'2px solid #121212',background:selectedSize===size?'#121212':'#FFFCF8',color:selectedSize===size?'#fff':'#121212',fontSize:12,fontWeight:700,cursor:'pointer'}}>
+                      {size}
+                    </button>
+                  )
+                })}
+              </div>
+              {!selectedSize && <p style={{fontSize:11,color:'#92400E',marginTop:6}}>⚠ Please select a size before adding to bag</p>}
+            </div>
+          )}
+
+          {selectedProduct.unit && selectedProduct.unit !== 'none' && selectedProduct.unit !== 'size' && (
+            <p style={{fontSize:12,margin:'12px 0'}}><b>Size:</b> {selectedProduct.unit_value}{selectedProduct.unit} per item</p>
+          )}
+
           <div className="buy-row">
             <button className="btn-black" disabled={isOutOfStock(selectedProduct)} onClick={()=>{
               if(selectedProduct.unit==='size' && !selectedSize){
@@ -1529,7 +1567,7 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
 
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
               <label>MEASURED IN
-                <select value={form.unit || 'none'} onChange={e=>setForm({...form, unit:e.target.value})} style={{width:'100%', padding:10, border:'2px solid #121212'}}>
+                <select value={prodForm.unit || 'none'} onChange={e=>setProdForm(f=>({...f, unit:e.target.value}))} style={{width:'100%', padding:10, border:'2px solid #121212'}}>
                   <option value="none">No measurement</option>
                   <option value="kg">Kilograms (kg)</option>
                   <option value="g">Grams (g)</option>
