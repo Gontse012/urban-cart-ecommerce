@@ -1482,19 +1482,22 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
               {form.complex_name ? form.complex_name + ', ' : ''}{form.unit_number ? 'Unit ' + form.unit_number + ', ' : ''}{form.delivery_address}, {form.suburb}, {form.city}, {form.province} {form.postal_code}
             </div>
           )}
-          <div style={{border:'2px solid #121212', padding:12, background:'#FFFCF8'}}>
-            <h4 style={{margin:'0 0 8px', fontFamily:'Anton', fontSize:13, letterSpacing:1}}>PAYFAST SECURE</h4>
-            <p style={{margin:'0 0 8px', fontSize:11, opacity:.7}}>We accept:</p>
-            <img
-              src="https://www.permanentmakeupsupplies.co.za/wp-content/uploads/2024/09/Payfast_Logos-2-1400x187.png"
-              alt="PayFast accepts Visa, Mastercard, Instant EFT, Capitec Pay, Mobicred, Zapper, SCode, SnapScan"
-              style={{width:'100%', maxWidth:480, height:'auto', display:'block', background:'#fff', border:'1px solid #E5DDD0', padding:6}}
-              loading="lazy"
-            />
-            <div style={{display:'flex', flexWrap:'wrap', gap:6, marginTop:8}}>
-              {['VISA','Mastercard','Instant EFT','Capitec Pay','Mobicred','Zapper','SCode','SnapScan','Apple Pay','Samsung Pay'].map(m=><span key={m} style={{border:'1px solid #121212', padding:'4px 8px', fontSize:10, fontWeight:700, background:'#fff'}}>{m}</span>)}
-            </div>
-            <p style={{margin:'8px 0 0', fontSize:10, opacity:.6}}>Payment methods shown at PayFast checkout may vary based on what is enabled on your account.</p>
+          <div style={{display:'flex', flexWrap:'wrap', gap:8, background:'#fff', border:'1px solid #E5DDD0', padding:10}}>
+            {[
+              ['VISA','https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg'],
+              ['Mastercard','https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg'],
+              ['Capitec Pay','https://upload.wikimedia.org/wikipedia/commons/6/6d/Capitec_Bank_logo.svg'],
+              ['Apple Pay','https://upload.wikimedia.org/wikipedia/commons/b/b0/Apple_Pay_logo.svg'],
+              ['Samsung Pay','https://upload.wikimedia.org/wikipedia/commons/0/0c/Samsung_Pay_logo.svg'],
+              ['Zapper','https://upload.wikimedia.org/wikipedia/commons/8/8a/Zapper_logo.png'],
+              ['Mobicred','https://mobicred.co.za/wp-content/uploads/2021/06/mobicred-logo.png'],
+              ['SnapScan','https://snapscan.co.za/wp-content/uploads/2020/02/snapscan-logo.png'],
+            ].map(([name, src])=>(
+              <div key={name} style={{height:32, minWidth:58, border:'1px solid #E5DDD0', display:'flex', alignItems:'center', justifyContent:'center', padding:'4px 8px', background:'#fff'}}>
+                <img src={src} alt={name} style={{maxHeight:22, maxWidth:60, objectFit:'contain'}} onError={e=>{e.target.style.display='none'}} />
+                <span style={{fontSize:9, fontWeight:800, marginLeft:4}} className="hide-if-logo">{name}</span>
+              </div>
+            ))}
           </div>
         <div style={{display:'flex', justifyContent:'space-between', fontWeight:700, borderTop:'2px solid #121212', paddingTop:10, fontSize:13}}>
           <span>SUBTOTAL ({count} items)</span>
