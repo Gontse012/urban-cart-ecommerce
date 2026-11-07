@@ -395,6 +395,21 @@ async function ensureSchema(){
   )
 `);
 
+// REVIEWS TABLE
+await pool.query(`
+  CREATE TABLE IF NOT EXISTS reviews (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    user_id INT NULL,
+    customer_name VARCHAR(100) NOT NULL,
+    rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT NOT NULL,
+    is_approved TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+  )
+`);
+
   try{
     await pool.execute(`
       CREATE TABLE IF NOT EXISTS carts (
@@ -459,6 +474,7 @@ async function ensureSchema(){
     console.log('✅ Schema migration done');
   }catch(e){ console.error('Migration error:', e.message); }
 }
+
 ensureSchema();
 
 app.get('/', (req, res) => { res.send('urban-cart API v6 - Email delivery'); });
@@ -466,6 +482,88 @@ app.get('/api', (req, res) => { res.json({ message: 'API working v6 Email', stat
 app.get('/api/health', async (_req, res) => { 
   try { await pool.query('SELECT 1'); res.json({ ok: true }); } 
   catch { res.status(503).json({ ok: false }); } 
+});
+
+// GET REVIEWS FOR A PRODUCT
+app.get('/api/products/:id/reviews', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, product_id, customer_name, rating, comment, created_at 
+       FROM reviews WHERE product_id = ? AND is_approved = 1 
+       ORDER BY created_at DESC`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch(e){ res.status(500).json({error: e.message}); }
+});
+
+// POST A REVIEW - must be logged in
+app.post('/api/reviews', auth, async (req, res) => {
+  try {
+    const { product_id, rating, comment } = req.body;
+    if(!product_id || !rating || !comment?.trim()) 
+      return res.status(400).json({error: 'Rating and comment required'});
+    if(rating < 1 || rating > 5) 
+      return res.status(400).json({error: 'Rating must be 1-5'});
+
+    const name = req.user.name || req.user.email?.split('@')[0] || 'Customer';
+    const [r] = await pool.query(
+      `INSERT INTO reviews (product_id, user_id, customer_name, rating, comment) VALUES (?,?,?,?,?)`,
+      [product_id, req.user.id, name, rating, comment.trim()]
+    );
+    const [rows] = await pool.query(`SELECT * FROM reviews WHERE id = ?`, [r.insertId]);
+    const newReview = rows[0];
+
+    // 🔔 NOTIFY ADMIN - email + log
+    try {
+      const [prod] = await pool.query(`SELECT name FROM products WHERE id = ?`, [product_id]);
+      const prodName = prod[0]?.name || `Product #${product_id}`;
+      console.log(`⭐ NEW REVIEW: ${name} rated ${prodName} ${rating}/5 - ${comment.trim().slice(0,100)}`);
+
+      if (typeof sendEmailResend === 'function' && ADMIN_EMAIL) {
+        await sendEmailResend(
+          ADMIN_EMAIL,
+          `⭐ New Review - ${prodName} (${rating}/5)`,
+          `<div style="font-family:Arial; max-width:600px; margin:0 auto; border:2px solid #121212;">
+            <div style="background:#121212; color:#E9D9BF; padding:20px; text-align:center;">
+              <h2 style="margin:0; font-size:22px;">⭐ NEW REVIEW</h2>
+              <p style="margin:8px 0 0; opacity:.8;">Urban Cart - ${prodName}</p>
+            </div>
+            <div style="padding:20px;">
+              <p><b>Product:</b> ${prodName}</p>
+              <p><b>Customer:</b> ${name}</p>
+              <p><b>Rating:</b> ${'⭐'.repeat(rating)}${'☆'.repeat(5-rating)} (${rating}/5)</p>
+              <p><b>Comment:</b></p>
+              <div style="background:#FFFCF8; border:1px solid #ddd; padding:12px; border-radius:8px;">${comment.trim()}</div>
+              <p style="font-size:12px; color:#666; margin-top:16px;">Review ID: #${newReview.id} • ${new Date().toLocaleString('en-ZA')}</p>
+              <p style="font-size:12px;">Open Admin → Reviews to approve / delete it.</p>
+            </div>
+          </div>`
+        );
+      }
+    } catch(e){ console.log('Review notify failed:', e.message); }
+
+    res.json(newReview);
+  } catch(e){ res.status(500).json({error: e.message}); }
+});
+
+// DELETE REVIEW - admin only
+app.delete('/api/admin/reviews/:id', auth, adminOnly, async (req, res) => {
+  await pool.query(`DELETE FROM reviews WHERE id = ?`, [req.params.id]);
+  res.json({ok:true});
+});
+
+// GET ALL REVIEWS - admin only
+app.get('/api/admin/reviews', auth, adminOnly, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT r.*, p.name AS product_name, p.image_url 
+      FROM reviews r
+      LEFT JOIN products p ON p.id = r.product_id
+      ORDER BY r.created_at DESC LIMIT 200
+    `);
+    res.json(rows);
+  } catch(e){ res.status(500).json({error: e.message}); }
 });
 
 app.get('/api/products', async (req, res, next) => { 

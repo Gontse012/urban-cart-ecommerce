@@ -162,6 +162,11 @@ function App(){
  const [otpStatus, setOtpStatus] = useState('');
  const [galleryIndex, setGalleryIndex] = useState(0);
  const [selectedSize, setSelectedSize] = useState('');
+ const [reviews, setReviews] = useState([]);
+ const [reviewRating, setReviewRating] = useState(5);
+ const [reviewComment, setReviewComment] = useState('');
+ const [reviewMsg, setReviewMsg] = useState('');
+ const [adminReviews, setAdminReviews] = useState([]);
  const [cookieConsent, setCookieConsent] = useState(() => localStorage.getItem('uc_cookie_consent') === 'yes');
 
  // === FIX A: Forgot password states ===
@@ -456,6 +461,12 @@ async function handleResetSubmit(e){
     setSelectedSize(''); // reset every time you open a product
     setActiveTab('shop');
     window.scrollTo({top:0, behavior:'smooth'}); 
+    // REVIEWS - load when product opens
+    setReviews([]); 
+    setReviewComment(''); 
+    setReviewRating(5); 
+    setReviewMsg('');
+    api(`/products/${p.id}/reviews`).then(setReviews).catch(()=>setReviews([]));
   }
 
  function closeProduct(){ setSelectedProduct(null); }
@@ -716,6 +727,7 @@ async function placeOrder(e) {
    try{
      const ordersData=await api('/admin/orders');
      setAdminOrders(ordersData);
+     try{ const rev = await api('/admin/reviews'); setAdminReviews(rev); }catch{ setAdminReviews([]); }
      try{
        const usersData=await api('/admin/users');
        setAdminUsers(usersData);
@@ -1056,6 +1068,70 @@ async function placeOrder(e) {
                 </div>
               </div>
             )}
+                      {/* ===== REVIEWS ===== */}
+          <div style={{marginTop:24, borderTop:'2px solid #121212', paddingTop:16}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <h3 style={{fontFamily:'Anton, sans-serif', fontSize:18, margin:0, letterSpacing:1}}>
+                REVIEWS ({reviews.length})
+              </h3>
+              {reviews.length > 0 && (
+                <span style={{fontSize:12, fontWeight:800}}>
+                  ⭐ {(reviews.reduce((s,r)=>s+Number(r.rating),0)/reviews.length).toFixed(1)} / 5
+                </span>
+              )}
+            </div>
+
+            {/* LEAVE A REVIEW */}
+            {user ? (
+              <form onSubmit={async(e)=>{
+                e.preventDefault();
+                if(!reviewComment.trim()){ setReviewMsg('Please write a comment'); return; }
+                try{
+                  const saved = await api('/reviews',{method:'POST', body:JSON.stringify({
+                    product_id: selectedProduct.id,
+                    rating: reviewRating,
+                    comment: reviewComment
+                  })});
+                  setReviews(old=>[saved, ...old]);
+                  setReviewComment(''); setReviewRating(5);
+                  setReviewMsg('✅ Thanks! Your review is live.');
+                }catch(err){ setReviewMsg('❌ '+err.message); }
+              }} style={{background:'#FFFCF8', border:'2px solid #121212', padding:12, marginTop:12, display:'flex', flexDirection:'column', gap:10}}>
+                <b style={{fontSize:12}}>LEAVE A REVIEW</b>
+                <div style={{display:'flex', gap:4}}>
+                  {[1,2,3,4,5].map(n=>(
+                    <button key={n} type="button" onClick={()=>setReviewRating(n)} style={{fontSize:24, background:'none', border:'none', cursor:'pointer', padding:0, lineHeight:1}}>
+                      {n <= reviewRating ? '⭐' : '☆'}
+                    </button>
+                  ))}
+                  <span style={{fontSize:12, fontWeight:700, marginLeft:6, alignSelf:'center'}}>{reviewRating} / 5</span>
+                </div>
+                <textarea required value={reviewComment} onChange={e=>setReviewComment(e.target.value)} placeholder="What did you think of this product? Fit, quality, delivery..." style={{minHeight:70, border:'2px solid #121212', padding:10, fontFamily:'inherit', fontSize:13}} />
+                <button className="btn-black" type="submit" style={{height:40, fontSize:12}}>POST REVIEW</button>
+                {reviewMsg && <div style={{fontSize:11, fontWeight:700}}>{reviewMsg}</div>}
+              </form>
+            ) : (
+              <div style={{background:'#FEF3C7', border:'1px solid #121212', padding:10, fontSize:12, marginTop:12, textAlign:'center'}}>
+                Please <button onClick={()=>setAccountOpen(true)} style={{background:'none', border:'none', textDecoration:'underline', fontWeight:800, cursor:'pointer'}}>sign in</button> to leave a review.
+              </div>
+            )}
+
+            {/* REVIEW LIST */}
+            <div style={{marginTop:14, display:'flex', flexDirection:'column', gap:10}}>
+              {!reviews.length && <p style={{fontSize:12, opacity:.6}}>No reviews yet — be the first to review this product.</p>}
+              {reviews.map(r=>(
+                <div key={r.id} style={{border:'1px solid #E5DDD0', background:'#fff', padding:12}}>
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                    <b style={{fontSize:12}}>{r.customer_name}</b>
+                    <span style={{fontSize:11}}>{'⭐'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}</span>
+                  </div>
+                  <p style={{fontSize:13, margin:'6px 0 4px', lineHeight:1.5}}>{r.comment}</p>
+                  <small style={{fontSize:10, opacity:.6}}>{new Date(r.created_at).toLocaleDateString('en-ZA', {day:'numeric', month:'short', year:'numeric'})}</small>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="micro-badges">
             <span><Truck size={14}/> 1-2 DAY DELIVERY</span>
             <span><ShieldCheck size={14}/> PAYFAST SECURE</span>
@@ -1556,6 +1632,7 @@ async function placeOrder(e) {
         <button className={adminTab==='products'?'on':''} onClick={()=>setAdminTab('products')}>PRODUCTS ({products.length})</button>
         <button className={adminTab==='customers'?'on':''} onClick={()=>setAdminTab('customers')}><Users size={12} style={{display:'inline'}}/> CUSTOMERS ({adminUsers.length})</button>
         <button className={adminTab==='staff'?'on':''} onClick={()=>setAdminTab('staff')}><Crown size={12} style={{display:'inline'}}/> STAFF</button>
+                <button className={adminTab==='reviews'?'on':''} onClick={()=>setAdminTab('reviews')}>⭐ REVIEWS ({adminReviews.length})</button>
       </div>
 
       {adminTab==='dashboard' && (
