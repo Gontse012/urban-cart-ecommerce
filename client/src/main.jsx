@@ -618,11 +618,6 @@ async function removeItem(id, size='', color=''){
     setAddrResults([]);
   }
 
-if(!phoneVerified){
-  setCheckoutError('Please verify your phone with OTP first');
-  return;
-}
-
 async function placeOrder(e) {
   e.preventDefault();
   if(!user){ setAuthError('Please sign in first'); setAccountOpen(true); return; }
