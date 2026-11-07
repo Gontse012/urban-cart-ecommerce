@@ -1196,7 +1196,20 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
         )}
         {otpStatus && <div style={{fontSize:'12px', marginTop:'6px', padding:'6px', background:'#FEF3C7', borderRadius:'6px'}}>{otpStatus}</div>}
         <div><label style={{fontSize:11, fontWeight:700}}>Delivery address *</label>
-        <input value={form.delivery_address} onChange={e=>setField('delivery_address',e.target.value)} placeholder="e.g. John Doe, 1234 Main Street, Apartment 56B, Springfield" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/></div>
+        <input required value={form.delivery_address} onChange={e=>setField('delivery_address',e.target.value)} placeholder="e.g. 24 Oak Avenue, Sandton" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/></div>
+
+        <div><label style={{fontSize:11, fontWeight:700}}>Email *</label>
+        <input required type="email" value={form.email} onChange={e=>setField('email',e.target.value)} placeholder="you@email.com" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/></div>
+
+        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+          <div><label style={{fontSize:11, fontWeight:700}}>Province *</label>
+          <select required value={form.province} onChange={e=>setField('province',e.target.value)} style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4, background:'#fff'}}>
+            {PROVINCES.map(p=><option key={p} value={p}>{p}</option>)}
+          </select></div>
+          <div><label style={{fontSize:11, fontWeight:700}}>Postal Code *</label>
+          <input required value={form.postal_code} onChange={e=>setField('postal_code',e.target.value.replace(/[^0-9]/g,'').slice(0,4))} placeholder="e.g. 2196" inputMode="numeric" maxLength={4} style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/></div>
+        </div>
+
         <div style={{border:'2px solid #121212', padding:12, background:'#FFFCF8'}}>
           <h4 style={{margin:'0 0 8px', fontFamily:'Anton', fontSize:13}}>PAYFAST SECURE</h4>
           <div style={{display:'flex', flexWrap:'wrap', gap:6, marginBottom:8}}>
