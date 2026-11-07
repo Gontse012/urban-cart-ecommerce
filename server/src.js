@@ -472,7 +472,7 @@ app.get('/api/products', async (req, res, next) => {
     const q = String(req.query.q || '').slice(0, 100); 
     const category = Number(req.query.category || 0); 
     const [rows] = await pool.query(
-      `SELECT p.id,p.name,p.description,p.price,p.sale_price,p.unit, p.unit_value,p.on_sale,p.stock,p.image_url,p.images,p.active,p.is_active,c.name AS category 
+      `SELECT p.id,p.name,p.description,p.price,p.is_bestseller,p.sale_price,p.unit, p.unit_value,p.on_sale,p.stock,p.image_url,p.images,p.active,p.is_active,c.name AS category 
        FROM products p 
        LEFT JOIN categories c ON c.id=p.category_id 
        WHERE (p.active=1 OR p.active IS NULL) 
@@ -857,12 +857,12 @@ app.patch('/api/admin/users/:id/role', auth, adminOnly, async (req, res, next)=>
 
 app.post('/api/admin/products', auth, adminOnly, async (req, res, next) => { 
   try { 
-    let { name, description='', price, sale_price=null, on_sale=false, stock=0, category, category_id, is_active=true, active=1, image_url='', unit='none', unit_value=null } = req.body || {}; 
+    let { name, description='', price, sale_price=null, on_sale=false, is_bestseller=false, stock=0, category, category_id, is_active=true, active=1, image_url='', unit='none', unit_value=null } = req.body || {}; 
     const catId = category_id ? Number(category_id) : await getCategoryId(category);
     if (!String(name || '').trim() || !Number.isFinite(Number(price)) || Number(price) < 0 || !Number.isInteger(Number(stock)) || Number(stock) < 0) 
       return res.status(400).json({ error: 'Provide valid name price stock.' }); 
-    const [r] = await pool.execute('INSERT INTO products(name,description,price,sale_price,on_sale,stock,category_id,active,is_active,image_url,unit,unit_value) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)', [String(name).trim(), String(description), money(price), sale_price?money(sale_price):null, on_sale?1:0, Number(stock), catId, active?1:0, is_active?1:0, String(image_url), String(unit || 'none'), unit_value ? String(unit_value) : null]); 
-    const [rows] = await pool.query('SELECT p.id,p.name,p.description,p.unit, p.unit_value,p.price,p.sale_price,p.on_sale,p.stock,p.image_url,p.active,p.is_active,c.name AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?', [r.insertId]);
+    const [r] = await pool.execute('INSERT INTO products(name,description,price,sale_price,on_sale,is_bestseller,stock,category_id,active,is_active,image_url,unit,unit_value) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)', [String(name).trim(), String(description), money(price), sale_price?money(sale_price):null, on_sale?1:0, is_bestseller?1:0, Number(stock), catId, active?1:0, is_active?1:0, String(image_url), String(unit || 'none'), unit_value ? String(unit_value) : null]); 
+    const [rows] = await pool.query('SELECT p.id,p.name,p.description,p.unit, p.unit_value,p.price,p.sale_price,p.on_sale,p.is_bestseller,p.stock,p.image_url,p.active,p.is_active,c.name AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?', [r.insertId]);
     res.status(201).json(rows[0]); 
   } catch (e) { next(e); } 
 });
@@ -870,12 +870,12 @@ app.post('/api/admin/products', auth, adminOnly, async (req, res, next) => {
 app.put('/api/admin/products/:id', auth, adminOnly, async (req, res, next) => {
   try{
     const id = Number(req.params.id);
-    let { name, description='', price, sale_price=null, on_sale=false, image_url='', stock=0, category, category_id, is_active=true, active, unit='none', unit_value=null } = req.body || {};
+    let { name, description='', price, sale_price=null, on_sale=false, is_bestseller=false, image_url='', stock=0, category, category_id, is_active=true, active, unit='none', unit_value=null } = req.body || {};
     const catId = category_id ? Number(category_id) : await getCategoryId(category);
     if(active===undefined) active = is_active?1:0;
-    const [r] = await pool.execute('UPDATE products SET name=?, description=?, price=?, sale_price=?, on_sale=?, image_url=?, stock=?, category_id=?, active=?, is_active=?, unit=?, unit_value=? WHERE id=?', [String(name).trim(), String(description), money(price), sale_price?money(sale_price):null, on_sale?1:0, String(image_url), Number(stock), catId, active?1:0, is_active?1:0, String(unit || 'none'), unit_value ? String(unit_value) : null, id]);
+    const [r] = await pool.execute('UPDATE products SET name=?, description=?, price=?, sale_price=?, on_sale=?, is_bestseller=?, image_url=?, stock=?, category_id=?, active=?, is_active=?, unit=?, unit_value=? WHERE id=?', [String(name).trim(), String(description), money(price), sale_price?money(sale_price):null, on_sale?1:0, is_bestseller?1:0, String(image_url), Number(stock), catId, active?1:0, is_active?1:0, String(unit || 'none'), unit_value ? String(unit_value) : null, id]);
     if(!r.affectedRows) return res.status(404).json({ error: 'Product not found.' });
-    const [rows] = await pool.query('SELECT p.id,p.name,p.description,p.unit,p.unit_value,p.price,p.sale_price,p.on_sale,p.image_url,p.stock,p.active,p.is_active,c.name AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?', [id]);
+    const [rows] = await pool.query('SELECT p.id,p.name,p.description,p.unit,p.unit_value,p.price,p.sale_price,p.on_sale,p.is_bestseller,p.image_url,p.stock,p.active,p.is_active,c.name AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?', [id]);
     res.json(rows[0]);
   }catch(e){ next(e); }
 });
@@ -887,6 +887,15 @@ app.delete('/api/admin/products/:id', auth, adminOnly, async (req, res, next) =>
     if(!r.affectedRows) return res.status(404).json({ error: 'Product not found.' });
     res.json({ ok:true, id });
   }catch(e){ next(e); }
+});
+
+// MAKE BESTSELLER - only one at a time
+app.put('/api/admin/products/:id/bestseller', authAdmin, async (req,res)=>{
+  try{
+    await pool.execute(`UPDATE products SET is_bestseller = 0`);
+    await pool.execute(`UPDATE products SET is_bestseller = 1 WHERE id = ?`, [req.params.id]);
+    res.json({ok:true});
+  }catch(e){ res.status(500).json({error:e.message}); }
 });
 
 app.patch('/api/admin/orders/:id/status', auth, adminOnly, async (req, res, next) => { 

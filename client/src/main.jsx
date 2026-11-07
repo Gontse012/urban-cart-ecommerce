@@ -151,7 +151,7 @@ function App(){
  const [termsTab,setTermsTab]=useState('Shipping');
  const [termsFromSignup,setTermsFromSignup]=useState(false);
  const [adminTab,setAdminTab]=useState('dashboard');
- const [prodForm,setProdForm]=useState({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:''});
+ const [prodForm,setProdForm]=useState({name:'',category:'Tech',price:'',sale_price:'',is_bestseller: 0, on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:''});
  const [editingId,setEditingId]=useState(null);
  const [orderFilter,setOrderFilter]=useState('all');
  const [userSearch,setUserSearch]=useState('');
@@ -679,6 +679,7 @@ async function placeOrder(e) {
       unit: p.unit || 'none',
       unit_value: p.unit_value || '',
       price:String(p.price), 
+      is_bestseller: p.is_bestseller || 0,
       sale_price: p.sale_price?String(p.sale_price):'', 
       on_sale: !!p.on_sale, 
       stock:String(p.stock), 
@@ -979,10 +980,11 @@ async function placeOrder(e) {
         ) : selectedProduct ? (
           <>
           <div className="product-view">
-            <div className="product-view-left" style={{display:'flex', flexDirection:'column', gap:12}}>
-            {getProductImages(selectedProduct).map((img, i) => (
-              <img key={i} src={img} alt={`${selectedProduct.name} - ${i+1}`} style={{width:'100%', display:'block', border:'2px solid #121212', background:'#fff'}} />
-            ))}
+            <div className="product-view-left" style={{display:'flex', flexDirection:'column', gap:12, position:'relative'}}>
+              {selectedProduct.is_bestseller && <span style={{position:'absolute', top:12, left:12, background:'#121212', color:'#fff', padding:'6px 12px', fontSize:11, fontWeight:800, letterSpacing:1, zIndex:2}}>BESTSELLER</span>}
+              {getProductImages(selectedProduct).map((img, i) => (
+                <img key={i} src={img} alt={`${selectedProduct.name} - ${i+1}`} style={{width:'100%', display:'block', border:'2px solid #121212', background:'#fff'}} />
+              ))}
             <div className="img-meta" style={{position:'static'}}><span>{selectedProduct.category} {selectedProduct.on_sale && <b style={{background:'#F59E0B', color:'#000', padding:'2px 6px', marginLeft:8}}>SALE</b>}</span><span>{isOutOfStock(selectedProduct) ? 'OUT OF STOCK' : `${selectedProduct.stock} IN STOCK`}</span></div>
           </div>
         <div className="product-view-right">
@@ -1104,7 +1106,7 @@ async function placeOrder(e) {
         <div className="grid all-mode">
           {visibleAll.map((p)=>
             <article key={p.id} className="card" onClick={()=>openProduct(p)} style={{opacity: isOutOfStock(p)?0.6:1}}>
-              <div className="card-img"><img src={p.image_url} alt={p.name} loading="lazy"/><span className="tag">{isOutOfStock(p)?'OUT OF STOCK': p.on_sale?'SALE':p.category}</span><button className="add" onClick={e=>{e.stopPropagation(); add(p);}} disabled={isOutOfStock(p)}><Plus size={16}/></button></div>
+              <div className="card-img"><img src={p.image_url} alt={p.name} loading="lazy"/><span className="tag">{isOutOfStock(p)?'OUT OF STOCK': p.is_bestseller?'BESTSELLER': p.on_sale?'SALE':p.category}</span><button className="add" onClick={e=>{e.stopPropagation(); add(p);}} disabled={isOutOfStock(p)}><Plus size={16}/></button></div>
               <div className="card-info"><div><h3>{p.name}</h3><small>{p.category}</small></div><div style={{textAlign:'right', lineHeight:1.2}}>{p.on_sale?<><small style={{fontSize:9, fontWeight:700, opacity:.6}}>WAS <span style={{textDecoration:'line-through'}}>{fmt(p.price)}</span></small><br/><small style={{fontSize:9, fontWeight:700, color:'#92400E'}}>NOW</small> <b style={{color:'#92400E'}}>{fmt(effectivePrice(p))}</b></>:<><small style={{fontSize:9, fontWeight:700, opacity:.6}}>PRICE</small><br/><b>{fmt(p.price)}</b></>}</div></div>
             </article>
           )}
@@ -1145,7 +1147,7 @@ async function placeOrder(e) {
           <div className="grid">
             {visible.map((p,i)=>
               <article key={p.id} className={i===0?"card big":"card"} onClick={()=>openProduct(p)} style={{opacity: isOutOfStock(p)?0.55:1}}>
-                <div className="card-img"><img src={p.image_url} alt={p.name} loading="lazy"/><span className="tag" style={{background: isOutOfStock(p)?'#ff3b30': p.on_sale?'#F59E0B':undefined, color: isOutOfStock(p)||p.on_sale?'#fff':undefined}}>{isOutOfStock(p)?'OUT OF STOCK': i===0?'BESTSELLER': p.on_sale?'SALE':p.category}</span><button className="add" onClick={e=>{e.stopPropagation(); add(p);}} disabled={isOutOfStock(p)}><Plus size={16}/></button></div>
+                <div className="card-img"><img src={p.image_url} alt={p.name} loading="lazy"/><span className="tag" style={{background: isOutOfStock(p)?'#ff3b30': p.on_sale?'#F59E0B':undefined, color: isOutOfStock(p)||p.on_sale?'#fff':undefined}}>{isOutOfStock(p)?'OUT OF STOCK': p.is_bestseller?'BESTSELLER': p.on_sale?'SALE':p.category}</span><button className="add" onClick={e=>{e.stopPropagation(); add(p);}} disabled={isOutOfStock(p)}><Plus size={16}/></button></div>
                 <div className="card-info"><div><h3>{p.name}</h3><small>{p.category}</small></div><div style={{textAlign:'right', lineHeight:1.2}}>{p.on_sale?<><small style={{fontSize:9, fontWeight:700, opacity:.6}}>WAS <span style={{textDecoration:'line-through'}}>{fmt(p.price)}</span></small><br/><small style={{fontSize:9, fontWeight:700, color:'#92400E'}}>NOW</small> <b style={{color:'#92400E'}}>{fmt(effectivePrice(p))}</b></>:<><small style={{fontSize:9, fontWeight:700, opacity:.6}}>PRICE</small><br/><b>{fmt(p.price)}</b></>}</div></div>
               </article>
             )}
@@ -1687,6 +1689,10 @@ async function placeOrder(e) {
               <div style={{display:'flex', gap:8, alignItems:'center', border:'2px solid #121212', padding:'0 10px', height:44}}><input type="checkbox" checked={prodForm.on_sale} onChange={e=>setProdForm(f=>({...f,on_sale:e.target.checked}))}/><label style={{fontSize:11, fontWeight:700}}><Tag size={12} style={{display:'inline'}}/> ON SALE</label></div>
               <input type="number" step="0.01" placeholder="Sale price (if on sale)" value={prodForm.sale_price} onChange={e=>setProdForm(f=>({...f,sale_price:e.target.value}))} style={{height:44, border:'2px solid #121212', padding:'0 12px'}} disabled={!prodForm.on_sale}/>
             </div>
+            <label style={{display:'flex', alignItems:'center', gap:8, cursor:'pointer'}}>
+              <input type="checkbox" checked={!!prodForm.is_bestseller} onChange={e=>setProdForm(f=>({...f, is_bestseller: e.target.checked ? 1 : 0}))} />
+              ⭐ BESTSELLER
+            </label>
             <div style={{display:'flex', gap:8, alignItems:'center', border:'2px solid #121212', padding:'0 10px', height:44}}><input type="checkbox" checked={prodForm.is_active} onChange={e=>setProdForm(f=>({...f,is_active:e.target.checked}))}/><label style={{fontSize:11, fontWeight:700}}>{prodForm.is_active ? 'ACTIVE (in stock)' : 'HIDDEN / OUT OF STOCK'}</label></div>
             <input required placeholder="Image URL https://..." value={prodForm.image_url} onChange={e=>setProdForm(f=>({...f,image_url:e.target.value}))}/>
             <label style={{fontSize:11, fontWeight:700, marginTop:4}}>EXTRA IMAGES (up to 4 more - total 5)</label>
@@ -1714,6 +1720,12 @@ async function placeOrder(e) {
                 <button className="btn-ghost" style={{height:32, fontSize:10}} onClick={()=>toggleStock(p)}><Archive size={12}/> {isOutOfStock(p)?'RESTOCK':'OUT'}</button>
                 <button className="btn-ghost" style={{height:32}} onClick={()=>startEdit(p)}>EDIT</button>
                 <button className="btn-black" style={{height:32, background:'#ff3b30'}} onClick={()=>deleteProduct(p.id)}>DEL</button>
+                  <button onClick={async()=>{
+                    await api(`/admin/products/${p.id}/bestseller`, {method:'PUT'});
+                    loadProducts();
+                  }} style={{background: p.is_bestseller ? '#121212' : '#fff', color: p.is_bestseller ? '#fff' : '#121212', border:'1px solid #121212', padding:'6px 10px', fontSize:11, fontWeight:800, cursor:'pointer'}}>
+                    {p.is_bestseller ? '★ BESTSELLER' : 'MAKE BESTSELLER'}
+                  </button>
               </div>
             </div>)}
           </div>
