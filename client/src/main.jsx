@@ -853,7 +853,15 @@ async function placeOrder(e) {
    } finally { setBusy(false); }
  }
  function printInvoice(o, type='invoice'){
-   const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}</td><td style="text-align:center">${it.quantity}</td><td style="text-align:right">${fmt(it.price)}</td><td style="text-align:right">${fmt(Number(it.price)*Number(it.quantity))}</td></tr>`).join('');
+   const getVariantLabel = (it) => {
+  const parts = [];
+  if(it.selected_size || it.selectedSize || it.size) parts.push(`Size: ${it.selected_size || it.selectedSize || it.size}`);
+  if(it.selected_color || it.selectedColor || it.color) parts.push(`Colour: ${it.selected_color || it.selectedColor || it.color}`);
+  if(it.unit && it.unit !== 'none' && it.unit !== 'size' && it.unit_value) parts.push(`${it.unit_value}${it.unit}`);
+  return parts.length ? `<br/><span style="font-size:10px;color:#92400E;font-weight:700;">${parts.join(' | ')}</span>` : '';
+};
+const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)}</td><td style="text-align:center">${it.quantity}</td><td style="text-align:right">${fmt(it.price)}</td><td style="text-align:right">${fmt(Number(it.price)*Number(it.quantity))}</td></tr>`).join('');
+   
    const html = `
    <html><head>
    <link rel="icon" type="image/png" href="/favicon.png" />
@@ -986,7 +994,7 @@ async function placeOrder(e) {
                 ))}
               </div>
               <div style={{marginTop:14}}>
-                {o.items?.map((it, idx)=><div key={idx} style={{fontSize:11, borderTop:'1px solid #ddd', padding:'8px 0', display:'flex', gap:8, alignItems:'center'}}><img src={it.image_url || it.image} style={{width:48,height:48,objectFit:'cover', border:'1px solid #121212'}}/><span>{it.name} x {it.quantity} - {fmt(it.price)}</span></div>)}
+                {o.items?.map((it, idx)=><div key={idx} style={{fontSize:11, borderTop:'1px solid #ddd', padding:'8px 0', display:'flex', gap:8, alignItems:'center'}}><img src={it.image_url || it.image} style={{width:48,height:48,objectFit:'cover', border:'1px solid #121212'}}/><span>{it.name} {it.selected_size ? `(Size: ${it.selected_size})` : ''} {it.selected_color ? `(Colour: ${it.selected_color})` : ''} x {it.quantity} - {fmt(it.price)}</span></div>)}
               </div>
               <div style={{marginTop:12, display:'flex', gap:8}}>
                 <button className="btn-ghost" style={{height:36, fontSize:11}} onClick={()=>printInvoice(o,'invoice')}><Printer size={12}/> INVOICE</button>
@@ -1722,7 +1730,7 @@ async function placeOrder(e) {
                   <button className="btn-ghost" style={{height:32, fontSize:10}} onClick={()=>printInvoice(o,'invoice')}><Printer size={12}/> INVOICE</button>
                   <button className="btn-ghost" style={{height:32, fontSize:10}} onClick={()=>printInvoice(o,'delivery')}><FileText size={12}/> DELIVERY</button>
                 </div>
-                <div style={{marginTop:6}}>{o.items?.map((it,idx)=><div key={idx} style={{fontSize:10}}>{it.name} x {it.quantity} - {fmt(it.price)}</div>)}</div>
+                <div style={{marginTop:6}}>{o.items?.map((it,idx)=><div key={idx} style={{fontSize:10}}>{it.name} {it.selected_size ? `(Size: ${it.selected_size})` : ''} {it.selected_color ? `(Colour: ${it.selected_color})` : ''} x {it.quantity} - {fmt(it.price)}</div>)}</div>
               </div>
             ))}
           </div>

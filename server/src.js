@@ -45,11 +45,22 @@ const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'gontsewamodise01@gmail.com').tr
 const money = n => Math.round(Number(n) * 100) / 100;
 
 function formatUnitLabel(it){
-  if(!it || !it.unit || it.unit === 'none') return '';
-  if(it.unit === 'size') return ` (Size: ${it.selected_size || it.size || ''})`.trim() === '(Size:)' ? '' : ` (Size: ${it.selected_size || it.size})`;
-  const val = Number(it.unit_value || 0);
-  if(!val) return ` (${it.unit})`;
-  return ` (${it.unit_value}${it.unit} each - Total: ${it.quantity * val}${it.unit})`;
+  if(!it) return '';
+  const parts = [];
+  // Size - from order_items.selected_size
+  const size = it.selected_size || it.selectedSize || it.size || null;
+  if(size) parts.push(`Size: ${size}`);
+  // Colour - from order_items.selected_color
+  const color = it.selected_color || it.selectedColor || it.color || null;
+  if(color) parts.push(`Colour: ${color}`);
+  // Measurement - e.g. 500g, 2kg
+  if(it.unit && it.unit !== 'none' && it.unit !== 'size'){
+    const val = Number(it.unit_value || 0);
+    if(val) parts.push(`${it.unit_value}${it.unit} each - Total: ${it.quantity * val}${it.unit}`);
+    else parts.push(`${it.unit}`);
+  }
+  if(!parts.length) return '';
+  return ` (${parts.join(' | ')})`;
 }
 
 const signToken = user => jwt.sign({ id: user.id, name: user.name, email: user.email, role: user.role }, process.env.JWT_SECRET || 'dev-only-change-this-secret', { expiresIn: '7d' });
@@ -256,12 +267,12 @@ async function sendDeliveryNoteEmail(order, items){
   try{
     const buffer = await generateDeliveryPdfBuffer(order, items);
     // Text version (fallback)
-    const itemListText = items.map(i => `• ${i.name || 'Product'} x${i.quantity} - R${(Number(i.price)*Number(i.quantity)).toFixed(2)}`).join('\n');
+    const itemListText = items.map(i => `• ${i.name || 'Product'}${formatUnitLabel(i)} x${i.quantity} - R${(Number(i.price)*Number(i.quantity)).toFixed(2)}`).join('\n');
     const text = `Order #${order.id} - PAID\nCustomer: ${order.customer_name || order.full_name}\nEmail: ${order.email}\nPhone: ${order.phone}\nAddress: ${order.delivery_address || order.address}, ${order.province} ${order.postal_code}\n\nItems:\n${itemListText}\nTOTAL PAID: R${Number(order.total).toFixed(2)}\nStatus: PAID - Ready to Ship\nLocation: ${order.current_location}\nETA: ${order.eta}`;
     // Table rows for HTML
     const itemRows = items.map(i => `
       <tr>
-        <td style="padding:12px 16px;border-bottom:1px solid #F0EDE8;font-size:13px;color:#121212">${i.name || 'Product'}</td>
+        <td style="padding:12px 16px;border-bottom:1px solid #F0EDE8;font-size:13px;color:#121212">${i.name || 'Product'}<br/><span style="font-size:11px;color:#92400E;font-weight:700;">${formatUnitLabel(i)}</span></td>
         <td style="padding:12px 16px;border-bottom:1px solid #F0EDE8;font-size:13px;text-align:center;color:#121212">${i.quantity}</td>
         <td style="padding:12px 16px;border-bottom:1px solid #F0EDE8;font-size:13px;text-align:right;color:#121212">R${Number(i.price).toFixed(2)}</td>
         <td style="padding:12px 16px;border-bottom:1px solid #F0EDE8;font-size:13px;text-align:right;font-weight:700;color:#121212">R${(Number(i.price)*Number(i.quantity)).toFixed(2)}</td>
@@ -887,11 +898,11 @@ app.get('/api/orders/mine', auth, async (req, res, next) => {
 });
 app.get('/api/orders/my-orders', auth, async (req, res, next) => {
   try{
-    const [rows] = await pool.execute('SELECT o.*, oi.quantity, oi.price, p.name, p.image_url, oi.product_id as oi_pid FROM orders o LEFT JOIN order_items oi ON oi.order_id=o.id LEFT JOIN products p ON p.id=oi.product_id WHERE o.customer_id=? OR o.email=? ORDER BY o.created_at DESC', [req.user.id, req.user.email]);
+const [rows] = await pool.execute('SELECT o.*, oi.quantity, oi.price, oi.selected_size, oi.selected_color, oi.unit, oi.unit_value, p.name, p.image_url, oi.product_id as oi_pid FROM orders o LEFT JOIN order_items oi ON oi.order_id=o.id LEFT JOIN products p ON p.id=oi.product_id WHERE o.customer_id=? OR o.email=? ORDER BY o.created_at DESC', [req.user.id, req.user.email]);
     const map = {};
     rows.forEach(r=>{
       if(!map[r.id]) map[r.id] = { id:r.id, total:r.total, status:r.status, payment_status:r.payment_status, delivery_status:r.delivery_status, current_location:r.current_location, eta:r.eta, tracking_history:r.tracking_history, delivery_address:r.delivery_address, province:r.province, postal_code:r.postal_code, cancel_reason:r.cancel_reason, created_at:r.created_at, items:[] };
-      if(r.quantity) map[r.id].items.push({ product_id:r.oi_pid, name:r.name, image_url:r.image_url, quantity:r.quantity, price:r.price });
+      if(r.quantity) map[r.id].items.push({ product_id:r.oi_pid, name:r.name, image_url:r.image_url, quantity:r.quantity, price:r.price, selected_size:r.selected_size, selected_color:r.selected_color, unit:r.unit, unit_value:r.unit_value });
     });
     const result = Object.values(map).map(o=>{
       try{ o.tracking_history = typeof o.tracking_history==='string' ? JSON.parse(o.tracking_history) : (o.tracking_history||[]); }catch{ o.tracking_history=[]; }
