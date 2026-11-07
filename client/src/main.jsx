@@ -1539,7 +1539,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
               ['SnapScan','https://snapscan.co.za/wp-content/uploads/2020/02/snapscan-logo.png'],
             ].map(([name, src])=>(
               <div key={name} style={{height:32, minWidth:64, border:'1px solid #E5DDD0', display:'flex', alignItems:'center', justifyContent:'center', padding:'4px 8px', background:'#fff'}}>
-                <img src={src} alt={name} style={{maxHeight:22, maxWidth:60, objectFit:'contain'}} onError={e=>{e.target.style.display='none'}} />
+                <img src={src} alt={name} style={{maxHeight:20, maxWidth:58, objectFit:'contain'}} onError={e=>{e.target.style.display='none'}} />
                 <span style={{fontSize:9, fontWeight:800, marginLeft:4}} className="hide-if-logo">{name}</span>
               </div>
             ))}
