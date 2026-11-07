@@ -979,12 +979,15 @@ app.post('/api/admin/products', auth, adminOnly, async (req, res, next) => {
 app.put('/api/admin/products/:id', auth, adminOnly, async (req, res, next) => {
   try{
     const id = Number(req.params.id);
-    let { name, description='', price, sale_price=null, colors='', on_sale=false, is_bestseller=false, image_url='', stock=0, category, category_id, is_active=true, active, unit='none', unit_value=null } = req.body || {};
+    let { name, description='', price, sale_price=null, colors='', on_sale=false, is_bestseller=false, image_url='', stock=0, category, category_id, is_active=true, active, unit='none', unit_value=null, images } = req.body || {};
     const catId = category_id ? Number(category_id) : await getCategoryId(category);
     if(active===undefined) active = is_active?1:0;
-    const [r] = await pool.execute('UPDATE products SET name=?, description=?, price=?, sale_price=?, on_sale=?, is_bestseller=?, image_url=?, stock=?, category_id=?, active=?, is_active=?, unit=?, unit_value=? WHERE id=?', [String(name).trim(), String(description), money(price), sale_price?money(sale_price):null, on_sale?1:0, is_bestseller?1:0, String(image_url), Number(stock), catId, active?1:0, is_active?1:0, String(unit || 'none'), unit_value ? String(unit_value) : null, id]);
+    const [r] = await pool.execute(
+      'UPDATE products SET name=?, description=?, price=?, sale_price=?, colors=?, on_sale=?, is_bestseller=?, image_url=?, images=?, stock=?, category_id=?, active=?, is_active=?, unit=?, unit_value=? WHERE id=?',
+      [String(name).trim(), String(description), money(price), sale_price?money(sale_price):null, colors ? String(colors) : null, on_sale?1:0, is_bestseller?1:0, String(image_url), images ? JSON.stringify(images) : null, Number(stock), catId, active?1:0, is_active?1:0, String(unit || 'none'), unit_value ? String(unit_value) : null, id]
+    );
     if(!r.affectedRows) return res.status(404).json({ error: 'Product not found.' });
-    const [rows] = await pool.query('SELECT p.id,p.name,p.description,p.unit,p.unit_value,p.price,p.sale_price,p.colors,p.on_sale,p.is_bestseller,p.image_url,p.stock,p.active,p.is_active,c.name AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?', [id]);
+    const [rows] = await pool.query('SELECT p.id,p.name,p.description,p.unit,p.unit_value,p.price,p.sale_price,p.colors,p.on_sale,p.is_bestseller,p.image_url,p.images,p.stock,p.active,p.is_active,c.name AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?', [id]);
     res.json(rows[0]);
   }catch(e){ next(e); }
 });
