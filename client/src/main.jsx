@@ -204,21 +204,25 @@ function App(){
    if(user){
      api('/cart/mine').then(dbRows=>{
        if(Array.isArray(dbRows) && dbRows.length){
-         const mapped = dbRows.map(r=>({
-           id: r.product_id,
-           product_id: r.product_id,
-           quantity: r.quantity,
-           name: r.name,
-           price: effectivePrice(r),
-           original_price: r.price,
-           sale_price: r.sale_price,
-           on_sale: r.on_sale,
-           image_url: r.image_url,
-           description: r.description || '',
-           category: r.category || 'Tech',
-           stock: r.stock ?? 99,
-           is_active: r.is_active ?? true
-         }));
+        const mapped = dbRows.map(r=>({
+          id: r.product_id,
+          product_id: r.product_id,
+          quantity: r.quantity,
+          name: r.name,
+          price: effectivePrice(r),
+          original_price: r.price,
+          sale_price: r.sale_price,
+          on_sale: r.on_sale,
+          image_url: r.image_url,
+          description: r.description || '',
+          category: r.category || 'Tech',
+          stock: r.stock ?? 99,
+          is_active: r.is_active ?? true,
+          selectedSize: r.selectedSize || r.selected_size || '',
+          selectedColor: r.selectedColor || r.selected_color || '',
+          unit: r.unit || 'none',
+          unit_value: r.unit_value || ''
+        }));
          setCart(mapped);
          localStorage.setItem(key, JSON.stringify(mapped));
        }
@@ -436,7 +440,7 @@ async function add(p){
     setTimeout(()=> setNotice(''), 3000); // auto-hide after 3s
 
     if(user){
-      try{ await api('/cart',{method:'POST', body:JSON.stringify({product_id:p.id, quantity:1})}); }catch{}
+      try{ await api('/cart',{method:'POST', body:JSON.stringify({product_id:p.id, quantity:1, selectedSize:size, selectedColor:color, selected_size:size, selected_color:color})}); }catch{}
     }
 }
 
@@ -513,7 +517,7 @@ async function removeItem(id, size='', color=''){
     setAuthError('');
     if(guestCart.length){
       for(const item of guestCart){
-        try{ await api('/cart',{method:'POST', body:JSON.stringify({product_id:item.id, quantity:item.quantity})}); }catch{}
+        try{ await api('/cart',{method:'POST', body:JSON.stringify({product_id:item.id, quantity:item.quantity, selectedSize:item.selectedSize || '', selectedColor:item.selectedColor || '', selected_size:item.selectedSize || '', selected_color:item.selectedColor || ''})}); }catch{}
       }
       localStorage.removeItem(guestKey);
     }
