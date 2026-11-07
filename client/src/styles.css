@@ -903,3 +903,9 @@ div:has(> div > strong:contains("PAYFAST")) {
     grid-column: span 2;
   }
 }
+
+.brand{ font-size: clamp(16px, 4vw, 24px) !important; }
+@media (max-width: 480px){
+  .header{ padding: 10px 12px; }
+  .header-right{ gap: 6px; }
+}

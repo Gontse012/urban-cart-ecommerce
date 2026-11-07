@@ -962,9 +962,9 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
   <header className="header">
     <div className="header-left">
       <button className="icon-btn mobile-only" onClick={()=>setMenuOpen(!menuOpen)}><Menu size={20}/></button>
-      <a className="brand" href="#" onClick={()=>{setCategory('All');setSearch('');closeProduct();setShowAll(false); setActiveTab('shop');}}>
-        <img src="https://i.im.ge/QQwblAT/urban-cart-logo-cutout.png" alt="Urban Cart" style={{height:38, width:'auto', objectFit:'contain'}} />
-        URBAN CART <i>®</i>
+       <a className="brand" href="#" onClick={()=>{setCategory('All');setSearch('');closeProduct();setShowAll(false); setActiveTab('shop');}} style={{display:'flex', alignItems:'center', gap:6, fontSize:'clamp(16px, 4vw, 24px)', whiteSpace:'nowrap', lineHeight:1}}>
+        <img src="https://i.im.ge/QQwblAT/urban-cart-logo-cutout.png" alt="Urban Cart" style={{height:'clamp(26px, 6vw, 38px)', width:'auto', objectFit:'contain', flexShrink:0}} />
+        <span style={{display:'flex', alignItems:'baseline', gap:2}}>URBAN CART <i style={{fontSize:'0.6em'}}>®</i></span>
       </a>
       <nav className={menuOpen?'nav open':'nav'}>
         <button className="nav-close" onClick={()=>setMenuOpen(false)} aria-label="Close menu"><X size={24}/></button>
@@ -1129,12 +1129,12 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
             )}
                       {/* ===== REVIEWS ===== */}
           <div style={{marginTop:24, borderTop:'2px solid #121212', paddingTop:16}}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-              <h3 style={{fontFamily:'Anton, sans-serif', fontSize:18, margin:0, letterSpacing:1}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:6}}>
+              <h3 style={{fontFamily:'Anton, sans-serif', fontSize:'clamp(16px, 4vw, 18px)', margin:0, letterSpacing:1}}>
                 REVIEWS ({reviews.length})
               </h3>
               {reviews.length > 0 && (
-                <span style={{fontSize:12, fontWeight:800}}>
+                <span style={{fontSize:12, fontWeight:800, whiteSpace:'nowrap'}}>
                   ⭐ {(reviews.reduce((s,r)=>s+Number(r.rating),0)/reviews.length).toFixed(1)} / 5
                 </span>
               )}
@@ -1157,7 +1157,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
                 }catch(err){ setReviewMsg('❌ '+err.message); }
               }} style={{background:'#FFFCF8', border:'2px solid #121212', padding:12, marginTop:12, display:'flex', flexDirection:'column', gap:10}}>
                 <b style={{fontSize:12}}>LEAVE A REVIEW</b>
-                <div style={{display:'flex', gap:4}}>
+                <div style={{display:'flex', gap:4, flexWrap:'wrap', alignItems:'center'}}>
                   {[1,2,3,4,5].map(n=>(
                     <button key={n} type="button" onClick={()=>setReviewRating(n)} style={{fontSize:24, background:'none', border:'none', cursor:'pointer', padding:0, lineHeight:1}}>
                       {n <= reviewRating ? '⭐' : '☆'}
@@ -1179,8 +1179,8 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
             <div style={{marginTop:14, display:'flex', flexDirection:'column', gap:10}}>
               {!reviews.length && <p style={{fontSize:12, opacity:.6}}>No reviews yet — be the first to review this product.</p>}
               {reviews.map(r=>(
-                <div key={r.id} style={{border:'1px solid #E5DDD0', background:'#fff', padding:12}}>
-                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <div key={r.id} style={{border:'1px solid #E5DDD0', background:'#fff', padding:12, overflowWrap:'break-word'}}>
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:6}}>
                     <b style={{fontSize:12}}>{r.customer_name}</b>
                     <span style={{fontSize:11}}>{'⭐'.repeat(r.rating)}{'☆'.repeat(5-r.rating)}</span>
                   </div>
@@ -1199,12 +1199,12 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
         </div>
       </div>
       {/* YOU MIGHT LIKE */}
-        <div style={{padding:'24px', background:'#FFFCF8', borderTop:'2px solid #121212'}}>
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16}}>
-            <h3 style={{fontFamily:'Anton, sans-serif', fontSize:22, margin:0, letterSpacing:1}}>YOU MIGHT LIKE</h3>
-            <span style={{fontSize:11, letterSpacing:1, opacity:0.6}}>MORE {selectedProduct.category?.toUpperCase()}</span>
-          </div>
-          <div className="you-might-like-grid" style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:12}}>
+  <div style={{padding:'16px 12px', background:'#FFFCF8', borderTop:'2px solid #121212'}}>
+  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:6, marginBottom:12}}>
+    <h3 style={{fontFamily:'Anton, sans-serif', fontSize:'clamp(16px, 4vw, 22px)', margin:0, letterSpacing:1}}>YOU MIGHT LIKE</h3>
+    <span style={{fontSize:10, letterSpacing:1, opacity:0.6}}>MORE {selectedProduct.category?.toUpperCase()}</span>
+  </div>
+  <div className="you-might-like-grid" style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:10}}>
             {(() => {
               const sameCat = products.filter(p => p.id !== selectedProduct.id && p.category === selectedProduct.category);
               const others = products.filter(p => p.id !== selectedProduct.id && p.category !== selectedProduct.category);
@@ -1216,13 +1216,13 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
                     <div style={{aspectRatio:'1/1', overflow:'hidden', background:'#EDE7DF'}}>
                       <img src={imgs[0]} alt={p.name} style={{width:'100%', height:'100%', objectFit:'cover', display:'block'}} />
                     </div>
-                    <div style={{padding:10}}>
+                    <div style={{padding:8}}>
                       <div style={{fontSize:11, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{p.name}</div>
-                      <div style={{fontSize:10, opacity:0.6, margin:'2px 0 6px'}}>{p.category}</div>
-                      <div style={{display:'flex', alignItems:'center', gap:6}}>
-                        {p.on_sale && <span style={{fontSize:11, textDecoration:'line-through', opacity:0.5}}>{fmt(p.price)}</span>}
-                        <strong style={{fontSize:14}}>{fmt(effectivePrice(p))}</strong>
-                        {p.on_sale && <span style={{fontSize:9, background:'#F59E0B', color:'#000', padding:'2px 4px', fontWeight:800}}>SAVE {fmt(Number(p.price) - Number(effectivePrice(p)))}</span>}
+                      <div style={{fontSize:10, opacity:0.6, margin:'2px 0 4px'}}>{p.category}</div>
+                      <div style={{display:'flex', alignItems:'center', gap:5, flexWrap:'wrap'}}>
+                        {p.on_sale && <span style={{fontSize:10, textDecoration:'line-through', opacity:0.5}}>{fmt(p.price)}</span>}
+                        <strong style={{fontSize:13}}>{fmt(effectivePrice(p))}</strong>
+                        {p.on_sale && <span style={{fontSize:8, background:'#F59E0B', color:'#000', padding:'2px 4px', fontWeight:800}}>SAVE {fmt(Number(p.price) - Number(effectivePrice(p)))}</span>}
                       </div>
                     </div>
                   </div>
