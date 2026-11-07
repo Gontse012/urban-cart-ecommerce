@@ -1711,22 +1711,25 @@ async function placeOrder(e) {
           </form>
           <div style={{display:'flex', flexDirection:'column', gap:8, maxHeight:'35vh', overflow:'auto', marginTop:12}}>
             {products.map(p=><div key={p.id} className="admin-row" style={{opacity: isOutOfStock(p)?0.6:1}}>
-              <div style={{display:'flex', gap:10, alignItems:'center'}}>
-                <img src={p.image_url} style={{width:48, height:48, objectFit:'cover', border:'1px solid var(--ink)'}}/>
-                <div><b>{p.name} {p.on_sale&&<span style={{background:'#F59E0B', color:'#fff', padding:'1px 5px', fontSize:8}}>SALE</span>} {isOutOfStock(p)&&<span style={{background:'#ff3b30', color:'#fff', padding:'1px 5px', fontSize:8}}>OUT</span>}</b><small>{p.category} • {p.on_sale?`${fmt(p.sale_price)} (was ${fmt(p.price)})`:fmt(p.price)} • Stock {p.stock} • {p.is_active?'Active':'Hidden'}</small></div>
+              <div style={{display:'flex', gap:10, alignItems:'center', flex:1, minWidth:0}}>
+                <img src={p.image_url} style={{width:48, height:48, objectFit:'cover', border:'1px solid var(--ink)', flexShrink:0}}/>
+                <div style={{minWidth:0}}>
+                  <b style={{display:'block', wordBreak:'break-word'}}>{p.name} {p.on_sale&&<span style={{background:'#F59E0B', color:'#fff', padding:'1px 5px', fontSize:8}}>SALE</span>} {isOutOfStock(p)&&<span style={{background:'#ff3b30', color:'#fff', padding:'1px 5px', fontSize:8}}>OUT</span>}</b>
+                  <small style={{display:'block', wordBreak:'break-word'}}>{p.category} • {p.on_sale?`${fmt(p.sale_price)} (was ${fmt(p.price)})`:fmt(p.price)} • Stock {p.stock} • {p.is_active?'Active':'Hidden'}</small>
+                </div>
               </div>
-              <div style={{display:'flex', gap:6}}>
+              <div className="admin-actions" style={{display:'flex', gap:6, flexWrap:'wrap'}}>
                 <button className="btn-ghost" style={{height:32, fontSize:10}} onClick={()=>quickSaleToggle(p)}><Tag size={12}/> {p.on_sale?'REMOVE SALE':'SALE'}</button>
                 <button className="btn-ghost" style={{height:32, fontSize:10}} onClick={()=>toggleStock(p)}><Archive size={12}/> {isOutOfStock(p)?'RESTOCK':'OUT'}</button>
                 <button className="btn-ghost" style={{height:32}} onClick={()=>startEdit(p)}>EDIT</button>
                 <button className="btn-black" style={{height:32, background:'#ff3b30'}} onClick={()=>deleteProduct(p.id)}>DEL</button>
-                  <button onClick={async()=>{
-                    await api(`/admin/products/${p.id}/bestseller`, {method:'PUT'});
-                    const rows = await api('/products');
-                    setProducts(rows);
-                  }} style={{background: p.is_bestseller ? '#121212' : '#fff', color: p.is_bestseller ? '#fff' : '#121212', border:'1px solid #121212', padding:'6px 10px', fontSize:11, fontWeight:800, cursor:'pointer'}}>
-                    {p.is_bestseller ? '★ BESTSELLER' : 'MAKE BESTSELLER'}
-                  </button>
+                <button onClick={async()=>{
+                  await api(`/admin/products/${p.id}/bestseller`, {method:'PUT'});
+                  const rows = await api('/products');
+                  setProducts(rows);
+                }} style={{background: p.is_bestseller ? '#121212' : '#fff', color: p.is_bestseller ? '#fff' : '#121212', border:'1px solid #121212', padding:'6px 10px', fontSize:11, fontWeight:800, cursor:'pointer'}}>
+                  {p.is_bestseller ? '★ BESTSELLER' : 'MAKE BESTSELLER'}
+                </button>
               </div>
             </div>)}
           </div>
