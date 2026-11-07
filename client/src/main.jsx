@@ -961,28 +961,6 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
             </div>
           )}
 
-          {selectedProduct.unit === 'size' && (
-            <div style={{margin:'16px 0'}}>
-              <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
-                <label style={{fontSize:11,fontWeight:700,letterSpacing:1}}>SELECT SIZE *</label>
-                {selectedSize && <span style={{fontSize:11,fontWeight:700,background:'#121212',color:'#fff',padding:'2px 8px'}}>SELECTED: {selectedSize}</span>}
-              </div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-                {(selectedProduct.unit_value || 'S,M,L,XL').split(',').map(s=>{
-                  const size = s.trim();
-                  if(!size) return null;
-                  return (
-                    <button key={size} type="button" onClick={()=>setSelectedSize(size)}
-                      style={{minWidth:52,height:44,padding:'0 14px',border:selectedSize===size?'3px solid #121212':'2px solid #121212',background:selectedSize===size?'#121212':'#FFFCF8',color:selectedSize===size?'#fff':'#121212',fontSize:12,fontWeight:700,cursor:'pointer'}}>
-                      {size}
-                    </button>
-                  )
-                })}
-              </div>
-              {!selectedSize && <p style={{fontSize:11,color:'#92400E',marginTop:6}}>⚠ Please select a size before adding to bag</p>}
-            </div>
-          )}
-
           <div className="buy-row">
             <button className="btn-black" disabled={isOutOfStock(selectedProduct)} onClick={()=>{
               if(selectedProduct.unit==='size' && !selectedSize){
@@ -1572,12 +1550,12 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
                   <option value="size">Size (S,M,L...)</option>
                 </select>
               </label>
-              {form.unit !== 'none' && (
-                <label>{form.unit === 'size' ? 'SIZES - comma separated' : 'VALUE - e.g. 500'} 
+              {prodForm.unit !== 'none' && (
+                <label>{prodForm.unit === 'size' ? 'SIZES - comma separated' : 'VALUE - e.g. 500'} 
                   <input 
-                    value={form.unit_value || ''} 
-                    onChange={e=>setForm({...form, unit_value:e.target.value})} 
-                    placeholder={form.unit === 'size' ? 'S,M,L,XL' : '500'} 
+                    value={prodForm.unit_value || ''} 
+                    onChange={e=>setProdForm(f=>({...f, unit_value:e.target.value}))} 
+                    placeholder={prodForm.unit === 'size' ? 'S,M,L,XL' : '500'} 
                     style={{width:'100%', padding:10, border:'2px solid #121212'}} 
                   />
                 </label>
