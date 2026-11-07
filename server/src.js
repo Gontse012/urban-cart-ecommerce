@@ -890,7 +890,7 @@ app.delete('/api/admin/products/:id', auth, adminOnly, async (req, res, next) =>
 });
 
 // MAKE BESTSELLER - only one at a time
-app.put('/api/admin/products/:id/bestseller', authAdmin, async (req,res)=>{
+app.put('/api/admin/products/:id/bestseller', auth, adminOnly, async (req,res)=>{
   try{
     await pool.execute(`UPDATE products SET is_bestseller = 0`);
     await pool.execute(`UPDATE products SET is_bestseller = 1 WHERE id = ?`, [req.params.id]);
