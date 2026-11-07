@@ -130,7 +130,21 @@ function App(){
  const [cancelModal,setCancelModal]=useState(null);
  const [cancelReason,setCancelReason]=useState('');
  const [editData,setEditData]=useState({delivery_status:'Order Placed', current_location:'Warehouse - Lephalale', eta:'1-2 business days', tracking_note:''});
- const [form,setForm]=useState({full_name:'',email:'',phone:'',address_search:'',delivery_address:'',province:'LIMPOPO',postal_code:''});
+ const [form,setForm]=useState(
+  {full_name:'',
+    email:'',phone:'',
+    address_type: '',
+    complex_name: '',
+    unit_number: '',
+    floor_number: '',
+    apt_suite: '',
+    suburb: '',
+    city: '',
+    access_instructions: '',
+    address_search:'',
+    delivery_address:'',
+    province:'LIMPOPO',
+    postal_code:''});
  const [authForm,setAuthForm]=useState({name:'',email:'',password:'', acceptTerms:false});
  const [authError,setAuthError]=useState('');
  const [showTerms,setShowTerms]=useState(false);
@@ -554,36 +568,82 @@ async function handleResetSubmit(e){
   }
 }
 
- async function placeOrder(e) {
+  const [addrResults,setAddrResults]=useState([]);
+  async function searchAddress(q){
+    if(q.length<3){ setAddrResults([]); return; }
+    try{
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&countrycodes=za&addressdetails=1&limit=5&q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      setAddrResults(data);
+    }catch{}
+  }
+  function pickAddress(r){
+    const a = r.address || {};
+    setForm(f=>({...f,
+      delivery_address: r.display_name.split(',').slice(0,2).join(',').trim(),
+      suburb: a.suburb || a.neighbourhood || a.village || f.suburb,
+      city: a.city || a.town || a.municipality || f.city,
+      province: a.state || f.province,
+      postal_code: a.postcode || f.postal_code,
+    }));
+    setAddrResults([]);
+  }
+
+async function placeOrder(e) {
   e.preventDefault();
   if(!user){ setAuthError('Please sign in first'); setAccountOpen(true); return; }
-  if(!form.full_name.trim()||!form.email.trim()||!form.phone.trim()||!form.delivery_address.trim()||!form.province.trim()||!form.postal_code.trim()){
-    setNotice('Please fill all: Full Name, Email, SA Phone, Delivery Address, Province, Postal Code'); return;
+
+  // --- NEW VALIDATION - FORCES CORRECT ADDRESS ---
+  if(!form.full_name.trim()||!form.email.trim()||!form.phone.trim()){
+    setCheckoutError('Please fill Full Name, Email and Phone'); return;
   }
-  if(!isValidSAphone(form.phone)){ setNotice('Invalid SA phone. Use +27 71 234 5678 or 0712345678'); return; }
-  if(!/^[0-9]{4}$/.test(form.postal_code.trim())){ setNotice('Postal code must be 4 digits (SA) e.g. 2196'); return; }
-  if(!cart.length){ setNotice('Your bag is empty.'); return; }
-  setBusy(true); setNotice('');
+  if(!form.address_type){
+    setCheckoutError('Please pick: House, Complex or Flat'); return;
+  }
+  if(form.address_type==='Complex' && (!form.complex_name.trim() || !form.unit_number.trim())){
+    setCheckoutError('Please enter Complex Name and Unit No.'); return;
+  }
+  if(form.address_type==='Flat' && (!form.complex_name.trim() || !form.unit_number.trim())){
+    setCheckoutError('Please enter Building Name and Flat No.'); return;
+  }
+  if(!form.delivery_address.trim()||!form.suburb.trim()||!form.city.trim()||!form.province.trim()||!form.postal_code.trim()){
+    setCheckoutError('Please fill all: Address, Suburb, City, Province, Postal Code'); return;
+  }
+  if(!isValidSAphone(form.phone)){ setCheckoutError('Invalid SA phone. Use +27 71 234 5678 or 0712345678'); return; }
+  if(!/^[0-9]{4}$/.test(form.postal_code.trim())){ setCheckoutError('Postal code must be 4 digits (SA) e.g. 2196'); return; }
+  if(!cart.length){ setCheckoutError('Your bag is empty.'); return; }
+
+  setBusy(true); setCheckoutError('');
   try {
-const order = await api('/orders',{method:'POST',body:JSON.stringify({
+    const order = await api('/orders',{method:'POST',body:JSON.stringify({
       phoneVerifiedToken: phoneVerifiedToken,
       full_name: form.full_name, customer_name: form.full_name, email: form.email, phone: form.phone,
-      address_search: form.address_search, delivery_address: form.delivery_address, address: form.delivery_address,
-      province: form.province, postal_code: form.postal_code, city: form.delivery_address, customer_id: user?.id,
+      // --- NEW ADDRESS FIELDS ---
+      address_type: form.address_type,
+      complex_name: form.complex_name,
+      unit_number: form.unit_number,
+      floor_number: form.floor_number,
+      apt_suite: form.apt_suite,
+      access_instructions: form.access_instructions,
+      suburb: form.suburb,
+      delivery_address: form.delivery_address, address: form.delivery_address,
+      address_search: form.delivery_address,
+      province: form.province, postal_code: form.postal_code, city: form.city,
+      customer_id: user?.id,
       items: cart.map(p => ({ id: p.id, product_id: p.id, quantity: p.quantity, price: effectivePrice(p) }))
     })});
     const pay = await api('/payfast/checkout',{method:'POST',body:JSON.stringify({ orderId: order.orderId })});
     if (!pay.action || !pay.fields) throw new Error('PayFast is not configured yet on server');
-localStorage.setItem('lastOrderId', order.orderId);
-// BACKUP cart before leaving for PayFast - so we can restore on cancel
-localStorage.setItem('uc_cart_backup', JSON.stringify(cart));
-localStorage.setItem(getCartKey(user), JSON.stringify(cart));
-const formEl = document.createElement('form'); formEl.method='POST'; formEl.action=pay.action; formEl.style.display='none';
+    localStorage.setItem('lastOrderId', order.orderId);
+    // BACKUP cart before leaving for PayFast - so we can restore on cancel
+    localStorage.setItem('uc_cart_backup', JSON.stringify(cart));
+    localStorage.setItem(getCartKey(user), JSON.stringify(cart));
+    const formEl = document.createElement('form'); formEl.method='POST'; formEl.action=pay.action; formEl.style.display='none';
     Object.entries(pay.fields).forEach(([name, value]) => { const input=document.createElement('input'); input.type='hidden'; input.name=name; input.value=String(value ?? ''); formEl.appendChild(input); });
     document.body.appendChild(formEl); setCheckoutOpen(false); formEl.submit();
   } catch (err) { setCheckoutError(err.message || 'Could not start PayFast checkout.'); } finally { setBusy(false); }
  }
-
+ 
  async function createProduct(e){
     e.preventDefault();
     try{
@@ -1169,47 +1229,103 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
         </div>
       )}
       {checkoutError && <div className="checkout-error" style={{background:'#FEF3C7', border:'2px solid #F59E0B', color:'#92400E', padding:'10px 12px', fontSize:11, fontWeight:700, marginBottom:12, textAlign:'center', borderRadius:4}}>{checkoutError}</div>}
-      <form onSubmit={placeOrder} className="checkout-form" style={{display:'flex', flexDirection:'column', gap:12}}>
-        <div><label style={{fontSize:11, fontWeight:700}}>Full Name *</label><input required value={form.full_name} onChange={e=>setField('full_name',e.target.value)} style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/></div>
-        <div>
-          <label style={{fontSize:11, fontWeight:700, display:'flex', justifyContent:'space-between'}}>
-            <span>Phone number *</span>
-            <span style={{fontWeight:400, opacity:.6}}>SA only</span>
-            </label>
-            <div style={{display:'flex', border:'2px solid #121212', borderBottom:'3px solid #121212', height:44, marginTop:4}}>
-            <span style={{background:'#eee', padding:'0 10px', display:'grid', placeItems:'center', fontSize:12, fontWeight:700, borderRight:'2px solid #121212'}}>ZA +27</span>
-            <input required type="tel" inputMode="numeric" pattern="[0-9+]*" autoComplete="tel" value={form.phone} onChange={e=>setField('phone',e.target.value.replace(/[^0-9+]/g,''))} placeholder="082 000 0000" style={{flex:1, border:'none', outline:'none', padding:'0 12px', fontSize:13, fontWeight:600}}/>
+      {/* --- NEW STYLE LIKE YOUR SCREENSHOT --- */}
+        <style>{`
+          .addr-input{width:100%; height:52px; border:1px solid #D6D3D1; border-radius:12px; padding:0 14px; font-size:14px; outline:none; background:#fff}
+          .addr-input:focus{border-color:#121212}
+          .addr-label{font-size:11px; font-weight:700; color:#6B7280; margin-bottom:4px; display:block}
+          .addr-row{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+          .type-btn{border:1px solid #D6D3D1; border-radius:12px; padding:12px 6px; background:#fff; cursor:pointer; text-align:center}
+          .type-btn.active{border:2px solid #121212; background:#121212; color:#fff}
+        `}</style>
+        <form onSubmit={placeOrder} style={{display:'flex', flexDirection:'column', gap:12}}>
+          {/* FULL NAME */}
+          <div><span className="addr-label">Full Name *</span>
+          <input required value={form.full_name} onChange={e=>setField('full_name',e.target.value)} placeholder="Full Name" className="addr-input"/></div>
+          {/* PHONE - keep your OTP as-is */}
+          <div><span className="addr-label">Phone number *</span>
+          <div style={{display:'flex', border:'1px solid #D6D3D1', borderRadius:12, height:52, overflow:'hidden'}}>
+            <span style={{background:'#F3F4F6', padding:'0 12px', display:'grid', placeItems:'center', fontSize:13, fontWeight:700}}>ZA +27</span>
+            <input required type="tel" value={form.phone} onChange={e=>setField('phone',e.target.value.replace(/[^0-9+]/g,''))} placeholder="082 000 0000" style={{flex:1, border:'none', outline:'none', padding:'0 14px'}}/>
+          </div></div>
+          {/* ... keep your Send OTP / Verify OTP buttons here ... */}
+          {/* EMAIL */}
+          <div><span className="addr-label">Email *</span>
+          <input required type="email" value={form.email} onChange={e=>setField('email',e.target.value)} placeholder="Email" className="addr-input"/></div>
+          {/* ===== ADDRESS TYPE - MUST PICK, NO DEFAULT ===== */}
+          <div><span className="addr-label">Address type *</span>
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10}}>
+            {[
+              {v:'House', l:'🏠 House'},
+              {v:'Complex', l:'🏘️ Complex'},
+              {v:'Flat', l:'🏢 Flat'},
+            ].map(o=>(
+              <button key={o.v} type="button" onClick={()=>setField('address_type',o.v)} className={`type-btn ${form.address_type===o.v?'active':''}`}>
+                <div style={{fontSize:13, fontWeight:800}}>{o.l}</div>
+                <div style={{fontSize:10, opacity:.6}}>{o.v==='House'?'Standalone':o.v==='Complex'?'Estate / Gated':'Apartment'}</div>
+              </button>
+            ))}
+          </div></div>
+          {/* ===== COMPLEX / FLAT FIELDS - ONLY SHOW WHEN NEEDED ===== */}
+          {form.address_type==='Complex' && (
+            <>
+              <div><span className="addr-label">Complex / Estate Name *</span>
+              <input required value={form.complex_name} onChange={e=>setField('complex_name',e.target.value)} placeholder="e.g. Waterfall Estate" className="addr-input"/></div>
+              <div><span className="addr-label">Unit number *</span>
+              <input required value={form.unit_number} onChange={e=>setField('unit_number',e.target.value)} placeholder="e.g. Unit 12" className="addr-input"/></div>
+            </>
+          )}
+          {form.address_type==='Flat' && (
+            <>
+              <div><span className="addr-label">Building Name *</span>
+              <input required value={form.complex_name} onChange={e=>setField('complex_name',e.target.value)} placeholder="e.g. Main Street Apartments" className="addr-input"/></div>
+              <div className="addr-row">
+                <div><span className="addr-label">Flat / Unit No. *</span>
+                <input required value={form.unit_number} onChange={e=>setField('unit_number',e.target.value)} placeholder="e.g. Flat 56B" className="addr-input"/></div>
+                <div><span className="addr-label">Floor (optional)</span>
+                <input value={form.floor_number} onChange={e=>setField('floor_number',e.target.value)} placeholder="e.g. 3rd Floor" className="addr-input"/></div>
+              </div>
+            </>
+          )}
+          {/* ===== ADDRESS SEARCH - LIKE GOOGLE PLACES ===== */}
+          <div style={{position:'relative'}}><span className="addr-label">Address *</span>
+          <input value={form.delivery_address} onChange={e=>{setField('delivery_address',e.target.value); searchAddress(e.target.value)}} placeholder="Start typing your street address..." className="addr-input" autoComplete="off"/>
+          {addrResults.length>0 && (
+            <div style={{position:'absolute', top:52, left:0, right:0, background:'#fff', border:'1px solid #D6D3D1', borderRadius:12, boxShadow:'0 8px 24px rgba(0,0,0,.12)', zIndex:50, overflow:'hidden'}}>
+              {addrResults.map((r,i)=>(
+                <div key={i} onClick={()=>pickAddress(r)} style={{padding:'12px 14px', cursor:'pointer', borderBottom:'1px solid #F3F4F6', fontSize:13}}>
+                  {r.display_name}
+                </div>
+              ))}
+            </div>
+          )}</div>
+          {/* APARTMENT / SUITE - LIKE YOUR SCREENSHOT */}
+          <div><span className="addr-label">Apartment, suite, etc. (optional)</span>
+          <input value={form.apt_suite} onChange={e=>setField('apt_suite',e.target.value)} placeholder="Apartment, suite, etc. (optional)" className="addr-input"/></div>
+          {/* SUBURB */}
+          <div><span className="addr-label">Suburb *</span>
+          <input required value={form.suburb} onChange={e=>setField('suburb',e.target.value)} placeholder="Suburb" className="addr-input"/></div>
+          {/* CITY + PROVINCE + POSTAL - EXACTLY LIKE YOUR SCREENSHOT */}
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10}}>
+            <div><span className="addr-label">City *</span>
+            <input required value={form.city} onChange={e=>setField('city',e.target.value)} placeholder="City" className="addr-input"/></div>
+            <div><span className="addr-label">Province *</span>
+            <select required value={form.province} onChange={e=>setField('province',e.target.value)} className="addr-input" style={{appearance:'none'}}>
+              {PROVINCES.map(p=><option key={p} value={p}>{p}</option>)}
+            </select></div>
+            <div><span className="addr-label">Postal code *</span>
+            <input required value={form.postal_code} onChange={e=>setField('postal_code',e.target.value.replace(/[^0-9]/g,'').slice(0,4))} placeholder="Postal code" inputMode="numeric" maxLength={4} className="addr-input"/></div>
           </div>
-          <div style={{height:2, background:'#121212', marginTop:0}}></div>
-        </div>
-        <div style={{display:'flex', gap:'8px', marginTop:'8px'}}>
-          <button type="button" onClick={sendPhoneOtp} disabled={phoneVerified} className="btn-outline">
-            {phoneVerified ? '✓ Verified' : phoneOtpSent ? 'Resend OTP' : 'Send OTP'}
-          </button>
-        </div>
-
-        {phoneOtpSent && !phoneVerified && (
-          <div style={{display:'flex', gap:'8px', marginTop:'8px'}}>
-            <input type="tel" inputMode="numeric" pattern="[0-9]*" autoComplete="one-time-code" value={phoneOtp} onChange={e=>setPhoneOtp(e.target.value.replace(/[^0-9]/g,'').slice(0,6))} placeholder="Enter 6-digit OTP" maxLength={6} style={{height:44, flex:1, border:'2px solid #121212', padding:'0 12px', fontSize:16, fontWeight:700, letterSpacing:4, textAlign:'center'}} />
-            <button type="button" onClick={verifyPhoneOtp} className="btn-black">Verify</button>
-          </div>
-        )}
-        {otpStatus && <div style={{fontSize:'12px', marginTop:'6px', padding:'6px', background:'#FEF3C7', borderRadius:'6px'}}>{otpStatus}</div>}
-        <div><label style={{fontSize:11, fontWeight:700}}>Delivery address *</label>
-        <input required value={form.delivery_address} onChange={e=>setField('delivery_address',e.target.value)} placeholder="e.g. 24 Oak Avenue, Sandton" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/></div>
-
-        <div><label style={{fontSize:11, fontWeight:700}}>Email *</label>
-        <input required type="email" value={form.email} onChange={e=>setField('email',e.target.value)} placeholder="you@email.com" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/></div>
-
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
-          <div><label style={{fontSize:11, fontWeight:700}}>Province *</label>
-          <select required value={form.province} onChange={e=>setField('province',e.target.value)} style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4, background:'#fff'}}>
-            {PROVINCES.map(p=><option key={p} value={p}>{p}</option>)}
-          </select></div>
-          <div><label style={{fontSize:11, fontWeight:700}}>Postal Code *</label>
-          <input required value={form.postal_code} onChange={e=>setField('postal_code',e.target.value.replace(/[^0-9]/g,'').slice(0,4))} placeholder="e.g. 2196" inputMode="numeric" maxLength={4} style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/></div>
-        </div>
-
+          {/* DELIVERY INSTRUCTIONS */}
+          <div><span className="addr-label">Delivery instructions (optional)</span>
+          <input value={form.access_instructions} onChange={e=>setField('access_instructions',e.target.value)} placeholder={form.address_type==='Complex' ? 'e.g. Gate code 1234, leave at security' : form.address_type==='Flat' ? 'e.g. Intercom 56, call on arrival' : 'e.g. Leave at front door'} className="addr-input"/></div>
+          {/* PREVIEW - SO THEY SEE MISTAKES BEFORE PAYING */}
+          {form.delivery_address && (
+            <div style={{background:'#FFFCF8', border:'1px solid #F59E0B', borderRadius:12, padding:'10px 12px', fontSize:12, lineHeight:1.5}}>
+              <b>Deliver to:</b><br/>
+              {form.complex_name ? form.complex_name + ', ' : ''}{form.unit_number ? 'Unit ' + form.unit_number + ', ' : ''}{form.delivery_address}, {form.suburb}, {form.city}, {form.province} {form.postal_code}
+            </div>
+          )}
         <div style={{border:'2px solid #121212', padding:12, background:'#FFFCF8'}}>
           <h4 style={{margin:'0 0 8px', fontFamily:'Anton', fontSize:13}}>PAYFAST SECURE</h4>
           <div style={{display:'flex', flexWrap:'wrap', gap:6, marginBottom:8}}>
