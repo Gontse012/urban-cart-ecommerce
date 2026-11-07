@@ -1219,31 +1219,6 @@ const formEl = document.createElement('form'); formEl.method='POST'; formEl.acti
         {otpStatus && <div style={{fontSize:'12px', marginTop:'6px', padding:'6px', background:'#FEF3C7', borderRadius:'6px'}}>{otpStatus}</div>}
         <div><label style={{fontSize:11, fontWeight:700}}>Delivery address *</label>
         <input value={form.delivery_address} onChange={e=>setField('delivery_address',e.target.value)} placeholder="e.g. John Doe, 1234 Main Street, Apartment 56B, Springfield" style={{width:'100%', height:44, border:'2px solid #121212', padding:'0 12px', marginTop:4}}/></div>
-        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
-          <label>MEASURED IN
-            <select value={prodForm.unit || 'none'} onChange={e=>setProdForm(f=>({...f, unit:e.target.value}))} style={{width:'100%', padding:10, border:'2px solid #121212'}}>
-              <option value="none">No measurement</option>
-              <option value="kg">Kilograms (kg)</option>
-              <option value="g">Grams (g)</option>
-              <option value="L">Litres (L)</option>
-              <option value="ml">Millilitres (ml)</option>
-              <option value="pcs">Pieces (pcs)</option>
-              <option value="pack">Pack</option>
-              <option value="pair">Pair</option>
-              <option value="size">Size (S,M,L...)</option>
-            </select>
-          </label>
-          {prodForm.unit !== 'none' && (
-            <label>{prodForm.unit === 'size' ? 'SIZES - comma separated' : 'VALUE - e.g. 500'} 
-              <input 
-                value={prodForm.unit_value || ''} 
-                onChange={e=>setProdForm(f=>({...f, unit_value:e.target.value}))} 
-                placeholder={prodForm.unit === 'size' ? 'S,M,L,XL' : '500'} 
-                style={{width:'100%', padding:10, border:'2px solid #121212'}} 
-              />
-            </label>
-          )}
-        </div>
         <div style={{border:'2px solid #121212', padding:12, background:'#FFFCF8'}}>
           <h4 style={{margin:'0 0 8px', fontFamily:'Anton', fontSize:13}}>PAYFAST SECURE</h4>
           <div style={{display:'flex', flexWrap:'wrap', gap:6, marginBottom:8}}>
