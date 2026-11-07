@@ -227,8 +227,11 @@ async function sendViaResend({ to, subject, text, html, pdfBuffer, pdfName }){
     return { ok: true, id: data.id };
   }catch(e){ return { ok: false, error: e.message }; }
 }
-async function sendEmailResend({ to, subject, html }){
-  return sendViaResend({ to, subject, html });
+async function sendEmailResend(toOrObj, subject, html){
+  if(typeof toOrObj === 'object' && toOrObj !== null){
+    return sendViaResend(toOrObj);
+  }
+  return sendViaResend({ to: toOrObj, subject, html });
 }
 
 function getTransporter(){
@@ -521,10 +524,10 @@ app.post('/api/reviews', auth, async (req, res) => {
       console.log(`⭐ NEW REVIEW: ${name} rated ${prodName} ${rating}/5 - ${comment.trim().slice(0,100)}`);
 
       if (typeof sendEmailResend === 'function' && ADMIN_EMAIL) {
-        await sendEmailResend(
-          ADMIN_EMAIL,
-          `⭐ New Review - ${prodName} (${rating}/5)`,
-          `<div style="font-family:Arial; max-width:600px; margin:0 auto; border:2px solid #121212;">
+        const emailResult = await sendEmailResend({
+          to: ADMIN_EMAIL,
+          subject: `⭐ New Review - ${prodName} (${rating}/5)`,
+          html: `<div style="font-family:Arial; max-width:600px; margin:0 auto; border:2px solid #121212;">
             <div style="background:#121212; color:#E9D9BF; padding:20px; text-align:center;">
               <h2 style="margin:0; font-size:22px;">⭐ NEW REVIEW</h2>
               <p style="margin:8px 0 0; opacity:.8;">Urban Cart - ${prodName}</p>
@@ -539,8 +542,10 @@ app.post('/api/reviews', auth, async (req, res) => {
               <p style="font-size:12px;">Open Admin → Reviews to approve / delete it.</p>
             </div>
           </div>`
-        );
+        });
+        console.log('Review email result:', emailResult);
       }
+      
     } catch(e){ console.log('Review notify failed:', e.message); }
 
     res.json(newReview);
