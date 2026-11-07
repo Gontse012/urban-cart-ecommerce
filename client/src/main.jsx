@@ -1406,9 +1406,54 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
           </div>
 
           {phoneOtpSent && !phoneVerified && (
-            <div style={{display:'flex', gap:10, marginTop:10}}>
-              <input type="tel" inputMode="numeric" pattern="[0-9]*" autoComplete="one-time-code" value={phoneOtp} onChange={e=>setPhoneOtp(e.target.value.replace(/[^0-9]/g,'').slice(0,6))} placeholder="Enter 6-digit OTP" maxLength={6} style={{flex:1, height:52, border:'1px solid #D6D3D1', borderRadius:12, padding:'0 14px', fontSize:16, fontWeight:700, letterSpacing:4, textAlign:'center', outline:'none'}} />
-              <button type="button" onClick={verifyPhoneOtp} disabled={phoneOtp.length!==6} style={{height:52, padding:'0 16px', borderRadius:12, background:'#121212', color:'#fff', fontWeight:800, fontSize:13, cursor:'pointer'}}>Verify</button>
+            <div className="otp-row" style={{display:'flex', gap:10, marginTop:10, flexWrap:'wrap'}}>
+              <input
+                type="tel"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="one-time-code"
+                value={phoneOtp}
+                onChange={e=>setPhoneOtp(e.target.value.replace(/[^0-9]/g,'').slice(0,6))}
+                placeholder="Enter 6-digit OTP"
+                maxLength={6}
+                style={{
+                  flex:'1 1 180px',
+                  minWidth:0,
+                  height:52,
+                  border:'1px solid #D6D3D1',
+                  borderRadius:12,
+                  padding:'0 14px',
+                  fontSize:16,
+                  fontWeight:700,
+                  letterSpacing:4,
+                  textAlign:'center',
+                  outline:'none',
+                  background:'#fff',
+                  boxSizing:'border-box'
+                }}
+              />
+              <button
+                type="button"
+                onClick={verifyPhoneOtp}
+                disabled={phoneOtp.length!==6}
+                style={{
+                  flex:'1 1 110px',
+                  height:52,
+                  minWidth:110,
+                  padding:'0 16px',
+                  borderRadius:12,
+                  background: phoneOtp.length===6 ? '#121212' : '#A8A29E',
+                  color:'#fff',
+                  fontWeight:800,
+                  fontSize:13,
+                  cursor: phoneOtp.length===6 ? 'pointer' : 'not-allowed',
+                  border:'none',
+                  whiteSpace:'nowrap',
+                  boxSizing:'border-box'
+                }}
+              >
+                Verify
+              </button>
             </div>
           )}
           {otpStatus && <div style={{fontSize:'12px', marginTop:'6px', padding:'8px', background:'#FEF3C7', borderRadius:'6px'}}>{otpStatus}</div>}
