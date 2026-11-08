@@ -738,7 +738,9 @@ app.post('/api/auth/send-phone-otp', otpSendLimiter, auth, wrap(async (req, res)
     const sent = await sendSms(phone, `Your Urban Cart OTP is ${otp}. It expires in 5 minutes.`);
     console.log('[OTP] phone:', phone, 'otp:', otp, 'sent:', sent);
     // If no SMS provider, return the code so you can test checkout NOW
-    if (!sent) return res.json({ ok: true, message: 'OTP sent (check SMS / logs)', debug_otp: otp });
+    // In sandbox, AT never delivers to a real phone, so show the code for testing
+    const isSandbox = (process.env.AT_BASE_URL || '').includes('sandbox');
+    if (!sent || isSandbox) return res.json({ ok: true, message: 'OTP sent (check SMS / logs)', debug_otp: otp });
   } catch (e) {
     console.error('[SMS] send failed:', e.message);
     console.log('[OTP DEBUG] phone:', phone, 'otp:', otp);
