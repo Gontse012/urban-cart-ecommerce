@@ -102,8 +102,8 @@ function formatUnitLabel(it) {
 async function sendSms(phone, message) {
   const provider = (process.env.SMS_PROVIDER || '').toLowerCase();
   const to = toE164(phone);
+  console.log('[SMS] provider:', provider, 'to:', to, 'hasKey:', !!process.env.AT_API_KEY, 'username:', process.env.AT_USERNAME);
   if (provider === 'africastalking') {
-    // Sandbox URL must come from env, otherwise it defaults to LIVE and fails in sandbox
     const baseUrl = process.env.AT_BASE_URL || 'https://api.sandbox.africastalking.com/version1/messaging';
     const r = await fetch(baseUrl, {
       method: 'POST',
@@ -114,9 +114,6 @@ async function sendSms(phone, message) {
     console.log('[SMS] AT response:', r.status, JSON.stringify(data));
     if (!r.ok) throw new Error('SMS provider error ' + r.status + ' ' + JSON.stringify(data));
     return true;
-  }
-  if (provider === 'twilio') {
-    // ... keep your twilio block as-is
   }
   console.log('[SMS] No provider configured, OTP would be:', message);
   return false;
@@ -734,17 +731,18 @@ app.post('/api/auth/send-phone-otp', otpSendLimiter, auth, wrap(async (req, res)
   const phone = normalizePhone(req.body.phone);
   if (!isValidSAnumber(phone)) return res.status(400).json({ error: 'Enter a valid SA number like 0821234567' });
 
-  const otp = generateOTP(); // 6-digit from security.js
-  await storeOtp(pool, phone, otp); // saves SHA256 hash in DB, 5 min expiry
+  const otp = generateOTP();
+  await storeOtp(pool, phone, otp);
 
   try {
-    await sendSms(phone, `Your Urban Cart OTP is ${otp}. It expires in 5 minutes.`);
+    const sent = await sendSms(phone, `Your Urban Cart OTP is ${otp}. It expires in 5 minutes.`);
+    console.log('[OTP] phone:', phone, 'otp:', otp, 'sent:', sent);
+    // If no SMS provider, return the code so you can test checkout NOW
+    if (!sent) return res.json({ ok: true, message: 'OTP sent (check SMS / logs)', debug_otp: otp });
   } catch (e) {
     console.error('[SMS] send failed:', e.message);
-    // In sandbox, still return ok so you can see the OTP in Render logs for testing
-    // Remove this log in production!
-    console.log('[OTP DEBUG - REMOVE IN PROD] phone:', phone, 'otp:', otp);
-    return res.json({ ok: true, message: 'OTP sent (check SMS / logs)' });
+    console.log('[OTP DEBUG] phone:', phone, 'otp:', otp);
+    return res.json({ ok: true, message: 'OTP sent (check SMS / logs)', debug_otp: otp });
   }
   res.json({ ok: true, message: 'OTP sent' });
 }));
