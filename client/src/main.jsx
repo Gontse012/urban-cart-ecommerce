@@ -235,13 +235,10 @@ async function sendPhoneOtp(){
   if(!isValidSAphone(phone)){ setOtpStatus('❌ Invalid SA phone'); return; }
   setOtpStatus('Sending OTP...');
   try{
-    const r = await fetch(`${API_URL}/auth/send-phone-otp`, {
+    const data = await api('/auth/send-phone-otp', {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ phone: form.phone, otp: phoneOtp })
+      body: JSON.stringify({ phone }) // only phone, no otp
     });
-    const data = await r.json();
-    if(!r.ok) throw new Error(data.error);
     setPhoneOtpSent(true);
     setOtpStatus(`✅ OTP sent to ${phone}. Check SMS${data.debug_otp ? ` (TEST OTP: ${data.debug_otp})` : ''}`);
   }catch(e){ setOtpStatus('❌ '+e.message); }
@@ -249,13 +246,10 @@ async function sendPhoneOtp(){
 
 async function verifyPhoneOtp(){
   try{
-    const r = await fetch(`${API_URL}/auth/verify-phone-otp`, {
+    const data = await api('/auth/verify-phone-otp', {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ phone: form.phone, otp: phoneOtp })
     });
-    const data = await r.json();
-    if(!r.ok) throw new Error(data.error);
     setPhoneVerified(true);
     setPhoneVerifiedToken(data.phoneVerifiedToken);
     setOtpStatus('✅ Phone verified! You can now place order.');
