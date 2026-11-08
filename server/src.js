@@ -1212,6 +1212,7 @@ app.post('/api/payfast/checkout', auth, wrap(async (req, res) => {
     item_name: `Urban Cart Order #${order.id}`.slice(0, 100),
     item_description: `Delivery to ${order.delivery_address || ''}, ${order.province || ''}`.slice(0, 255)
   };
+  console.log('PF CHECKOUT', { sandbox: process.env.PAYFAST_SANDBOX, merchant_id: merchantId, amount: pfData.amount, notify_url: pfData.notify_url, return_url: pfData.return_url });
   pfData.signature = generateSignature(pfData, process.env.PAYFAST_PASSPHRASE);
   res.json({
     action: process.env.PAYFAST_SANDBOX === 'true' ? 'https://sandbox.payfast.co.za/eng/process' : 'https://www.payfast.co.za/eng/process',
