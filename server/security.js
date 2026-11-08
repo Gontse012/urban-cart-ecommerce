@@ -3,7 +3,7 @@
 import crypto from 'node:crypto';
 import dns from 'node:dns/promises';
 import jwt from 'jsonwebtoken';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
 /* ---------- 1. ENV VALIDATION (fail fast, no insecure fallbacks) ---------- */
 export function requireEnv(names) {
@@ -46,7 +46,7 @@ export const globalLimiter = mk(15 * 60e3, 300, 'Too many requests, slow down.')
 export const authLimiter   = mk(15 * 60e3, 10,  'Too many attempts, try again in 15 minutes.');
 export const resetLimiter  = mk(60 * 60e3, 5,   'Too many reset requests, try again later.');
 export const otpSendLimiter = mk(10 * 60e3, 3,  'Too many OTP requests, wait 10 minutes.',
-  req => `${req.ip}|${normalizePhone(req.body?.phone)}`);
+  req => `${ipKeyGenerator(req.ip)}|${normalizePhone(req.body?.phone)}`);
 export const otpVerifyLimiter = mk(15 * 60e3, 10, 'Too many OTP attempts.');
 export const orderLimiter  = mk(60 * 60e3, 20,  'Too many orders, try again later.');
 export const reviewLimiter = mk(60 * 60e3, 10,  'Too many reviews, try again later.');
