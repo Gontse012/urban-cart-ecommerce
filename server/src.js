@@ -1173,11 +1173,10 @@ app.get('/api/admin/orders/:id/delivery-pdf', wrap(async (req, res) => {
 
 /* ================= PAYFAST CHECKOUT ================= */
 function generateSignature(data, passphrase) {
+  const keys = Object.keys(data).filter(k => k !== 'signature' && data[k] !== '' && data[k] !== null && data[k] !== undefined).sort();
   let pfOutput = '';
-  for (const key in data) {
-    if (Object.prototype.hasOwnProperty.call(data, key) && data[key] !== '' && data[key] !== null && data[key] !== undefined) {
-      pfOutput += `${key}=${encodeURIComponent(String(data[key]).trim()).replace(/%20/g, '+')}&`;
-    }
+  for (const key of keys) {
+    pfOutput += `${key}=${encodeURIComponent(String(data[key]).trim()).replace(/%20/g, '+')}&`;
   }
   let getString = pfOutput.slice(0, -1);
   if (passphrase && String(passphrase).trim() !== '') {
