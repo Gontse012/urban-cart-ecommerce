@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Search, ShoppingBag, ArrowUpRight, Plus, Minus, X, Menu, Check, ShieldCheck, Truck, RotateCcw, PackageCheck, UserRound, MapPin, Clock, FileText, AlertTriangle, Bell, Tag, Ban, MessageCircle, Printer, TrendingUp, DollarSign, Users, Crown, Eye, Archive } from 'lucide-react';
+import { Search, ShoppingBag, ArrowUpRight, Plus, Minus, X, Menu, Check, ShieldCheck, Truck, RotateCcw, PackageCheck, UserRound, MapPin, Clock, FileText, AlertTriangle, Bell, Tag, Ban, MessageCircle, Printer, TrendingUp, DollarSign, Users, Crown, Eye, Archive, Strikethrough } from 'lucide-react';
 import './styles.css';
 
 const RAW = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
@@ -1373,7 +1373,9 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
         </section>
         <section id="story" className="manifesto">
           <div><h2>LESS NOISE.<br/>MORE<br/><em>MEANING.</em></h2></div>
-          <div><p>Urban Cart started with one question: what if we only sold things we'd keep?</p><p>We don't do 10,000 products. We do 30 that matter. Tech that doesn't shout. Homeware that lasts. Everyday stuff that makes the day feel a little more considered.</p><p>Proudly built in Ellisras. Shipping everywhere in South Africa.</p><a onClick={()=>{setTermsTab('Terms of service'); setShowTerms(true);}} className="btn-outline" style={{cursor:'pointer'}}>READ OUR RULES <ArrowUpRight size={14}/></a></div>
+          <div><p>Urban Cart started with one question: what if we only sold things we'd keep?</p>
+          <p>We don't do 10,000 products. We do 30 that matter. Tech that doesn't shout. Homeware that lasts. Everyday stuff that makes the day feel a little more considered.</p>
+          <p>Proudly built in Ellisras. <i><Strikethrough>Shipping everywhere in South Africa.</Strikethrough></i></p><a onClick={()=>{setTermsTab('Terms of service'); setShowTerms(true);}} className="btn-outline" style={{cursor:'pointer'}}>READ OUR RULES <ArrowUpRight size={14}/></a></div>
         </section>
       </>
     )}
@@ -1385,9 +1387,10 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
           TRACK ORDER
       </button>
       <button onClick={()=>{ setAccountOpen(true); }}>MY ACCOUNT</button>
-      <button onClick={()=>{ setAccountOpen(true); }}>
+      <button>
         <img height='20px' width='40px' src='https://logos-world.net/wp-content/uploads/2020/04/Instagram-icon-Logo-2016-present.png' alt='instagram profile link' />
-      <a href='https://www.instagram.com/iam_.gontse?vrfl=bno4ZXR4N3hvbXFo&utm_source=qr'>Instagram</a></button>
+      <a href='https://www.instagram.com/iam_.gontse?vrfl=bno4ZXR4N3hvbXFo&utm_source=qr'>Stay Updated on Instagram</a>
+      </button>
     </div>
 
     <div className="foot-top">
