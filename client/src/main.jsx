@@ -537,11 +537,16 @@ async function removeItem(id, size='', color=''){
   setNotice('You have signed out. Your bag is saved for next login.');
  }
 
- async function loadTracking(){
-  const data = await api('/orders/my-orders');
-  const sorted = [...(data||[])].filter(o=>o.status!=='cancelled').sort(sortByDateDesc);
-  setTrackingOrders(sorted);
-  setOrders(sorted);
+async function loadTracking(){
+  try{
+    const data = await api('/orders/my-orders');
+    const sorted = [...(data||[])].sort(sortByDateDesc);
+    setTrackingOrders(sorted);
+    setOrders(sorted);
+  }catch(e){
+    console.error('loadTracking failed', e);
+    setNotice('Could not load orders: ' + e.message);
+  }
 }
 
  async function deleteAccount(){
