@@ -1041,6 +1041,7 @@ div:has(> div > strong:contains("PAYFAST")) {
   flex:1;
   min-width:0;
 }
+
 .filter-pill{
   display:inline-flex;
   align-items:center;
@@ -1048,6 +1049,7 @@ div:has(> div > strong:contains("PAYFAST")) {
   padding:8px 14px;
   border:1.5px solid #121212;
   background:#fff;
+  color:#121212;
   font-size:12px;
   font-weight:800;
   letter-spacing:.4px;
@@ -1055,8 +1057,9 @@ div:has(> div > strong:contains("PAYFAST")) {
   white-space:nowrap;
   transition:.15s;
 }
-.filter-pill:hover{ background:#F5F1EB; }
-.filter-pill.active{ background:#121212; color:#FFFCF8; }
+.filter-pill:hover{ background:#F5F1EB; color:#121212; }
+.filter-pill.active{ background:#E9D9BF; color:#121212; border-color:#121212; }
+
 .filter-count{
   font-size:10px;
   background:#E9D9BF;
@@ -1084,7 +1087,7 @@ div:has(> div > strong:contains("PAYFAST")) {
   .filter-pills{
     padding-bottom:4px;
   }
-  
+
   .filter-pills::-webkit-scrollbar{ display:none; }
   .filter-pill{ flex-shrink:0; padding:9px 15px; }
   .filter-sort{ width:100%; }

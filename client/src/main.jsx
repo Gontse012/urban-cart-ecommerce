@@ -1389,7 +1389,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
       <button onClick={()=>{ setAccountOpen(true); }}>MY ACCOUNT</button>
       <button>
         <img height='20px' width='40px' src='https://logos-world.net/wp-content/uploads/2020/04/Instagram-icon-Logo-2016-present.png' alt='instagram profile link' />
-      <a href='https://www.instagram.com/iam_.gontse?vrfl=bno4ZXR4N3hvbXFo&utm_source=qr'>Stay Updated on Instagram</a>
+      <a href='https://www.instagram.com/realurban_cart?mdxt=MTNhdm91Z3Jxb3E2Yw%3D%3D&utm_source=qr'>Stay Updated: Instagram</a>
       </button>
     </div>
 
