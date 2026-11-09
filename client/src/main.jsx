@@ -122,6 +122,7 @@ function printDoc(html){
 
 function App(){
  const [products,setProducts]=useState(fallbackProducts),[category,setCategory]=useState('All'),[search,setSearch]=useState(''),[cart,setCart]=useState([]),[cartOpen,setCartOpen]=useState(false),[checkoutOpen,setCheckoutOpen]=useState(false),[notice,setNotice]=useState(''),[loading,setLoading]=useState(true),[menuOpen,setMenuOpen]=useState(false),[accountOpen,setAccountOpen]=useState(false),[authMode,setAuthMode]=useState('login'),[user,setUser]=useState(()=>JSON.parse(localStorage.getItem('uc_user')||'null')),[orders,setOrders]=useState([]),[adminOpen,setAdminOpen]=useState(false),[adminOrders,setAdminOrders]=useState([]),[adminUsers,setAdminUsers]=useState([]),[busy,setBusy]=useState(false),[selectedProduct,setSelectedProduct]=useState(null),[showAll,setShowAll]=useState(false);
+ const [returnToFullIndex,setReturnToFullIndex]=useState(false);
  const [activeTab,setActiveTab]=useState('shop');
  const [searchOpen,setSearchOpen]=useState(false);
  const [checkoutError,setCheckoutError]=useState('');
@@ -484,26 +485,47 @@ async function removeItem(id, size='', color=''){
    localStorage.removeItem(key);
  }
 
-  function openProduct(p){
-    setSelectedProduct(p); 
-    setGalleryIndex(0);
-    setShowAll(false); 
-    setVariantError('');
-    setSelectedSize(''); // reset every time you open a product
-    setActiveTab('shop');
-    window.scrollTo({top:0, behavior:'smooth'}); 
-    // REVIEWS - load when product opens
-    setReviews([]); 
-    setSelectedColor('');
-    setReviewComment(''); 
-    setReviewRating(5); 
-    setReviewMsg('');
-    api(`/products/${p.id}/reviews`).then(setReviews).catch(()=>setReviews([]));
-  }
+function openProduct(p){
+  // Remember if we came from Full Index BEFORE opening
+  setReturnToFullIndex(showAll);
+  setSelectedProduct(p); 
+  setGalleryIndex(0);
+  // REMOVED: setShowAll(false) - this was the bug that sent you to Home
+  setVariantError('');
+  setSelectedSize(''); // reset every time you open a product
+  setActiveTab('shop');
+  window.scrollTo({top:0, behavior:'smooth'}); 
+  // REVIEWS - load when product opens
+  setReviews([]); 
+  setSelectedColor('');
+  setReviewComment(''); 
+  setReviewRating(5); 
+  setReviewMsg('');
+  api(`/products/${p.id}/reviews`).then(setReviews).catch(()=>setReviews([]));
+}
 
- function closeProduct(){ setSelectedProduct(null); }
+function closeProduct(){ 
+  setSelectedProduct(null);
+  // Go back to where you came from
+  if(returnToFullIndex){
+    setShowAll(true);
+  } else {
+    setShowAll(false);
+  }
+  setReturnToFullIndex(false);
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
  function handleViewEverything(){ setCategory('All'); setSearch(''); setShowAll(true); setSelectedProduct(null); setActiveTab('shop'); window.scrollTo({top:0, behavior:'smooth'}); }
- function handleHome(){ setShowAll(false); closeProduct(); setCategory('All'); setSearch(''); setActiveTab('shop'); window.scrollTo({top:0, behavior:'smooth'}); }
+  function handleHome(){ 
+    setReturnToFullIndex(false); 
+    setShowAll(false); 
+    setSelectedProduct(null); 
+    setCategory('All'); 
+    setSearch(''); 
+    setActiveTab('shop'); 
+    window.scrollTo({top:0, behavior:'smooth'}); 
+  }
 
  async function submitAuth(e){
   e.preventDefault(); 
@@ -1356,9 +1378,24 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
     )}
   </main>
   <footer className="footer">
-    <div className="foot-top"><span>© {new Date().getFullYear()} URBAN CART</span><span>Ellisras — Lephalale — SA</span><span onClick={()=>{setTermsTab('Shipping'); setShowTerms(true);}} style={{cursor:'pointer', textDecoration:'underline'}}>TERMS & POLICIES</span></div>
+    <div className="foot-links">
+      <button onClick={handleHome}>HOME</button>
+      <button onClick={handleViewEverything}>FULL INDEX</button>
+      <button onClick={()=>{ setActiveTab('track'); loadTracking(); 
+        window.scrollTo({top:0, behavior:'smooth'}); }}>
+          TRACK ORDER
+      </button>
+      <button onClick={()=>{ setAccountOpen(true); }}>MY ACCOUNT</button>
+    </div>
+
+    <div className="foot-top">
+      <span>© {new Date().getFullYear()} URBAN CART</span>
+      <span>Ellisras — Lephalale — SA</span>
+      <span>PayFast Secure • 1-2 Day Delivery</span>
+    </div>
     <div className="foot-big">URBAN CART</div>
   </footer>
+
   {notice&&<div className="toast"><Check size={14}/>{notice}<button onClick={()=>setNotice('')}><X size={12}/></button></div>}
 
   {cartOpen&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setCartOpen(false)}}>
