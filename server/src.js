@@ -229,83 +229,83 @@ async function sendDeliveryNoteEmail(order, items) {
       </tr>`).join('');
     const subject = `✅ PAID - DELIVERY NOTE #${order.id} - R${Number(order.total).toFixed(2)} - ${custName.replace(/[\r\n]/g, ' ')} - Ready to Ship`;
     const html = `
-<!DOCTYPE html>
-<html>
-<body style="margin:0;padding:0;background:#F5F1EB;font-family:Inter,Arial,sans-serif">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F5F1EB;padding:24px 0">
-    <tr><td align="center">
-      <table width="640" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,0.08);max-width:95%">
-        <tr><td style="background:#121212;padding:24px 32px">
-          <table width="100%"><tr>
-            <td>
-              <div style="color:#E9D9BF;font-weight:900;font-size:20px;letter-spacing:2px;line-height:1">URBAN CART</div>
-              <div style="color:#E9D9BF;font-size:10px;opacity:0.6;letter-spacing:2px;margin-top:4px">LEPHALALE • ELLISRAS • SOUTH AFRICA</div>
-            </td>
-            <td align="right">
-              <div style="background:#f0fdf4;color:#16a34a;font-weight:800;font-size:11px;padding:8px 14px;border-radius:20px;display:inline-block;letter-spacing:0.5px">✅ PAID - READY TO SHIP</div>
-            </td>
-          </tr></table>
-        </td></tr>
-        <tr><td style="padding:28px 32px 0 32px">
-          <table width="100%"><tr>
-            <td width="50%" style="vertical-align:top;padding-right:16px">
-              <div style="font-size:10px;color:#999;letter-spacing:1.5px;font-weight:700;margin-bottom:10px">BILL TO</div>
-              <div style="font-size:13px;line-height:21px;color:#121212">
-                <b style="font-size:14px">${e(custName)}</b><br/>
-                ${e(order.email)}<br/>
-                ${e(order.phone)}<br/>
-                <span style="color:#57534E">${e(order.delivery_address || order.address)}<br/>${e(order.province)} ${e(order.postal_code)}${order.city ? ` • ${e(order.city)}` : ''}</span>
-                ${order.address_search ? `<br/><span style="font-size:11px;color:#999">📍 ${e(order.address_search)}</span>` : ''}
+    <!DOCTYPE html>
+    <html>
+    <body style="margin:0;padding:0;background:#F5F1EB;font-family:Inter,Arial,sans-serif">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#F5F1EB;padding:24px 0">
+        <tr><td align="center">
+          <table width="640" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,0.08);max-width:95%">
+            <tr><td style="background:#121212;padding:24px 32px">
+              <table width="100%"><tr>
+                <td>
+                  <div style="color:#E9D9BF;font-weight:900;font-size:20px;letter-spacing:2px;line-height:1">URBAN CART</div>
+                  <div style="color:#E9D9BF;font-size:10px;opacity:0.6;letter-spacing:2px;margin-top:4px">LEPHALALE • ELLISRAS • SOUTH AFRICA</div>
+                </td>
+                <td align="right">
+                  <div style="background:#f0fdf4;color:#16a34a;font-weight:800;font-size:11px;padding:8px 14px;border-radius:20px;display:inline-block;letter-spacing:0.5px">✅ PAID - READY TO SHIP</div>
+                </td>
+              </tr></table>
+            </td></tr>
+            <tr><td style="padding:28px 32px 0 32px">
+              <table width="100%"><tr>
+                <td width="50%" style="vertical-align:top;padding-right:16px">
+                  <div style="font-size:10px;color:#999;letter-spacing:1.5px;font-weight:700;margin-bottom:10px">BILL TO</div>
+                  <div style="font-size:13px;line-height:21px;color:#121212">
+                    <b style="font-size:14px">${e(custName)}</b><br/>
+                    ${e(order.email)}<br/>
+                    ${e(order.phone)}<br/>
+                    <span style="color:#57534E">${e(order.delivery_address || order.address)}<br/>${e(order.province)} ${e(order.postal_code)}${order.city ? ` • ${e(order.city)}` : ''}</span>
+                    ${order.address_search ? `<br/><span style="font-size:11px;color:#999">📍 ${e(order.address_search)}</span>` : ''}
+                  </div>
+                </td>
+                <td width="50%" style="vertical-align:top">
+                  <div style="font-size:10px;color:#999;letter-spacing:1.5px;font-weight:700;margin-bottom:10px">SHIPMENT DETAILS</div>
+                  <div style="font-size:13px;line-height:21px;color:#121212">
+                    Order: <b>#${e(order.id)}</b><br/>
+                    Date: ${new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' })}<br/>
+                    Payment: <b style="color:#16a34a">PAID via PayFast</b><br/>
+                    Courier: ${e(order.current_location || 'Warehouse - Lephalale')}<br/>
+                    ETA: <b>${e(order.eta || '1-2 business days')}</b><br/>
+                    Total: <b style="font-size:16px;color:#121212">R${Number(order.total).toFixed(2)}</b>
+                  </div>
+                </td>
+              </tr></table>
+            </td></tr>
+            <tr><td style="padding:28px 32px 0 32px">
+              <div style="border:1px solid #F0EDE8;border-radius:12px;overflow:hidden">
+                <table width="100%" cellpadding="0" cellspacing="0">
+                  <tr style="background:#FFFCF8">
+                    <th style="padding:12px 16px;text-align:left;font-size:10px;letter-spacing:1px;color:#999;font-weight:700">ITEM</th>
+                    <th style="padding:12px 16px;text-align:center;font-size:10px;letter-spacing:1px;color:#999;font-weight:700">QTY</th>
+                    <th style="padding:12px 16px;text-align:right;font-size:10px;letter-spacing:1px;color:#999;font-weight:700">UNIT</th>
+                    <th style="padding:12px 16px;text-align:right;font-size:10px;letter-spacing:1px;color:#999;font-weight:700">TOTAL</th>
+                  </tr>
+                  ${itemRows}
+                  <tr style="background:#121212">
+                    <td colspan="3" style="padding:16px;color:#E9D9BF;font-weight:700;font-size:13px;text-align:right;letter-spacing:1px">TOTAL PAID</td>
+                    <td style="padding:16px;color:#E9D9BF;font-weight:900;font-size:16px;text-align:right">R${Number(order.total).toFixed(2)}</td>
+                  </tr>
+                </table>
               </div>
-            </td>
-            <td width="50%" style="vertical-align:top">
-              <div style="font-size:10px;color:#999;letter-spacing:1.5px;font-weight:700;margin-bottom:10px">SHIPMENT DETAILS</div>
-              <div style="font-size:13px;line-height:21px;color:#121212">
-                Order: <b>#${e(order.id)}</b><br/>
-                Date: ${new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' })}<br/>
-                Payment: <b style="color:#16a34a">PAID via PayFast</b><br/>
-                Courier: ${e(order.current_location || 'Warehouse - Lephalale')}<br/>
-                ETA: <b>${e(order.eta || '1-2 business days')}</b><br/>
-                Total: <b style="font-size:16px;color:#121212">R${Number(order.total).toFixed(2)}</b>
+            </td></tr>
+            <tr><td style="padding:20px 32px 0 32px">
+              <div style="background:#FFFCF8;border:1px dashed #E5D5B7;padding:14px 16px;border-radius:10px">
+                <div style="font-size:12px;line-height:18px;color:#57534E">
+                  📦 <b style="color:#121212">Delivery Instructions:</b> Order #${e(order.id)} - Handle with care. Customer phone ${e(order.phone)}. Signature required. Courier: ${e(order.current_location)}. Search: ${e(order.address_search || 'N/A')}
+                </div>
               </div>
-            </td>
-          </tr></table>
-        </td></tr>
-        <tr><td style="padding:28px 32px 0 32px">
-          <div style="border:1px solid #F0EDE8;border-radius:12px;overflow:hidden">
-            <table width="100%" cellpadding="0" cellspacing="0">
-              <tr style="background:#FFFCF8">
-                <th style="padding:12px 16px;text-align:left;font-size:10px;letter-spacing:1px;color:#999;font-weight:700">ITEM</th>
-                <th style="padding:12px 16px;text-align:center;font-size:10px;letter-spacing:1px;color:#999;font-weight:700">QTY</th>
-                <th style="padding:12px 16px;text-align:right;font-size:10px;letter-spacing:1px;color:#999;font-weight:700">UNIT</th>
-                <th style="padding:12px 16px;text-align:right;font-size:10px;letter-spacing:1px;color:#999;font-weight:700">TOTAL</th>
-              </tr>
-              ${itemRows}
-              <tr style="background:#121212">
-                <td colspan="3" style="padding:16px;color:#E9D9BF;font-weight:700;font-size:13px;text-align:right;letter-spacing:1px">TOTAL PAID</td>
-                <td style="padding:16px;color:#E9D9BF;font-weight:900;font-size:16px;text-align:right">R${Number(order.total).toFixed(2)}</td>
-              </tr>
-            </table>
-          </div>
-        </td></tr>
-        <tr><td style="padding:20px 32px 0 32px">
-          <div style="background:#FFFCF8;border:1px dashed #E5D5B7;padding:14px 16px;border-radius:10px">
-            <div style="font-size:12px;line-height:18px;color:#57534E">
-              📦 <b style="color:#121212">Delivery Instructions:</b> Order #${e(order.id)} - Handle with care. Customer phone ${e(order.phone)}. Signature required. Courier: ${e(order.current_location)}. Search: ${e(order.address_search || 'N/A')}
-            </div>
-          </div>
-        </td></tr>
-        <tr><td style="background:#F5F1EB;padding:18px 32px;text-align:center;border-top:1px solid #F0EDE8">
-          <div style="font-size:11px;color:#999;line-height:16px">
-            📎 PDF attached: <b>DELIVERY-${e(order.id)}.pdf</b> • Generated ${new Date().toLocaleString('en-ZA')} • Urban Cart Admin<br/>
-            © ${new Date().getFullYear()} Urban Cart • Ellisras - Lephalale • PayFast Secure Payments
-          </div>
+            </td></tr>
+            <tr><td style="background:#F5F1EB;padding:18px 32px;text-align:center;border-top:1px solid #F0EDE8">
+              <div style="font-size:11px;color:#999;line-height:16px">
+                📎 PDF attached: <b>DELIVERY-${e(order.id)}.pdf</b> • Generated ${new Date().toLocaleString('en-ZA')} • Urban Cart Admin<br/>
+                © ${new Date().getFullYear()} Urban Cart • Ellisras - Lephalale • PayFast Secure Payments
+              </div>
+            </td></tr>
+          </table>
         </td></tr>
       </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+    </body>
+    </html>`;
     const resendResult = await sendViaResend({ to: ADMIN_EMAIL, subject, text, html, pdfBuffer: buffer, pdfName: `DELIVERY-${order.id}.pdf` });
     if (resendResult && resendResult.ok) {
       console.log(`Delivery note #${order.id} sent via Resend`);
@@ -384,9 +384,23 @@ app.post('/api/payfast/notify', express.urlencoded({ extended: false, limit: '20
     if (!check.ok) return console.warn(`ITN rejected for order ${orderId}: ${check.reason}`);
 
     const status = String(data.payment_status || '').toLowerCase();
-    if (status === 'complete') await markOrderPaid(orderId, data.pf_payment_id);
-    else if (status === 'failed') await pool.execute("UPDATE orders SET payment_status='failed' WHERE id=? AND status='pending'", [orderId]);
-    else if (status === 'cancelled') await pool.execute("UPDATE orders SET payment_status='cancelled' WHERE id=? AND status='pending'", [orderId]);
+
+    if (status === 'complete') {
+      await markOrderPaid(orderId, data.pf_payment_id);
+    } else if (status === 'failed') {
+      const [r] = await pool.execute(
+        "UPDATE orders SET payment_status='failed', status='failed', delivery_status='Payment Failed' WHERE id=? AND status='pending'",
+        [orderId]
+      );
+      if (r.affectedRows) await restockOrder(orderId);
+    } else if (status === 'cancelled') {
+      const [r] = await pool.execute(
+        "UPDATE orders SET payment_status='cancelled', status='cancelled', delivery_status='Cancelled' WHERE id=? AND status='pending'",
+        [orderId]
+      );
+      if (r.affectedRows) await restockOrder(orderId);
+    }
+    
   } catch (e) { console.error('ITN error', e.message); }
 });
 
@@ -915,7 +929,13 @@ app.post('/api/orders/:id/cancel', auth, wrap(async (req, res) => {
 
 // Only the signed-in customer's own orders (no email matching: unverified emails must not grant access)
 app.get('/api/orders/mine', auth, wrap(async (req, res) => {
-  const [rows] = await pool.execute('SELECT id,total,status,payment_status,delivery_status,current_location,eta,tracking_history,delivery_address,province,postal_code,cancel_reason,created_at FROM orders WHERE customer_id=? ORDER BY created_at DESC', [req.user.id]);
+  const [rows] = await pool.execute(
+    `SELECT id,total,status,payment_status,delivery_status,current_location,eta,tracking_history,delivery_address,province,postal_code,cancel_reason,created_at
+     FROM orders
+     WHERE customer_id=?
+     AND status IN ('paid','processing','shipped','delivered','cancelled','refunded','refund_pending','failed')
+     ORDER BY created_at DESC`,
+    [req.user.id]);
   for (const r of rows) {
     const [items] = await pool.execute('SELECT oi.*, p.name, p.image_url FROM order_items oi JOIN products p ON p.id=oi.product_id WHERE oi.order_id=?', [r.id]);
     r.items = items;
@@ -925,7 +945,15 @@ app.get('/api/orders/mine', auth, wrap(async (req, res) => {
 }));
 
 app.get('/api/orders/my-orders', auth, wrap(async (req, res) => {
-  const [rows] = await pool.execute('SELECT o.*, oi.quantity, oi.price, oi.selected_size, oi.selected_color, oi.unit, oi.unit_value, p.name, p.image_url, oi.product_id as oi_pid FROM orders o LEFT JOIN order_items oi ON oi.order_id=o.id LEFT JOIN products p ON p.id=oi.product_id WHERE o.customer_id=? ORDER BY o.created_at DESC', [req.user.id]);
+  const [rows] = await pool.execute(
+    `SELECT o.*, oi.quantity, oi.price, oi.selected_size, oi.selected_color, oi.unit, oi.unit_value, p.name, p.image_url, oi.product_id as oi_pid
+     FROM orders o
+     LEFT JOIN order_items oi ON oi.order_id=o.id
+     LEFT JOIN products p ON p.id=oi.product_id
+     WHERE o.customer_id=?
+     AND o.status IN ('paid','processing','shipped','delivered','cancelled','refunded','refund_pending','failed')
+     ORDER BY o.created_at DESC`,
+    [req.user.id]);
   const map = {};
   rows.forEach(r => {
     if (!map[r.id]) map[r.id] = { id: r.id, total: r.total, status: r.status, payment_status: r.payment_status, delivery_status: r.delivery_status, current_location: r.current_location, eta: r.eta, tracking_history: r.tracking_history, delivery_address: r.delivery_address, province: r.province, postal_code: r.postal_code, cancel_reason: r.cancel_reason, created_at: r.created_at, items: [] };
