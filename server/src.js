@@ -749,18 +749,18 @@ app.post('/api/auth/send-phone-otp', otpSendLimiter, auth, wrap(async (req, res)
   const otp = generateOTP();
   await storeOtp(pool, phone, otp);
 
-  try {
-    const sent = await sendSms(phone, `Your Urban Cart OTP is ${otp}. It expires in 5 minutes.`);
-    console.log('[OTP] phone:', phone, 'otp:', otp, 'sent:', sent);
-    // If no SMS provider, return the code so you can test checkout NOW
-    // In sandbox, AT never delivers to a real phone, so show the code for testing
-    const isSandbox = (process.env.AT_BASE_URL || '').includes('sandbox');
-    if (!sent || isSandbox) return res.json({ ok: true, message: 'OTP sent (check SMS / logs)', debug_otp: otp });
-  } catch (e) {
-    console.error('[SMS] send failed:', e.message);
-    console.log('[OTP DEBUG] phone:', phone, 'otp:', otp);
-    return res.json({ ok: true, message: 'OTP sent (check SMS / logs)', debug_otp: otp });
-  }
+   try {
+     const sent = await sendSms(phone, `Your Urban Cart OTP is ${otp}. It expires in 5 minutes.`);
+     if (!sent && IS_PROD) {
+       await pool.execute('DELETE FROM phone_otps WHERE phone=?', [phone]);
+       return res.status(503).json({ error: 'SMS service is not configured.' });
+     }
+     return res.json({ ok: true, message: 'OTP sent', ...(!IS_PROD ? { debug_otp: otp } : {}) });
+   } catch (e) {
+     console.error('[SMS] send failed:', e.message);
+     await pool.execute('DELETE FROM phone_otps WHERE phone=?', [phone]);
+     return res.status(502).json({ error: 'Could not send SMS. Please try again.' });
+   }
   res.json({ ok: true, message: 'OTP sent' });
 }));
 
@@ -833,18 +833,13 @@ app.delete('/api/cart', auth, wrap(async (req, res) => {
 }));
 
 // ===== LEPHALALE DELIVERY ONLY =====
-function getLephalaleDeliveryFee(province, postalCode, subtotal) {
-  if (subtotal >= 1000) return 0; // FREE over R1000
-
-  const p = (province || '').toUpperCase().trim();
-  const pc = String(postalCode || '').trim();
-
-  // Lephalale / Ellisras only
-  const isLephalale = p === 'LIMPOPO' && ['0555', '0556', '0557'].includes(pc);
-  if (isLephalale) return 60;
-
-  return null; // not deliverable yet
-}
+   function getLephalaleDeliveryFee(province, postalCode, subtotal) {
+     const p = (province || '').toUpperCase().trim();
+     const pc = String(postalCode || '').trim();
+     const isLephalale = p === 'LIMPOPO' && ['0555', '0556', '0557'].includes(pc);
+     if (!isLephalale) return null;
+     return subtotal >= 1000 ? 0 : 60;
+   }
 
 /* ================= ORDERS ================= */
 app.post('/api/orders', orderLimiter, auth, async (req, res, next) => {
@@ -1221,10 +1216,12 @@ app.get('/api/admin/orders/:id/delivery-pdf', wrap(async (req, res) => {
 
 /* ================= PAYFAST CHECKOUT ================= */
 function generateSignature(data, passphrase) {
-  const keys = Object.keys(data).filter(k => k !== 'signature' && data[k] !== '' && data[k] !== null && data[k] !== undefined).sort();
   let pfOutput = '';
-  for (const key of keys) {
-    pfOutput += `${key}=${encodeURIComponent(String(data[key]).trim()).replace(/%20/g, '+')}&`;
+  for (const key of Object.keys(data)) {          // insertion order, NOT sorted
+    if (key === 'signature') continue;
+    const v = data[key];
+    if (v === '' || v === null || v === undefined) continue;
+    pfOutput += `${key}=${encodeURIComponent(String(v).trim()).replace(/%20/g, '+')}&`;
   }
   let getString = pfOutput.slice(0, -1);
   if (passphrase && String(passphrase).trim() !== '') {
