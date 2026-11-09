@@ -1386,7 +1386,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
       </button>
       <button onClick={()=>{ setAccountOpen(true); }}>MY ACCOUNT</button>
       <button onClick={()=>{ setAccountOpen(true); }}>
-        <img height='20px' width='20px' src='https://logos-world.net/wp-content/uploads/2020/04/Instagram-icon-Logo-2016-present.png' alt='instagram profile link' />
+        <img height='20px' width='40px' src='https://logos-world.net/wp-content/uploads/2020/04/Instagram-icon-Logo-2016-present.png' alt='instagram profile link' />
       <a href='https://www.instagram.com/iam_.gontse?vrfl=bno4ZXR4N3hvbXFo&utm_source=qr'>Instagram</a></button>
     </div>
 
