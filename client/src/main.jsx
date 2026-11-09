@@ -1431,7 +1431,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
           <div><h2>LESS NOISE.<br/>MORE<br/><em>MEANING.</em></h2></div>
           <div><p>Urban Cart started with one question: what if we only sold things we'd keep?</p>
           <p>We don't do 10,000 products. We do 30 that matter. Tech that doesn't shout. Homeware that lasts. Everyday stuff that makes the day feel a little more considered.</p>
-          <p>Proudly built in Ellisras. <i><Strikethrough>Shipping everywhere in South Africa.</Strikethrough></i></p><a onClick={()=>{setTermsTab('Terms of service'); setShowTerms(true);}} className="btn-outline" style={{cursor:'pointer'}}>READ OUR RULES <ArrowUpRight size={14}/></a></div>
+          <p>Proudly built in Ellisras. <i><s>Shipping everywhere in South Africa.</s></i></p><a onClick={()=>{setTermsTab('Terms of service'); setShowTerms(true);}} className="btn-outline" style={{cursor:'pointer'}}>READ OUR RULES <ArrowUpRight size={14}/></a></div>
         </section>
       </>
     )}
