@@ -130,6 +130,7 @@ function App(){
  const [editingOrder,setEditingOrder]=useState(null);
  const [cancelModal,setCancelModal]=useState(null);
  const [cancelReason,setCancelReason]=useState('');
+ const [lightboxImg,setLightboxImg]=useState(null);
  const [editData,setEditData]=useState({delivery_status:'Order Placed', current_location:'Warehouse - Lephalale', eta:'1-2 business days', tracking_note:''});
  const [form,setForm]=useState(
   {full_name:'',
@@ -1073,7 +1074,13 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
             <div className="product-view-left" style={{display:'flex', flexDirection:'column', gap:12, position:'relative'}}>
               {selectedProduct.is_bestseller && <span style={{position:'absolute', top:12, left:12, background:'#121212', color:'#fff', padding:'6px 12px', fontSize:11, fontWeight:800, letterSpacing:1, zIndex:2}}>BESTSELLER</span>}
               {getProductImages(selectedProduct).map((img, i) => (
-                <img key={i} src={img} alt={`${selectedProduct.name} - ${i+1}`} style={{width:'100%', display:'block', border:'2px solid #121212', background:'#fff'}} />
+                <img 
+                  key={i} 
+                  src={img} 
+                  alt={`${selectedProduct.name} - ${i+1}`} 
+                  onClick={()=>setLightboxImg(img)}
+                  style={{width:'100%', display:'block', border:'2px solid #121212', background:'#fff', cursor:'zoom-in'}} 
+                />
               ))}
             <div className="img-meta" style={{position:'static'}}><span>{selectedProduct.category} {selectedProduct.on_sale && <b style={{background:'#F59E0B', color:'#000', padding:'2px 6px', marginLeft:8}}>SALE</b>}</span><span>{isOutOfStock(selectedProduct) ? 'OUT OF STOCK' : `${selectedProduct.stock} IN STOCK`}</span></div>
           </div>
@@ -1244,6 +1251,41 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
           </div>
         </div>
       </div>
+      {/* === IMAGE LIGHTBOX === */}
+      {lightboxImg && (
+        <div 
+          onClick={()=>setLightboxImg(null)}
+          style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.92)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center', padding:16, cursor:'zoom-out'}}
+        >
+          <button 
+            onClick={()=>setLightboxImg(null)}
+            style={{position:'absolute', top:16, right:16, background:'#fff', color:'#121212', border:'none', padding:'10px 14px', fontWeight:800, fontSize:12, cursor:'pointer', display:'flex', alignItems:'center', gap:6}}
+          >
+            <X size={14}/> CLOSE
+          </button>
+
+          <img 
+            src={lightboxImg} 
+            alt={selectedProduct.name}
+            onClick={(e)=>e.stopPropagation()}
+            style={{maxWidth:'94vw', maxHeight:'86vh', objectFit:'contain', border:'3px solid #fff', background:'#fff'}}
+          />
+
+          {/* Thumbnails to switch image */}
+          {getProductImages(selectedProduct).length > 1 && (
+            <div style={{position:'absolute', bottom:16, left:'50%', transform:'translateX(-50%)', display:'flex', gap:8, flexWrap:'wrap', justifyContent:'center'}}>
+              {getProductImages(selectedProduct).map((img,i)=>(
+                <img 
+                  key={i}
+                  src={img}
+                  onClick={(e)=>{e.stopPropagation(); setLightboxImg(img);}}
+                  style={{width:56, height:56, objectFit:'cover', border: lightboxImg===img ? '3px solid #F59E0B' : '2px solid #fff', cursor:'pointer', background:'#fff'}}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {/* YOU MIGHT LIKE */}
   <div style={{padding:'16px 12px', background:'#FFFCF8', borderTop:'2px solid #121212'}}>
   <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:6, marginBottom:12}}>
