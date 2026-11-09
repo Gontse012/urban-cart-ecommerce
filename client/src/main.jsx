@@ -372,7 +372,10 @@ async function handleResetSubmit(e){
 
  const visible=useMemo(()=>products.filter(p=>(category==='All'|| (p.category||'').toLowerCase()===category.toLowerCase())&& `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())).sort((a,b)=>(b.is_bestseller?1:0)-(a.is_bestseller?1:0) || b.id-a.id),[products,category,search]);
  const visibleAll=useMemo(()=>products.filter(p=> `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())).sort((a,b)=>(b.is_bestseller?1:0)-(a.is_bestseller?1:0) || b.id-a.id),[products,search]);
- const count = cart.reduce((s,p)=>s+p.quantity,0), total=cart.reduce((s,p)=>s+effectivePrice(p)*p.quantity,0);    
+ const count = cart.reduce((s,p)=>s+p.quantity,0), total=cart.reduce((s,p)=>s+effectivePrice(p)*p.quantity,0);  
+ const isLephalaleDelivery = form.province === 'LIMPOPO' && ['0555','0556','0557'].includes((form.postal_code || '').trim());
+ const deliveryFee = !isLephalaleDelivery ? 0 : total >= 1000 ? 0 : 60;
+ const grandTotal = total + deliveryFee;  
  const setField=(k,v)=>{setForm(f=>({...f,[k]:v})); setCheckoutError(''); };
  const hasOrders = trackingOrders.length > 0 || orders.length > 0;
 
@@ -1551,9 +1554,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
 
             {/* === LEPHALALE DELIVERY === */}
             {(() => {
-              const isLephalale = form.province === 'LIMPOPO' && ['0555','0556','0557'].includes(form.postal_code.trim());
-              const deliveryFee = !isLephalale ? 0 : total >= 1000 ? 0 : 60;
-              const grandTotal = total + deliveryFee;
+              const isLephalale = isLephalaleDelivery;
               return (
                 <>
                   <div style={{display:'flex', justifyContent:'space-between', fontWeight:700, borderTop:'2px solid #121212', paddingTop:10, fontSize:13}}>
