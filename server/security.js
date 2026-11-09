@@ -57,7 +57,7 @@ const JWT_OPTS = { algorithms: ['HS256'], issuer: 'urban-cart' };
 export const signToken = user => jwt.sign(
   { id: user.id, name: user.name, email: user.email, role: user.role },
   process.env.JWT_SECRET,
-  { algorithm: 'HS256', issuer: 'urban-cart', expiresIn: '2h' }
+  { algorithm: 'HS256', issuer: 'urban-cart', expiresIn: '30d' }
 );
 
 export function makeAuth(pool) {

@@ -948,7 +948,7 @@ app.get('/api/orders/mine', auth, wrap(async (req, res) => {
     `SELECT id,total,status,payment_status,delivery_status,current_location,eta,tracking_history,delivery_address,province,postal_code,cancel_reason,created_at
      FROM orders
      WHERE customer_id=?
-     AND status IN ('paid','processing','shipped','delivered','cancelled','refunded','refund_pending','failed')
+     AND status IN ('pending','paid','processing','shipped','delivered','cancelled','refunded','refund_pending','failed')
      ORDER BY created_at DESC`,
     [req.user.id]);
   for (const r of rows) {
@@ -966,7 +966,7 @@ app.get('/api/orders/my-orders', auth, wrap(async (req, res) => {
      LEFT JOIN order_items oi ON oi.order_id=o.id
      LEFT JOIN products p ON p.id=oi.product_id
      WHERE o.customer_id=?
-     AND o.status IN ('paid','processing','shipped','delivered','cancelled','refunded','refund_pending','failed')
+     AND o.status IN ('pending','paid','processing','shipped','delivered','cancelled','refunded','refund_pending','failed')
      ORDER BY o.created_at DESC`,
     [req.user.id]);
   const map = {};

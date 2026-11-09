@@ -56,6 +56,15 @@ async function api(path, options={}) {
   const url = path.startsWith('http') ? path : `${API}${path}`;
   const res=await fetch(url,{...options,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`} : {}),...(options.headers||{})}}); 
   const data=await res.json().catch(()=>({})); 
+
+  if(res.status===401){
+    // token expired / invalid - don't pretend we're still logged in
+    localStorage.removeItem('uc_token');
+    localStorage.removeItem('uc_user');
+    // don't clear the cart here - keep it for after re-login
+    throw new Error('SESSION_EXPIRED');
+  }
+
   if(!res.ok) throw new Error(data.error||`Request failed: ${res.status}`); 
   return data; 
 }
@@ -130,6 +139,7 @@ function App(){
  const [editingOrder,setEditingOrder]=useState(null);
  const [cancelModal,setCancelModal]=useState(null);
  const [cancelReason,setCancelReason]=useState('');
+ const [cartLoaded, setCartLoaded] = useState(false);
  const [lightboxImg,setLightboxImg]=useState(null);
  const [editData,setEditData]=useState({delivery_status:'Order Placed', current_location:'Warehouse - Lephalale', eta:'1-2 business days', tracking_note:''});
  const [form,setForm]=useState(
@@ -199,15 +209,16 @@ function App(){
     }
   },[]);
 
- useEffect(()=>{
-   const key = getCartKey(user);
-   try{
-     const saved = JSON.parse(localStorage.getItem(key) || '[]');
-     if(!user) setCart(Array.isArray(saved) ? saved : []);
-   }catch{ if(!user) setCart([]); }
-   if(user){
-     api('/cart/mine').then(dbRows=>{
-       if(Array.isArray(dbRows) && dbRows.length){
+useEffect(()=>{
+  const key = getCartKey(user);
+  try{
+    const saved = JSON.parse(localStorage.getItem(key) || '[]');
+    setCart(Array.isArray(saved) ? saved : []);
+  }catch{ setCart([]); }
+
+  if(user){
+    api('/cart/mine').then(dbRows=>{
+      if(Array.isArray(dbRows) && dbRows.length){
         const mapped = dbRows.map(r=>({
           id: r.product_id,
           product_id: r.product_id,
@@ -227,12 +238,30 @@ function App(){
           unit: r.unit || 'none',
           unit_value: r.unit_value || ''
         }));
-         setCart(mapped);
-         localStorage.setItem(key, JSON.stringify(mapped));
-       }
-     }).catch(()=>{});
-   }
- },[user]);
+        setCart(mapped);
+        localStorage.setItem(key, JSON.stringify(mapped));
+      }
+      setCartLoaded(true);
+    }).catch(()=>{
+      // Keep the local bag - don't wipe it on 401 / network error
+      setCartLoaded(true);
+    });
+  } else {
+    setCartLoaded(true);
+  }
+},[user]);
+
+  useEffect(()=>{
+    if(!user) return;
+    // validate session on reload, before trying to load cart/orders
+    api('/auth/me').catch(()=>{
+      setUser(null);
+      setNotice('Your session expired - please sign in again to see your bag and orders.');
+      setAccountOpen(true);
+      setAuthMode('login');
+    });
+  },[]);
+
 
 async function sendPhoneOtp(){
   const phone = form.phone?.trim();
@@ -301,11 +330,12 @@ async function handleResetSubmit(e){
   }
 }
 
- useEffect(()=>{
-   const key = getCartKey(user);
-   localStorage.setItem(key, JSON.stringify(cart));
-   localStorage.removeItem('uc_cart');
- },[cart, user]);
+  useEffect(()=>{
+    if(!cartLoaded) return; // <-- THIS is the fix, don't save [] before load finishes
+    const key = getCartKey(user);
+    localStorage.setItem(key, JSON.stringify(cart));
+    localStorage.removeItem('uc_cart');
+  },[cart, user, cartLoaded]);
 
  useEffect(()=>{
     const params=new URLSearchParams(window.location.search);
@@ -354,7 +384,10 @@ async function handleResetSubmit(e){
  useEffect(()=>{
    if(user){
      setForm(f=>({...f, full_name: user.name || f.full_name, email: user.email || f.email }));
-     api('/orders/mine').then(setOrders).catch(()=>{});
+     api('/orders/mine').then(setOrders).catch((e)=>{
+        if(e.message === 'SESSION_EXPIRED') return;
+        // keep old orders, don't blank them
+      });
      loadTracking();
    }
  },[user]);
@@ -581,8 +614,8 @@ async function loadTracking(){
     setTrackingOrders(sorted);
     setOrders(sorted);
   }catch(e){
-    console.error('loadTracking failed', e);
-    setNotice('Could not load orders: ' + e.message);
+    if(e.message === 'SESSION_EXPIRED') return; // /auth/me effect already shows login modal
+    setNotice('Could not load orders - please try again.');
   }
 }
 
