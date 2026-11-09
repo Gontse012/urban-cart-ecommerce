@@ -1304,6 +1304,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
 
           <select
             className="filter-sort"
+            style={{borderRadius: 0}}
             value={indexSort}
             onChange={e=>setIndexSort(e.target.value)}
           >
