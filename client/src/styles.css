@@ -1082,12 +1082,9 @@ div:has(> div > strong:contains("PAYFAST")) {
     padding-right:16px;
   }
   .filter-pills{
-    flex-wrap:nowrap;
-    overflow-x:auto;
     padding-bottom:4px;
-    scrollbar-width:none;
-    -webkit-overflow-scrolling:touch;
   }
+  
   .filter-pills::-webkit-scrollbar{ display:none; }
   .filter-pill{ flex-shrink:0; padding:9px 15px; }
   .filter-sort{ width:100%; }
