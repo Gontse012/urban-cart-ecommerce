@@ -176,6 +176,8 @@ function App(){
  const [forgotEmail,setForgotEmail]=useState('');
  const [forgotMessage,setForgotMessage]=useState('');
  const categories=['All','Tech','Home','Lifestyle','Accessories'];
+ const [indexFilter, setIndexFilter] = useState('All');
+ const [indexSort, setIndexSort] = useState('featured');
  const [resetToken, setResetToken] = useState(null);
  const [resetOpen, setResetOpen] = useState(false);
  const [newPassword, setNewPassword] = useState('');
@@ -371,7 +373,18 @@ async function handleResetSubmit(e){
  },[]);
 
  const visible=useMemo(()=>products.filter(p=>(category==='All'|| (p.category||'').toLowerCase()===category.toLowerCase())&& `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())).sort((a,b)=>(b.is_bestseller?1:0)-(a.is_bestseller?1:0) || b.id-a.id),[products,category,search]);
- const visibleAll=useMemo(()=>products.filter(p=> `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())).sort((a,b)=>(b.is_bestseller?1:0)-(a.is_bestseller?1:0) || b.id-a.id),[products,search]);
+ const visibleAll=useMemo(()=>{
+  let list = products.filter(p => 
+    (indexFilter==='All' || (p.category||'').toLowerCase()===indexFilter.toLowerCase()) &&
+    `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())
+  );
+  if(indexSort==='price-low') list.sort((a,b)=>effectivePrice(a)-effectivePrice(b));
+  else if(indexSort==='price-high') list.sort((a,b)=>effectivePrice(b)-effectivePrice(a));
+  else if(indexSort==='name') list.sort((a,b)=>a.name.localeCompare(b.name));
+  else list.sort((a,b)=>(b.is_bestseller?1:0)-(a.is_bestseller?1:0) || b.id-a.id);
+  return list;
+ },[products,search,indexFilter,indexSort]);
+
  const count = cart.reduce((s,p)=>s+p.quantity,0), total=cart.reduce((s,p)=>s+effectivePrice(p)*p.quantity,0);  
  const isLephalaleDelivery = form.province === 'LIMPOPO' && ['0555','0556','0557'].includes((form.postal_code || '').trim());
  const deliveryFee = !isLephalaleDelivery ? 0 : total >= 1000 ? 0 : 60;
@@ -1247,8 +1260,44 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
       <section className="shop">
         <div className="shop-head">
           <h2>FULL INDEX <span>({visibleAll.length})</span></h2>
-          <button className="btn-ghost" onClick={()=>{setShowAll(false); window.scrollTo(0,0)}}><X size={14}/> BACK TO HOME</button>
+          <button className="btn-ghost" onClick={()=>{setShowAll(false); setIndexFilter('All'); setIndexSort('featured'); window.scrollTo(0,0)}}><X size={14}/> BACK TO HOME</button>
         </div>
+
+        {/* === FILTER BAR === */}
+        <div className="index-filters">
+          <div className="filter-pills">
+            {categories.map(c => (
+              <button
+                key={c}
+                className={indexFilter===c ? 'filter-pill active' : 'filter-pill'}
+                onClick={()=>setIndexFilter(c)}
+              >
+                {c}
+                <span className="filter-count">
+                  {c==='All' ? products.length : products.filter(p=>(p.category||'').toLowerCase()===c.toLowerCase()).length}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <select
+            className="filter-sort"
+            value={indexSort}
+            onChange={e=>setIndexSort(e.target.value)}
+          >
+            <option value="featured">Featured</option>
+            <option value="price-low">Price: Low to High</option>
+            <option value="price-high">Price: High to Low</option>
+            <option value="name">Name: A to Z</option>
+          </select>
+        </div>
+
+        {visibleAll.length===0 && (
+          <div style={{padding:'40px 16px', textAlign:'center', fontWeight:700, opacity:.6}}>
+            No items in {indexFilter} — try another filter.
+          </div>
+        )}
+
         <div className="grid all-mode">
           {visibleAll.map((p)=>
             <article key={p.id} className="card" onClick={()=>openProduct(p)} style={{opacity: isOutOfStock(p)?0.6:1}}>
