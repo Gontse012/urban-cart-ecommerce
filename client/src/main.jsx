@@ -626,7 +626,7 @@ async function placeOrder(e) {
   if(!user){ setAuthError('Please sign in first'); setAccountOpen(true); return; }
   
 
-  // --- NEW VALIDATION - FORCES CORRECT ADDRESS ---
+  // --- VALIDATION - FORCES CORRECT ADDRESS ---
   if(!form.full_name.trim()||!form.email.trim()||!form.phone.trim()){
     setCheckoutError('Please fill Full Name, Email and Phone'); return;
   }
@@ -647,6 +647,11 @@ async function placeOrder(e) {
 
   if(!/^[0-9]{4}$/.test(form.postal_code.trim())){ setCheckoutError('Postal code must be 4 digits (SA) e.g. 2196'); return; }
   if(!cart.length){ setCheckoutError('Your bag is empty.'); return; }
+
+  if(!(form.province === 'LIMPOPO' && ['0555','0556','0557'].includes(form.postal_code.trim()))){
+  setCheckoutError('Sorry — delivery is Lephalale / Ellisras only for now (0555, 0556, 0557). Coming Soon to your area.');
+  return;
+  }
 
   setBusy(true); setCheckoutError('');
   try {
@@ -1543,11 +1548,42 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
               </div>
             ))}
           </div>
-        <div style={{display:'flex', justifyContent:'space-between', fontWeight:700, borderTop:'2px solid #121212', paddingTop:10, fontSize:13}}>
-          <span>SUBTOTAL ({count} items)</span>
-        <span>{fmt(total)}</span></div>
+
+            {/* === LEPHALALE DELIVERY === */}
+            {(() => {
+              const isLephalale = form.province === 'LIMPOPO' && ['0555','0556','0557'].includes(form.postal_code.trim());
+              const deliveryFee = !isLephalale ? 0 : total >= 1000 ? 0 : 60;
+              const grandTotal = total + deliveryFee;
+              return (
+                <>
+                  <div style={{display:'flex', justifyContent:'space-between', fontWeight:700, borderTop:'2px solid #121212', paddingTop:10, fontSize:13}}>
+                    <span>SUBTOTAL ({count} items)</span>
+                    <span>{fmt(total)}</span>
+                  </div>
+                  <div style={{display:'flex', justifyContent:'space-between', fontSize:13, marginTop:6}}>
+                    <span>DELIVERY {isLephalale ? '(Lephalale / Ellisras)' : ''}</span>
+                    <span>{!isLephalale ? '—' : deliveryFee === 0 ? 'FREE' : fmt(deliveryFee)}</span>
+                  </div>
+                  {isLephalale && total < 1000 && (
+                    <div style={{fontSize:11, background:'#FEF3C7', padding:'8px 10px', marginTop:6, fontWeight:700}}>
+                      Add {fmt(1000 - total)} more for FREE delivery
+                    </div>
+                  )}
+                  {!isLephalale && form.postal_code && (
+                    <div style={{fontSize:11, background:'#FEE2E2', padding:'8px 10px', marginTop:6, fontWeight:700, color:'#991B1B'}}>
+                      ⚠ Delivery not available in this area yet — Lephalale / Ellisras only (0555, 0556, 0557). Coming Soon.
+                    </div>
+                  )}
+                  <div style={{display:'flex', justifyContent:'space-between', fontWeight:800, fontSize:15, borderTop:'2px solid #121212', paddingTop:10, marginTop:8}}>
+                    <span>TOTAL TO PAY</span>
+                    <span>{fmt(grandTotal)}</span>
+                  </div>
+                </>
+              );
+            })()}
+
         <button className="btn-black full" disabled={busy || !user || !phoneVerified} type="submit" style={{height:48, opacity: (!phoneVerified || !user) ? 0.5 : 1, cursor: (!phoneVerified || !user) ? 'not-allowed' : 'pointer'}}>
-            {!user ? 'SIGN IN TO PAY' : !phoneVerified ? 'VERIFY PHONE TO PAY' : busy ? 'PREPARING...' : `PAY ${fmt(total)} WITH PAYFAST`} 
+            {!user ? 'SIGN IN TO PAY' : !phoneVerified ? 'VERIFY PHONE TO PAY' : busy ? 'PREPARING...' : `PAY ${fmt(grandTotal)} WITH PAYFAST`} 
             <ShieldCheck size={14} style={{marginLeft:6}}/>
           </button>
           {!phoneVerified && checkoutError && (

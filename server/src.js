@@ -400,7 +400,7 @@ app.post('/api/payfast/notify', express.urlencoded({ extended: false, limit: '20
       );
       if (r.affectedRows) await restockOrder(orderId);
     }
-    
+
   } catch (e) { console.error('ITN error', e.message); }
 });
 
@@ -831,6 +831,20 @@ app.delete('/api/cart', auth, wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// ===== LEPHALALE DELIVERY ONLY =====
+function getLephalaleDeliveryFee(province, postalCode, subtotal) {
+  if (subtotal >= 1000) return 0; // FREE over R1000
+
+  const p = (province || '').toUpperCase().trim();
+  const pc = String(postalCode || '').trim();
+
+  // Lephalale / Ellisras only
+  const isLephalale = p === 'LIMPOPO' && ['0555', '0556', '0557'].includes(pc);
+  if (isLephalale) return 60;
+
+  return null; // not deliverable yet
+}
+
 /* ================= ORDERS ================= */
 app.post('/api/orders', orderLimiter, auth, async (req, res, next) => {
   let conn;
@@ -876,7 +890,12 @@ app.post('/api/orders', orderLimiter, auth, async (req, res, next) => {
       total += price * qty;
       lines.push({ p, pid, qty, price, it });
     }
-    total = money(total);
+    // Calculate Lephalale delivery
+    const deliveryFee = getLephalaleDeliveryFee(finalProvince, finalPostalCode, total);
+    if (deliveryFee === null) {
+      throw httpErr(400, 'We currently deliver in Lephalale / Ellisras only (0555, 0556, 0557). More areas coming soon.');
+    }
+    total = money(total + deliveryFee);
     if (!(total > 0)) throw httpErr(400, 'Invalid order total.');
 
     const initialHistory = JSON.stringify([{
@@ -886,9 +905,9 @@ app.post('/api/orders', orderLimiter, auth, async (req, res, next) => {
       note: `Order confirmed for ${finalFullName}. Address: ${finalDeliveryAddress}, ${finalProvince} ${finalPostalCode}`
     }]);
     const [orderResult] = await conn.query(
-      `INSERT INTO orders (customer_id, customer_name, full_name, email, phone, address, city, province, postal_code, address_search, delivery_address, total, status, payment_status, delivery_status, current_location, eta, tracking_history)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [req.user.id, finalFullName, finalFullName, finalEmail, finalPhone, finalDeliveryAddress, finalCity, finalProvince, finalPostalCode, finalAddressSearch, finalDeliveryAddress, total, 'pending', 'pending', 'Order Placed', 'Warehouse - Lephalale', '1-2 business days', initialHistory]);
+    `INSERT INTO orders (customer_id, customer_name, full_name, email, phone, address, city, province, postal_code, address_search, delivery_address, total, delivery_fee, status, payment_status, delivery_status, current_location, eta, tracking_history)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [req.user.id, finalFullName, finalFullName, finalEmail, finalPhone, finalDeliveryAddress, finalCity, finalProvince, finalPostalCode, finalAddressSearch, finalDeliveryAddress, total, deliveryFee, 'pending', 'pending', 'Order Placed', 'Warehouse - Lephalale', '1-2 business days', initialHistory]);
     const orderId = orderResult.insertId;
 
     for (const { p, pid, qty, price, it } of lines) {
