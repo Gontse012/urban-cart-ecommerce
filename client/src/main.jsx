@@ -430,11 +430,13 @@ async function add(p){
     setVariantError('');
 
     if(p.unit==='size' && !size){ 
-      setVariantError('⚠ Please select a size first'); 
+      setVariantError('⚠ Please select a size first');
+      setNotice(`⚠ ${p.name} needs a size — tap the product to choose one`);
       return; 
     }
     if(p.colors && !color){ 
-      setVariantError('⚠ Please select a colour first'); 
+      setVariantError('⚠ Please select a colour first');
+      setNotice(`⚠ ${p.name} needs a colour — tap the product to choose one`);
       return; 
     }
     if(isOutOfStock(p)){ 
@@ -487,8 +489,8 @@ async function removeItem(id, size='', color=''){
  }
 
 function openProduct(p){
-  // Remember if we came from Full Index BEFORE opening
-  setReturnToFullIndex(showAll);
+  // ALWAYS go back to Full Index on CLOSE
+  setReturnToFullIndex(true);
   setSelectedProduct(p); 
   setGalleryIndex(0);
   // REMOVED: setShowAll(false) - this was the bug that sent you to Home
@@ -507,12 +509,8 @@ function openProduct(p){
 
 function closeProduct(){ 
   setSelectedProduct(null);
-  // Go back to where you came from
-  if(returnToFullIndex){
-    setShowAll(true);
-  } else {
-    setShowAll(false);
-  }
+  // ALWAYS go to Full Index on CLOSE, no matter where you came from
+  setShowAll(true);
   setReturnToFullIndex(false);
   window.scrollTo({top:0, behavior:'smooth'});
 }
@@ -1407,8 +1405,24 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
           <div className="grid">
             {visible.map((p,i)=>
               <article key={p.id} className={i===0?"card big":"card"} onClick={()=>openProduct(p)} style={{opacity: isOutOfStock(p)?0.55:1}}>
-                <div className="card-img"><img src={p.image_url} alt={p.name} loading="lazy"/><span className="tag" style={{background: isOutOfStock(p)?'#ff3b30': p.on_sale?'#F59E0B':undefined, color: isOutOfStock(p)||p.on_sale?'#fff':undefined}}>{isOutOfStock(p)?'OUT OF STOCK': p.is_bestseller?'BESTSELLER': p.on_sale?'SALE':p.category}</span><button className="add" onClick={e=>{e.stopPropagation(); add(p);}} disabled={isOutOfStock(p)}><Plus size={16}/></button></div>
-                <div className="card-info"><div><h3>{p.name}</h3><small>{p.category}</small></div><div style={{textAlign:'right', lineHeight:1.2}}>{p.on_sale?<><small style={{fontSize:9, fontWeight:700, opacity:.6}}>WAS <span style={{textDecoration:'line-through'}}>{fmt(p.price)}</span></small><br/><small style={{fontSize:9, fontWeight:700, color:'#92400E'}}>NOW</small> <b style={{color:'#92400E'}}>{fmt(effectivePrice(p))}</b></>:<><small style={{fontSize:9, fontWeight:700, opacity:.6}}>PRICE</small><br/><b>{fmt(p.price)}</b></>}</div></div>
+                <div className="card-img"><img src={p.image_url} alt={p.name} loading="lazy"/><span className="tag" style={{background: isOutOfStock(p)?'#ff3b30': p.on_sale?'#F59E0B':undefined, color: isOutOfStock(p)||p.on_sale?'#fff':undefined}}>{isOutOfStock(p)?'OUT OF STOCK': p.is_bestseller?'BESTSELLER': p.on_sale?'SALE':p.category}</span>
+                  <button className="add" onClick={e=>{e.stopPropagation(); 
+                    if((p.unit==='size' && !p.selectedSize) || (p.colors && !p.selectedColor)){
+                      openProduct(p);
+                      setNotice(`Please select ${p.unit==='size' ? 'a size' : ''}${p.unit==='size' && p.colors ? ' and ' : ''}${p.colors ? 'a colour' : ''} for ${p.name}`);
+                    } else {
+                      add(p);
+                    }
+                  }} disabled={isOutOfStock(p)}><Plus size={16}/></button>
+                </div>
+                <div className="card-info"><div><h3>{p.name}</h3><small>{p.category}</small>
+                </div><div style={{textAlign:'right', lineHeight:1.2}}>{p.on_sale?<>
+                <small style={{fontSize:9, fontWeight:700, opacity:.6}}>WAS 
+                  <span style={{textDecoration:'line-through'}}>{fmt(p.price)}</span></small><br/>
+                  <small style={{fontSize:9, fontWeight:700, color:'#92400E'}}>NOW</small> 
+                  <b style={{color:'#92400E'}}>{fmt(effectivePrice(p))}</b></>:<>
+                  <small style={{fontSize:9, fontWeight:700, opacity:.6}}>PRICE</small><br/><b>{fmt(p.price)}</b>
+                  </>}</div></div>
               </article>
             )}
           </div>
