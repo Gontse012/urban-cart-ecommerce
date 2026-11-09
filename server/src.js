@@ -49,7 +49,7 @@ const pool = mysql.createPool({
   enableKeepAlive: true
 });
 
-const FRONTEND_URL = (process.env.FRONTEND_URL || process.env.CLIENT_URL || 'https://urban-cart-ecommerce.vercel.app').replace(/\/$/, '');
+const FRONTEND_URL = (process.env.FRONTEND_URL || process.env.CLIENT_URL || 'https://urban-cart-ecommerce-one.vercel.app').replace(/\/$/, '');
 const RESEND_API_KEY = (process.env.RESEND_API_KEY || '').trim();
 const FROM_EMAIL = process.env.FROM_EMAIL || 'Urban Cart <onboarding@resend.dev>';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL.trim();
@@ -503,6 +503,7 @@ async function ensureSchema() {
       'ADD COLUMN tracking_history JSON NULL',
       'ADD COLUMN full_name VARCHAR(255) NULL',
       'ADD COLUMN refunded_at TIMESTAMP NULL',
+      'ADD COLUMN delivery_fee DECIMAL(10,2) DEFAULT 0',
       'ADD COLUMN payment_method VARCHAR(50) NULL',
       'ADD COLUMN payfast_id VARCHAR(100) NULL'
     ];
