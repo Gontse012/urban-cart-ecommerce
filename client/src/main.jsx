@@ -1380,13 +1380,14 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
   </main>
   <footer className="footer">
     <div className="foot-links">
-      <button onClick={handleHome}>HOME</button>
-      <button onClick={handleViewEverything}>FULL INDEX</button>
       <button onClick={()=>{ setActiveTab('track'); loadTracking(); 
         window.scrollTo({top:0, behavior:'smooth'}); }}>
           TRACK ORDER
       </button>
       <button onClick={()=>{ setAccountOpen(true); }}>MY ACCOUNT</button>
+      <button onClick={()=>{ setAccountOpen(true); }}>
+        <img height='20px' width='20px' src='https://logos-world.net/wp-content/uploads/2020/04/Instagram-icon-Logo-2016-present.png' alt='instagram profile link' />
+      <a href='https://www.instagram.com/iam_.gontse?vrfl=bno4ZXR4N3hvbXFo&utm_source=qr'>Instagram</a></button>
     </div>
 
     <div className="foot-top">
