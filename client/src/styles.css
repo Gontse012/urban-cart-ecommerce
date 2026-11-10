@@ -1367,3 +1367,184 @@ div:has(> div > strong:contains("PAYFAST")) {
     min-height: 480px !important;
   }
 }
+
+/* ===== FINAL FIX - DELIVERY SLIDER FOR MOUSE + BIGGER HERO TEXT - MUST STAY LAST ===== */
+
+/* --- 1. DELIVERY DETAILS SLIDER - BIG DEVICES WITH MOUSE ONLY --- */
+@media (min-width: 901px) and (hover: hover) and (pointer: fine) {
+
+  /* The checkout modal itself must scroll */
+  .modal,
+  .modal-box,
+  .wide-modal {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: #121212 #EDE7DF !important;
+  }
+
+  /* Delivery Details tab / checkout form - horizontal + vertical slider */
+  .checkout-form,
+  .delivery-details,
+  .delivery-tab,
+  [class*="delivery"] {
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: #121212 #EDE7DF !important;
+    padding-bottom: 8px !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Visible scrollbar - Chrome / Edge / Safari */
+  .modal::-webkit-scrollbar,
+  .modal-box::-webkit-scrollbar,
+  .wide-modal::-webkit-scrollbar,
+  .checkout-form::-webkit-scrollbar,
+  .delivery-details::-webkit-scrollbar,
+  .delivery-tab::-webkit-scrollbar {
+    width: 8px !important;
+    height: 8px !important;
+    display: block !important;
+  }
+
+  .modal::-webkit-scrollbar-track,
+  .modal-box::-webkit-scrollbar-track,
+  .wide-modal::-webkit-scrollbar-track,
+  .checkout-form::-webkit-scrollbar-track,
+  .delivery-details::-webkit-scrollbar-track {
+    background: #EDE7DF !important;
+    border-radius: 999px !important;
+  }
+
+  .modal::-webkit-scrollbar-thumb,
+  .modal-box::-webkit-scrollbar-thumb,
+  .wide-modal::-webkit-scrollbar-thumb,
+  .checkout-form::-webkit-scrollbar-thumb,
+  .delivery-details::-webkit-scrollbar-thumb {
+    background: #121212 !important;
+    border-radius: 999px !important;
+    border: 2px solid #EDE7DF !important;
+  }
+
+  .modal::-webkit-scrollbar-thumb:hover,
+  .checkout-form::-webkit-scrollbar-thumb:hover {
+    background: #C9A87A !important;
+  }
+
+  /* Make sure inputs inside delivery tab don't get cut off */
+  .checkout-form input,
+  .checkout-form select {
+    min-width: 0 !important;
+    flex-shrink: 1 !important;
+  }
+}
+
+/* If your delivery tab is a row of tabs that overflows, make it scrollable on desktop too */
+.delivery-tabs,
+.checkout-tabs {
+  display: flex !important;
+  gap: 8px !important;
+  overflow-x: auto !important;
+  scrollbar-width: thin !important;
+  padding-bottom: 6px !important;
+  white-space: nowrap !important;
+}
+.delivery-tabs::-webkit-scrollbar { height: 6px !important; }
+.delivery-tabs::-webkit-scrollbar-thumb { background: #121212 !important; border-radius: 999px !important; }
+
+/* --- 2. HERO TEXT BIGGER ON SMALL DEVICES --- */
+@media (max-width: 900px) {
+  .hero-grid .hero-manifesto {
+    padding: 90px 22px 36px 22px !important;
+    justify-content: flex-end !important;
+  }
+
+  .hero-grid .hero-manifesto h1 {
+    font-size: 66px !important;
+    line-height: 0.88 !important;
+    margin: 20px 0 16px !important;
+    letter-spacing: -1px !important;
+  }
+
+  .hero-grid .hero-manifesto h1 em {
+    font-size: 66px !important;
+  }
+
+  .hero-grid .hero-manifesto p {
+    font-size: 17px !important;
+    line-height: 1.6 !important;
+    max-width: 92% !important;
+  }
+
+  .eyebrow {
+    font-size: 11px !important;
+    padding: 9px 14px !important;
+    letter-spacing: 1.8px !important;
+  }
+
+  .hero-manifesto .hero-actions {
+    margin-top: 24px !important;
+    gap: 12px !important;
+  }
+
+  .hero-manifesto .hero-actions .btn-black,
+  .hero-manifesto .hero-actions .btn-ghost {
+    height: 52px !important;
+    font-size: 12px !important;
+  }
+
+  .hero-stat b {
+    font-size: 38px !important;
+  }
+
+  .hero-stat span {
+    font-size: 10px !important;
+    line-height: 1.3 !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-grid .hero-manifesto {
+    padding: 80px 18px 28px 18px !important;
+  }
+
+  .hero-grid .hero-manifesto h1 {
+    font-size: 58px !important;
+    line-height: 0.88 !important;
+    margin: 18px 0 14px !important;
+  }
+
+  .hero-grid .hero-manifesto h1 em {
+    font-size: 58px !important;
+  }
+
+  .hero-grid .hero-manifesto p {
+    font-size: 16px !important;
+    line-height: 1.6 !important;
+    max-width: 100% !important;
+  }
+
+  .hero-stat b {
+    font-size: 34px !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .hero-grid .hero-manifesto h1 {
+    font-size: 48px !important;
+  }
+
+  .hero-grid .hero-manifesto h1 em {
+    font-size: 48px !important;
+  }
+
+  .hero-grid .hero-manifesto p {
+    font-size: 15px !important;
+  }
+
+  .hero-manifesto .hero-actions .btn-black,
+  .hero-manifesto .hero-actions .btn-ghost {
+    height: 48px !important;
+  }
+}
