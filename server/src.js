@@ -1216,17 +1216,28 @@ app.get('/api/admin/orders/:id/delivery-pdf', wrap(async (req, res) => {
 
 /* ================= PAYFAST CHECKOUT ================= */
 function generateSignature(data, passphrase) {
+  // PayFast REQUIRES alphabetical order
+  const keys = Object.keys(data)
+    .filter(k => k !== 'signature')
+    .filter(k => {
+      const v = data[k];
+      return v !== '' && v !== null && v !== undefined;
+    })
+    .sort();
+
   let pfOutput = '';
-  for (const key of Object.keys(data)) {          // insertion order, NOT sorted
-    if (key === 'signature') continue;
-    const v = data[key];
-    if (v === '' || v === null || v === undefined) continue;
-    pfOutput += `${key}=${encodeURIComponent(String(v).trim()).replace(/%20/g, '+')}&`;
+  for (const key of keys) {
+    const v = String(data[key]).trim();
+    pfOutput += `${key}=${encodeURIComponent(v).replace(/%20/g, '+')}&`;
   }
+
   let getString = pfOutput.slice(0, -1);
-  if (passphrase && String(passphrase).trim() !== '') {
-    getString += `&passphrase=${encodeURIComponent(String(passphrase).trim()).replace(/%20/g, '+')}`;
+
+  const pass = String(passphrase || '').trim();
+  if (pass !== '') {
+    getString += `&passphrase=${encodeURIComponent(pass).replace(/%20/g, '+')}`;
   }
+
   return crypto.createHash('md5').update(getString).digest('hex');
 }
 
