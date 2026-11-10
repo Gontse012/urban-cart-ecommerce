@@ -1,3 +1,3 @@
 git add .
-git commit -m "OTP 2.4 bug fixes" 
+git commit -m "layout and styling fixes" 
 git push
