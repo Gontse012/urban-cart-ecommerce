@@ -1215,29 +1215,32 @@ app.get('/api/admin/orders/:id/delivery-pdf', wrap(async (req, res) => {
 // NOTE: the old /api/admin/test-email route was removed on purpose.
 
 /* ================= PAYFAST CHECKOUT ================= */
+function pfEncode(v) {
+  return encodeURIComponent(String(v).trim())
+    .replace(/%20/g, '+')
+    .replace(/!/g, '%21')
+    .replace(/'/g, '%27')
+    .replace(/\(/g, '%28')
+    .replace(/\)/g, '%29')
+    .replace(/\*/g, '%2A');
+}
+
 function generateSignature(data, passphrase) {
-  // PayFast REQUIRES alphabetical order
   const keys = Object.keys(data)
     .filter(k => k !== 'signature')
-    .filter(k => {
-      const v = data[k];
-      return v !== '' && v !== null && v !== undefined;
-    })
+    .filter(k => data[k] !== '' && data[k] !== null && data[k] !== undefined)
     .sort();
 
   let pfOutput = '';
   for (const key of keys) {
-    const v = String(data[key]).trim();
-    pfOutput += `${key}=${encodeURIComponent(v).replace(/%20/g, '+')}&`;
+    pfOutput += `${key}=${pfEncode(data[key])}&`;
   }
-
   let getString = pfOutput.slice(0, -1);
-
   const pass = String(passphrase || '').trim();
   if (pass !== '') {
-    getString += `&passphrase=${encodeURIComponent(pass).replace(/%20/g, '+')}`;
+    getString += `&passphrase=${pfEncode(pass)}`;
   }
-
+  console.log('PF SIGN STRING:', getString);
   return crypto.createHash('md5').update(getString).digest('hex');
 }
 
