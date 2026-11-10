@@ -1252,8 +1252,9 @@ app.post('/api/payfast/checkout', auth, wrap(async (req, res) => {
   if (!rows.length) return res.status(404).json({ error: 'Order not found.' });
   const order = rows[0];
   if (order.status !== 'pending') return res.status(409).json({ error: 'This order is no longer pending.' });
-  const merchantId = process.env.PAYFAST_MERCHANT_ID;
-  const merchantKey = process.env.PAYFAST_MERCHANT_KEY;
+const merchantId = String(process.env.PAYFAST_MERCHANT_ID || '').trim();
+const merchantKey = String(process.env.PAYFAST_MERCHANT_KEY || '').trim();
+const passphrase = String(process.env.PAYFAST_PASSPHRASE || '').trim();
   if (!merchantId || !merchantKey) return res.status(503).json({ error: 'PayFast is not configured yet.' });
   const apiUrl = (process.env.API_URL || 'https://urban-cart-ecommerce.onrender.com').replace(/\/$/, '');
   const fullName = order.full_name || order.customer_name || 'Customer';
@@ -1274,7 +1275,7 @@ app.post('/api/payfast/checkout', auth, wrap(async (req, res) => {
   
   console.log('PF CHECKOUT', { sandbox: process.env.PAYFAST_SANDBOX, merchant_id: merchantId, amount: pfData.amount, notify_url: pfData.notify_url, return_url: pfData.return_url });
   
-  pfData.signature = generateSignature(pfData, process.env.PAYFAST_PASSPHRASE);
+  pfData.signature = generateSignature(pfData, passphrase);
   res.json({
     action: process.env.PAYFAST_SANDBOX === 'true' ? 'https://sandbox.payfast.co.za/eng/process' : 'https://www.payfast.co.za/eng/process',
     fields: pfData
