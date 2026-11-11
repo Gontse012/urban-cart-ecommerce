@@ -52,23 +52,32 @@ function isValidSAphone(phone){
   return /^(?:\+27|27|0)[6-8][0-9]{8}$/.test(cleaned);
 }
 
-async function api(path, options={}) { 
-  const token=localStorage.getItem('uc_token'); 
+async function api(path, options={}) {
+  const isAuthForm = path.startsWith('/auth/login') || path.startsWith('/auth/register');
+  const token = localStorage.getItem('uc_token');
   const url = path.startsWith('http') ? path : `${API}${path}`;
-  const res=await fetch(url,{...options,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`} : {}),...(options.headers||{})}}); 
-  const data=await res.json().catch(()=>({})); 
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && !isAuthForm ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {})
+    }
+  });
+  const data = await res.json().catch(() => ({}));
 
-  if(res.status===401){
-    // token expired / invalid - don't pretend we're still logged in
+  // Only a request that actually sent a token can mean "session expired"
+  if (res.status === 401 && token && !isAuthForm) {
     localStorage.removeItem('uc_token');
     localStorage.removeItem('uc_user');
     // don't clear the cart here - keep it for after re-login
     throw new Error('SESSION_EXPIRED');
   }
 
-  if(!res.ok) throw new Error(data.error||`Request failed: ${res.status}`); 
-  return data; 
+  if (!res.ok) throw new Error(data.error || `Request failed: ${res.status}`);
+  return data;
 }
+
 
 function getCartKey(user){ return `uc_cart_${user?.id || 'guest'}`; }
 function effectivePrice(p){ return p.on_sale && p.sale_price ? Number(p.sale_price) : Number(p.price); }
