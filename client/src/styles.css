@@ -304,29 +304,3 @@ button:hover,.btn-black:hover,.btn-ghost:hover,.btn-outline:hover{transform:tran
   .ticker{ min-height:28px; font-size:7.5px; letter-spacing:0.4px; }
   .ticker-track{ animation-duration:22s; }
 }
-
-/* ===== PROGRESS BARS ===== */
-
-/* Free delivery bar */
-.pbar-wrap{margin:0 0 12px}
-.pbar-label{font-size:11px;font-weight:700;letter-spacing:.3px;margin-bottom:6px;color:var(--ink)}
-.pbar-label b{color:#92400E}
-.pbar{height:8px;background:#EDE7DF;border:1.5px solid var(--ink);border-radius:var(--r-full);overflow:hidden}
-.pbar-fill{height:100%;background:var(--gold);border-radius:var(--r-full);transition:width .6s var(--ease)}
-.pbar.done .pbar-fill{background:var(--ink)}
-
-/* Order tracking steps */
-.track-progress{position:relative;margin:4px 0 18px;padding-top:2px}
-.track-line{position:absolute;top:8px;left:10%;right:10%;height:4px;background:#EDE7DF;border:1px solid var(--ink);border-radius:var(--r-full);overflow:hidden}
-.track-line-fill{height:100%;background:var(--gold);transition:width .6s var(--ease)}
-.track-steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,1fr);position:relative}
-.track-steps li{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:10px;font-weight:700;letter-spacing:.4px;color:var(--muted);text-align:center}
-.track-steps .dot{width:16px;height:16px;border-radius:50%;background:var(--paper);border:2px solid var(--ink)}
-.track-steps li.done{color:var(--ink)}
-.track-steps li.done .dot{background:var(--gold)}
-@media(max-width:480px){.track-steps li{font-size:9px;letter-spacing:0}}
-
-/* Top-of-page loader */
-.top-loader{position:fixed;top:0;left:0;right:0;height:3px;z-index:11500;overflow:hidden;background:rgba(18,18,18,.08);pointer-events:none}
-.top-loader span{display:block;height:100%;width:40%;background:var(--gold);border-radius:var(--r-full);animation:topLoad 1.1s var(--ease-soft) infinite}
-@keyframes topLoad{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
