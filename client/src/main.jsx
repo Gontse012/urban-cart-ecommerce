@@ -251,6 +251,10 @@ useEffect(()=>{
         }));
         setCart(mapped);
         localStorage.setItem(key, JSON.stringify(mapped));
+      } else if(Array.isArray(dbRows)){
+        // the server bag is empty (cleared after payment): trust it
+        setCart([]);
+        localStorage.setItem(key, '[]');
       }
       setCartLoaded(true);
     }).catch(()=>{
@@ -348,48 +352,63 @@ async function handleResetSubmit(e){
     localStorage.removeItem('uc_cart');
   },[cart, user, cartLoaded]);
 
- useEffect(()=>{
-    const params=new URLSearchParams(window.location.search);
-    if(params.get('payment')==='return'){ 
-      const key = getCartKey(user);
-      localStorage.removeItem(key);
-      localStorage.removeItem('lastOrderId'); 
-      localStorage.removeItem('uc_cart_backup'); // <-- ADD THIS LINE
-      setCart([]);
-      setNotice(`Payment successful! Order #${params.get('order')} received. Receipt sent to your email.`); 
-      window.history.replaceState({}, '', window.location.pathname);
-      setActiveTab('track');
-      loadTracking();
-    }
+useEffect(()=>{
+  const params = new URLSearchParams(window.location.search);
+  const pay = params.get('payment');
 
-  if(params.get('payment')==='cancel'){
+  if(pay === 'return'){
+    if(!user) return;   // wait until we know who is signed in
+    const orderId = Number(params.get('order')) || Number(localStorage.getItem('lastOrderId'));
+    window.history.replaceState({}, '', window.location.pathname);
+    setActiveTab('track');
+    setNotice('Confirming your payment...');
+    setBusy(true);
+
+    (async ()=>{
+      for(let i = 0; i < 10; i++){
+        try{
+          const list = await api('/orders/my-orders');
+          const sorted = [...(list||[])].sort(sortByDateDesc);
+          setTrackingOrders(sorted); setOrders(sorted);
+          const o = sorted.find(x => x.id === orderId);
+          if(o && (o.payment_status === 'paid' || ['paid','processing','shipped','delivered'].includes(o.status))){
+            await clearCart();                       // local + server bag
+            localStorage.removeItem('uc_cart_backup');
+            localStorage.removeItem('lastOrderId');
+            setNotice(`Payment confirmed! Order #${orderId} received.`);
+            setBusy(false);
+            return;
+          }
+        }catch(e){
+          if(e.message === 'SESSION_EXPIRED'){ setBusy(false); setNotice('Please sign in again to see your order.'); return; }
+        }
+        await new Promise(r => setTimeout(r, 2000));   // wait for PayFast's notification
+      }
+      setBusy(false);
+      setNotice(`Still waiting for PayFast to confirm order #${orderId}. Check TRACK ORDER in a minute. Your bag stays until payment is confirmed.`);
+    })();
+    return;
+  }
+
+  if(pay === 'cancel'){
     const cancelledOrderId = params.get('order') || localStorage.getItem('lastOrderId');
     if(cancelledOrderId){
-      // Mark it cancelled so it doesn't sit in TRACK ORDER as pending
       api(`/orders/${cancelledOrderId}/cancel`, {method:'POST'}).catch(()=>{});
       localStorage.removeItem('lastOrderId');
     }
-
-    // RESTORE CART - this is the new part
     try{
       const backup = JSON.parse(localStorage.getItem('uc_cart_backup') || '[]');
       if(backup.length){
         setCart(backup);
-        const key = getCartKey(user);
-        localStorage.setItem(key, JSON.stringify(backup));
-        // Put it back in DB cart too, so refresh doesn't wipe it
-        backup.forEach(async (item)=>{
-          try{ await api('/cart',{method:'POST', body:JSON.stringify({product_id:item.id, quantity:item.quantity})}); }catch{}
-        });
+        localStorage.setItem(getCartKey(user), JSON.stringify(backup));
+        // No re-POST to the server: its bag was never cleared, so re-adding would double the quantities.
       }
     }catch{}
-
     setNotice('Payment cancelled - order cancelled. Your items are still in your bag.');
     window.history.replaceState({}, '', window.location.pathname);
     loadTracking();
   }
-
- },[user]);
+},[user]);
 
  useEffect(()=>{api('/products').then((rows)=>{ if(Array.isArray(rows)&&rows.length) setProducts(rows); }).catch(()=>{}).finally(()=>setLoading(false));},[]);
  useEffect(()=>{
