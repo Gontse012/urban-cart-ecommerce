@@ -1222,14 +1222,15 @@ function pfEncode(v) {
     .replace(/'/g, '%27')
     .replace(/\(/g, '%28')
     .replace(/\)/g, '%29')
-    .replace(/\*/g, '%2A');
+    .replace(/\*/g, '%2A')
+    .replace(/~/g, '%7E');
 }
 
 function generateSignature(data, passphrase) {
   const keys = Object.keys(data)
     .filter(k => k !== 'signature')
-    .filter(k => data[k] !== '' && data[k] !== null && data[k] !== undefined)
-    .sort();
+    .filter(k => data[k] !== '' && data[k] !== null && data[k] !== undefined);
+    // NO .sort(): keep the same order the fields are posted in
 
   let pfOutput = '';
   for (const key of keys) {
@@ -1240,7 +1241,6 @@ function generateSignature(data, passphrase) {
   if (pass !== '') {
     getString += `&passphrase=${pfEncode(pass)}`;
   }
-  console.log('PF SIGN STRING:', getString);
   return crypto.createHash('md5').update(getString).digest('hex');
 }
 

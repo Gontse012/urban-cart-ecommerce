@@ -158,7 +158,11 @@ export function readPhoneToken(token, phone, userId) {
 }
 
 /* ---------- 7. PAYFAST ITN VERIFICATION (the 4 checks PayFast requires) ---------- */
-const pfEncode = v => encodeURIComponent(String(v).trim()).replace(/%20/g, '+');
+const pfEncode = v => encodeURIComponent(String(v).trim())
+  .replace(/%20/g, '+')
+  .replace(/!/g, '%21').replace(/'/g, '%27')
+  .replace(/\(/g, '%28').replace(/\)/g, '%29')
+  .replace(/\*/g, '%2A').replace(/~/g, '%7E');
 
 function pfSignature(body, passphrase) {
   const { signature, ...rest } = body;               // ITN: keep fields in received order
