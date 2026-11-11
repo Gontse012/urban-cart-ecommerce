@@ -1036,7 +1036,12 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
 }
 
  return <div className="app">
-  <div className="ticker"><div className="ticker-track"><span>● FREE DELIVERY OVER R1,000 ● SECURE PAYFAST ● CURATED IN SA ● EVERYDAY ELEVATED ●</span><span>● FREE DELIVERY OVER R1,000 ● CURATED IN SA ● EVERYDAY ELEVATED ●</span></div></div>
+  <div className="ticker" role="marquee" aria-label="Free delivery over R1,000. Secure PayFast. Curated in SA. Everyday elevated.">
+  <div className="ticker-track">
+    <span>● FREE DELIVERY OVER R1,000 &nbsp;●&nbsp; SECURE PAYFAST &nbsp;●&nbsp; CURATED IN SA &nbsp;●&nbsp; EVERYDAY ELEVATED &nbsp;●&nbsp;</span>
+    <span aria-hidden="true">● FREE DELIVERY OVER R1,000 &nbsp;●&nbsp; SECURE PAYFAST &nbsp;●&nbsp; CURATED IN SA &nbsp;●&nbsp; EVERYDAY ELEVATED &nbsp;●&nbsp;</span>
+  </div>
+  </div>
   <header className="header">
     <div className="header-left">
       <button className="icon-btn mobile-only" onClick={()=>setMenuOpen(!menuOpen)}><Menu size={20}/></button>

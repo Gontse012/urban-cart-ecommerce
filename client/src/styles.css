@@ -10,9 +10,38 @@ html{scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:'Syne',sans-serif;-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
 .app{overflow-x:clip}
-.ticker{height:32px;background:var(--ink);color:var(--gold-light);display:flex;align-items:center;overflow:hidden;white-space:nowrap;font-size:10px;letter-spacing:1.8px;font-weight:700;border-bottom:2px solid var(--ink)}
-.ticker-track{display:flex;animation:marq 20s linear infinite}.ticker-track span{padding-right:40px}
-@keyframes marq{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.ticker{
+  min-height:32px;
+  background:var(--ink);
+  color:var(--gold-light);
+  display:flex;
+  align-items:center;
+  overflow:hidden;
+  white-space:nowrap;
+  font-size:clamp(8px, 2.4vw, 10px);
+  letter-spacing:clamp(0.6px, 0.4vw, 1.8px);
+  font-weight:700;
+  border-bottom:2px solid var(--ink);
+  padding:6px 0;
+}
+.ticker-track{
+  display:flex;
+  width:max-content;
+  flex-shrink:0;
+  animation:marq 28s linear infinite;
+  will-change:transform;
+}
+.ticker-track span{
+  padding-right:0;
+  flex-shrink:0;
+  white-space:nowrap;
+}
+.ticker:hover .ticker-track{ animation-play-state:paused; }
+@keyframes marq{ 0%{ transform:translateX(0) } 100%{ transform:translateX(-50%) } }
+
+@media (prefers-reduced-motion: reduce){
+  .ticker-track{ animation:none; }
+}
 .header{height:72px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:2px solid var(--ink);position:sticky;top:0;background:var(--bg);z-index:20}
 .header-left{display:flex;align-items:center;gap:28px}
 .brand{font-family:'Anton',sans-serif;font-size:26px;letter-spacing:-.5px;display:flex;align-items:center;gap:10px;font-weight:400}
@@ -128,7 +157,7 @@ a{color:inherit;text-decoration:none}button{cursor:pointer;font:inherit}
 @media(max-width:900px){.hero-grid{height:calc(100dvh - 84px) !important;height:calc(100svh - 84px) !important;min-height:calc(100dvh - 84px) !important;min-height:580px !important}.hero-grid .hero-cards,.hero-grid .hero-big-card,.hero-grid .hero-manifesto{height:100% !important;min-height:100% !important}.hero-grid .hero-manifesto{justify-content:flex-end !important;padding:90px 22px 36px 22px !important}.hero-grid .hero-manifesto h1{font-size:66px !important;line-height:.88 !important;margin:20px 0 16px !important}.hero-grid .hero-manifesto p{font-size:17px !important;line-height:1.6 !important;max-width:92% !important}.eyebrow{font-size:11px !important;padding:9px 14px !important}.hero-manifesto .hero-actions .btn-black,.hero-manifesto .hero-actions .btn-ghost{height:52px !important;font-size:12px !important}.hero-stat b{font-size:38px !important}}
 @media(max-width:480px){
   *,*::before,*::after{max-width:100vw}html,body{overflow-x:clip !important}.app{overflow-x:clip !important}img,video{max-width:100%;height:auto}
-  .header{height:56px !important;padding:0 10px !important;gap:6px !important}.header-left{gap:6px !important;flex:1 !important}.brand{font-size:16px !important;gap:6px !important}.brand-mark{width:26px !important;height:26px !important;font-size:12px !important}.header-right{gap:5px !important}.circle-btn{width:34px !important;height:34px !important}.bag-pill{height:34px !important;padding:0 10px !important;font-size:10px !important}.ticker{height:28px !important;font-size:8px !important}
+  .header{height:56px !important;padding:0 10px !important;gap:6px !important}.header-left{gap:6px !important;flex:1 !important}.brand{font-size:16px !important;gap:6px !important}.brand-mark{width:26px !important;height:26px !important;font-size:12px !important}.header-right{gap:5px !important}.circle-btn{width:34px !important;height:34px !important}.bag-pill{height:34px !important;padding:0 10px !important;font-size:10px !important}
   .hero-grid{height:calc(100dvh - 84px) !important;height:calc(100svh - 84px) !important;min-height:520px !important}.hero-grid .hero-manifesto{padding:80px 18px 28px 18px !important}.hero-grid .hero-manifesto h1{font-size:58px !important}.hero-grid .hero-manifesto p{font-size:16px !important;max-width:100% !important}.hero-actions{flex-direction:column !important;align-items:stretch !important;width:100% !important}.hero-actions .btn-black,.hero-actions .btn-ghost{width:100% !important}.hero-big-card{height:260px !important}.hero-small-cards{grid-template-columns:1fr !important}.card-overlay{left:10px !important;right:10px !important;bottom:10px !important;min-width:0 !important;padding:12px !important}
   .shop{padding:14px 10px 50px !important}.shop-head{flex-direction:column !important;align-items:flex-start !important;gap:12px !important}.shop-head h2{font-size:34px !important}.tabs button{height:32px !important;padding:0 12px !important;font-size:9px !important;flex:1 1 auto !important}.view-all{width:100% !important;justify-content:center !important}.grid{grid-template-columns:repeat(2,1fr) !important;gap:8px !important}.card-info{padding:10px 8px !important;flex-direction:column !important;gap:4px !important}.card-info h3{font-size:11px !important}.tag{top:8px !important;left:8px !important;padding:4px 7px !important;font-size:7px !important}.add{width:30px !important;height:30px !important;right:8px !important;bottom:8px !important}
   .index-filters{flex-direction:column !important;align-items:stretch !important;padding:0 !important}.filter-pills{flex-wrap:nowrap !important;overflow-x:auto !important;padding-bottom:6px !important}.filter-pill{flex-shrink:0 !important;padding:8px 12px !important;font-size:11px !important}.filter-sort{width:100% !important}
@@ -268,4 +297,10 @@ button:hover,.btn-black:hover,.btn-ghost:hover,.btn-outline:hover{transform:tran
   .filter-pills{width:100% !important;gap:5px !important}
   .filter-pill{padding:5px 10px !important;font-size:10px !important}
   .filter-sort{width:auto !important;align-self:flex-start !important;font-size:16px !important;padding:6px 12px !important}
+}
+
+/* ===== TICKER - TINY PHONES ===== */
+@media (max-width:360px){
+  .ticker{ min-height:28px; font-size:7.5px; letter-spacing:0.4px; }
+  .ticker-track{ animation-duration:22s; }
 }
