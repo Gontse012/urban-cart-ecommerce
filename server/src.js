@@ -183,7 +183,11 @@ async function generateDeliveryPdfBuffer(order, items) {
 }
 
 async function sendViaResend({ to, subject, text, html, pdfBuffer, pdfName }) {
-  if (!RESEND_API_KEY) return null;
+  console.log('[EMAIL] trying Resend to:', to, 'from:', FROM_EMAIL, 'hasKey:', !!RESEND_API_KEY);
+  if (!RESEND_API_KEY) {
+    console.log('[EMAIL] FAILED - RESEND_API_KEY is missing in Render');
+    return { ok: false, error: 'RESEND_API_KEY missing' };
+  }
   try {
     const payload = { from: FROM_EMAIL, to: Array.isArray(to) ? to : [to], subject, html: html || text || '', text: text || '' };
     if (pdfBuffer) payload.attachments = [{ filename: pdfName || 'delivery-note.pdf', content: pdfBuffer.toString('base64') }];
@@ -192,10 +196,14 @@ async function sendViaResend({ to, subject, text, html, pdfBuffer, pdfName }) {
       headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const data = await r.json();
-    if (!r.ok) throw new Error(JSON.stringify(data));
+    const data = await r.json().catch(() => ({}));
+    console.log('[EMAIL] Resend response:', r.status, JSON.stringify(data));
+    if (!r.ok) return { ok: false, error: JSON.stringify(data) };
     return { ok: true, id: data.id };
-  } catch (e) { return { ok: false, error: e.message }; }
+  } catch (e) {
+    console.log('[EMAIL] FAILED exception:', e.message);
+    return { ok: false, error: e.message };
+  }
 }
 
 
@@ -415,6 +423,16 @@ app.post('/api/payfast/notify', express.urlencoded({ extended: false, limit: '20
 /* ================= RATE LIMIT + AUTH WIRING ================= */
 app.use('/api', globalLimiter);
 const auth = makeAuth(pool);
+
+app.post('/api/admin/test-email', wrap(async (_req, res) => {
+  const result = await sendViaResend({
+    to: ADMIN_EMAIL,
+    subject: 'Urban Cart - Test Email',
+    html: '<p>If you got this, email works. FROM is ' + FROM_EMAIL + '</p>'
+  });
+  res.json({ to: ADMIN_EMAIL, from: FROM_EMAIL, hasKey: !!RESEND_API_KEY, result });
+}));
+
 app.use('/api/admin', auth, adminOnly); // every admin route is protected from this one line
 
 /* ================= SCHEMA (move to a migration script when you can) ================= */
