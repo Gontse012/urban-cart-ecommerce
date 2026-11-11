@@ -1603,7 +1603,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
           {p.selectedColor && <div style={{fontSize:11, fontWeight:700, marginTop:4, display:'flex', alignItems:'center', gap:6}}><span style={{width:12,height:12,borderRadius:'50%',background:p.selectedColor.toLowerCase(),border:'1px solid #999',display:'inline-block'}} /> Colour: {p.selectedColor}</div>}
           {p.selectedSize && p.unit==='size' && <div style={{fontSize:11, opacity:.7}}>Size: {p.selectedSize}</div>}
           {p.on_sale ? <div style={{fontSize:11}}><span style={{opacity:.6}}>WAS <span style={{textDecoration:'line-through'}}>{fmt(p.original_price||p.price)}</span></span> <b style={{color:'#92400E'}}>NOW {fmt(effectivePrice(p))}</b></div> : <b>{fmt(effectivePrice(p))}</b>}<div className="qty"><button onClick={()=>changeQty(p.id,-1, p.selectedSize, p.selectedColor)}><Minus size={10}/></button><span>{p.quantity}</span><button onClick={()=>changeQty(p.id,1, p.selectedSize, p.selectedColor)}><Plus size={10}/>
-          </button></div></div><button className="remove" onClick={() => removeItem(item.product_id || item.id, item.selected_size || item.selectedSize || item.size || '', item.selected_color || item.selectedColor || item.color || '')}>REMOVE</button></div>)}
+          </button></div></div><button className="remove" onClick={() => removeItem(p.id, p.selectedSize || '', p.selectedColor || '')}>REMOVE</button></div>)}
         </div>
         
         <div className="cart-foot">
