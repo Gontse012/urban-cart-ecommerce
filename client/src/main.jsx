@@ -1038,7 +1038,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
  return <div className="app">
   <div className="ticker" role="marquee" aria-label="Free delivery over R1,000. Secure PayFast. Curated in SA. Everyday elevated.">
   <div className="ticker-track">
-    <span>● FREE DELIVERY OVER R1,000 &nbsp;●&nbsp; SECURE PAYFAST &nbsp;●&nbsp; EVERYDAY ELEVATED &nbsp;●&nbsp;</span>
+    <span>● FREE DELIVERY OVER R1,000 &nbsp;●&nbsp; SECURE PAYFAST &nbsp;●&nbsp; EVERYDAY ELEVATED &nbsp;●&nbsp; CURATED IN SA</span>
   </div>
   </div>
   <header className="header">
@@ -1479,6 +1479,10 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
       <button>
         <img height='20px' width='40px' src='https://logos-world.net/wp-content/uploads/2020/04/Instagram-icon-Logo-2016-present.png' alt='instagram profile link' />
       <a href='https://www.instagram.com/realurban_cart?mdxt=MTNhdm91Z3Jxb3E2Yw%3D%3D&utm_source=qr'>Stay Updated: Instagram</a>
+      </button>
+      <button>
+        <img height='20px' width='40px' src='https://clipart-library.com/images_k/facebook-transparent-icon/facebook-transparent-icon-15.jpg' alt='facebook profile link' />
+      <a href='https://www.facebook.com/profile.php?id=61554440545838'>Stay Updated: Instagram</a>
       </button>
     </div>
 
