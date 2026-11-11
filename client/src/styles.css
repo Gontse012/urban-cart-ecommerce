@@ -304,3 +304,43 @@ button:hover,.btn-black:hover,.btn-ghost:hover,.btn-outline:hover{transform:tran
   .ticker{ min-height:28px; font-size:7.5px; letter-spacing:0.4px; }
   .ticker-track{ animation-duration:22s; }
 }
+
+/* ACCOUNT MODAL - SCROLL WHEN TOO LONG */
+.auth-modal{
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.auth-modal .account{
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 6px;
+  min-height: 0;
+  flex: 1;
+}
+
+/* The orders list itself scrolls */
+.auth-modal .orders{
+  max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 6px;
+}
+
+/* Thin clean scrollbar - matches your site */
+.auth-modal .account::-webkit-scrollbar,
+.auth-modal .orders::-webkit-scrollbar{
+  width: 6px;
+}
+.auth-modal .account::-webkit-scrollbar-thumb,
+.auth-modal .orders::-webkit-scrollbar-thumb{
+  background: #c7b18e;
+  border-radius: 10px;
+}
+.auth-modal .account::-webkit-scrollbar-track,
+.auth-modal .orders::-webkit-scrollbar-track{
+  background: #f1ece4;
+  border-radius: 10px;
+}
