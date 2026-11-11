@@ -546,16 +546,46 @@ const changeSize = (id, newSize, color='') => {
 };
 
 async function removeItem(id, size='', color=''){
-  setCart(old=>old.filter(x=>!(x.id===id && (x.selectedSize||'')===(size||'') && (x.selectedColor||'')===(color||''))));
-  if(user){ try{ await api(`/cart/${id}`,{method:'DELETE'});}catch{} }
+  const s = size || '';
+  const c = color || '';
+
+  // 1. Remove from screen - match by product_id OR id, + size + colour
+  setCart(old => old.filter(x => !(
+    (x.product_id || x.id) === id &&
+    (x.selected_size || x.selectedSize || x.size || '') === s &&
+    (x.selected_color || x.selectedColor || x.color || '') === c
+  )));
+
+  // 2. Remove from localStorage too
+  const key = getCartKey(user);
+  try {
+    const saved = JSON.parse(localStorage.getItem(key) || '[]');
+    const filtered = saved.filter(x => !(
+      (x.product_id || x.id) === id &&
+      (x.selected_size || x.selectedSize || x.size || '') === s &&
+      (x.selected_color || x.selectedColor || x.color || '') === c
+    ));
+    localStorage.setItem(key, JSON.stringify(filtered));
+  } catch {}
+
+  // 3. Delete from DB - MUST send size + colour in the URL
+  // DELETE body is ignored, that's why your old code failed
+  if(user){
+    try{
+      await api(`/cart/${id}?selected_size=${encodeURIComponent(s)}&selected_color=${encodeURIComponent(c)}`, { method:'DELETE' });
+    }catch{}
+  }
 }
 
- async function clearCart(){
-   setCart([]);
-   if(user){ try{ await api('/cart',{method:'DELETE'});}catch{} }
-   const key=getCartKey(user);
-   localStorage.removeItem(key);
- }
+async function clearCart(){
+  setCart([]);
+  const key = getCartKey(user);
+  localStorage.removeItem(key);
+  // also clear old keys so they don't come back
+  localStorage.removeItem('urban_cart');
+  localStorage.removeItem('cart');
+  if(user){ try{ await api('/cart', { method:'DELETE' }); }catch{} }
+}
 
 function openProduct(p){
   // ALWAYS go back to Full Index on CLOSE
@@ -1572,7 +1602,8 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
           )}
           {p.selectedColor && <div style={{fontSize:11, fontWeight:700, marginTop:4, display:'flex', alignItems:'center', gap:6}}><span style={{width:12,height:12,borderRadius:'50%',background:p.selectedColor.toLowerCase(),border:'1px solid #999',display:'inline-block'}} /> Colour: {p.selectedColor}</div>}
           {p.selectedSize && p.unit==='size' && <div style={{fontSize:11, opacity:.7}}>Size: {p.selectedSize}</div>}
-          {p.on_sale ? <div style={{fontSize:11}}><span style={{opacity:.6}}>WAS <span style={{textDecoration:'line-through'}}>{fmt(p.original_price||p.price)}</span></span> <b style={{color:'#92400E'}}>NOW {fmt(effectivePrice(p))}</b></div> : <b>{fmt(effectivePrice(p))}</b>}<div className="qty"><button onClick={()=>changeQty(p.id,-1, p.selectedSize, p.selectedColor)}><Minus size={10}/></button><span>{p.quantity}</span><button onClick={()=>changeQty(p.id,1, p.selectedSize, p.selectedColor)}><Plus size={10}/></button></div></div><button className="remove" onClick={()=>removeItem(p.id, p.selectedSize, p.selectedColor)}>REMOVE</button></div>)}
+          {p.on_sale ? <div style={{fontSize:11}}><span style={{opacity:.6}}>WAS <span style={{textDecoration:'line-through'}}>{fmt(p.original_price||p.price)}</span></span> <b style={{color:'#92400E'}}>NOW {fmt(effectivePrice(p))}</b></div> : <b>{fmt(effectivePrice(p))}</b>}<div className="qty"><button onClick={()=>changeQty(p.id,-1, p.selectedSize, p.selectedColor)}><Minus size={10}/></button><span>{p.quantity}</span><button onClick={()=>changeQty(p.id,1, p.selectedSize, p.selectedColor)}><Plus size={10}/>
+          </button></div></div><button className="remove" onClick={() => removeItem(item.product_id || item.id, item.selected_size || item.selectedSize || item.size || '', item.selected_color || item.selectedColor || item.color || '')}>REMOVE</button></div>)}
         </div>
         
         <div className="cart-foot">
