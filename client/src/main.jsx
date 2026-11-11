@@ -1939,7 +1939,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
             <li><b>Defective / not as described:</b> Return within 30 days, full refund in terms of CPA s56</li>
             <li><b>Refund time:</b> Within 14 days after we receive the return</li>
             <li>Items must be unused, in original packaging. Sale items can be returned if defective.</li>
-            <li>To start a return, email gontsewamodise01@gmail.com with order #</li>
+            <li>To start a return, email realurbancart@gmail.com with order #</li>
           </ul>
         </>
       )}
@@ -1952,7 +1952,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
             <li>Used only to fulfil orders, delivery, PayFast payment, and support</li>
             <li>We never sell your data. PayFast processes card payments securely - we don't store card numbers</li>
             <li>You may request access, correction or deletion of your data at any time</li>
-            <li>Contact: gontsewamodise01@gmail.com</li>
+            <li>Contact: realurbancart@gmail.com</li>
           </ul>
         </>
       )}
@@ -1968,7 +1968,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
       )}
 
       {termsTab==='Contact' && (
-        <p><b>Urban Cart</b><br/>Lephalale, Limpopo, South Africa<br/>Email: gontsewamodise01@gmail.com<br/>Response within 2 business days</p>
+        <p><b>Urban Cart</b><br/>Lephalale, Limpopo, South Africa<br/>Email: realurbancart@gmail.com<br/>Response within 2 business days</p>
       )}
       </div>
 
