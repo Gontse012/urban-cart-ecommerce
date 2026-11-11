@@ -344,8 +344,8 @@ async function onOrderPaid(orderId) {
     if (!oRows.length) return;
     const o = oRows[0];
     if (o.customer_id) {
-      await pool.execute('UPDATE customers SET total_spent = total_spent + ? WHERE id=?', [o.total, o.customer_id]);
       await pool.execute('DELETE FROM carts WHERE user_id=?', [o.customer_id]);
+      await pool.execute('UPDATE customers SET total_spent = total_spent + ? WHERE id=?', [o.total, o.customer_id]);
     }
     const [iRows] = await pool.query('SELECT oi.*, p.name FROM order_items oi JOIN products p ON p.id=oi.product_id WHERE oi.order_id=?', [orderId]);
     await sendDeliveryNoteEmail(o, iRows);
@@ -356,9 +356,17 @@ async function markOrderPaid(orderId, pfPaymentId) {
   const [r] = await pool.execute(
     "UPDATE orders SET payment_status='paid', status='paid', delivery_status='Paid - Processing', payment_method='PayFast', payfast_id=? WHERE id=? AND status='pending'",
     [pfPaymentId ? String(pfPaymentId).slice(0, 100) : null, orderId]);
-  if (r.affectedRows) return onOrderPaid(orderId);
-  const [rows] = await pool.query('SELECT status FROM orders WHERE id=?', [orderId]);
-  if (rows[0]?.status === 'paid') return; // duplicate ITN, already handled
+
+    if (r.affectedRows) return onOrderPaid(orderId);
+    const [rows] = await pool.query('SELECT status, customer_id FROM orders WHERE id=?', [orderId]);
+    if (rows[0]?.status === 'paid') {
+      // Duplicate ITN - order already paid, but make SURE cart is empty
+      if (rows[0].customer_id) {
+        await pool.execute('DELETE FROM carts WHERE user_id=?', [rows[0].customer_id]);
+      }
+      return;
+    }
+
   console.warn(`Payment received for order #${orderId} in status "${rows[0]?.status}" - manual review needed`);
   await sendViaResend({
     to: ADMIN_EMAIL,

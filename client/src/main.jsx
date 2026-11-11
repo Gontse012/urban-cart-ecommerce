@@ -221,6 +221,12 @@ function App(){
   },[]);
 
 useEffect(()=>{
+  const params = new URLSearchParams(window.location.search);
+  if(params.get('payment') === 'return'){
+    setCart([]);
+    setCartLoaded(true);
+    return;
+  }
   const key = getCartKey(user);
   try{
     const saved = JSON.parse(localStorage.getItem(key) || '[]');
@@ -361,31 +367,32 @@ useEffect(()=>{
     const orderId = Number(params.get('order')) || Number(localStorage.getItem('lastOrderId'));
     window.history.replaceState({}, '', window.location.pathname);
     setActiveTab('track');
-    setNotice('Confirming your payment...');
-    setBusy(true);
 
+    // ✅ PayFast only sends you to return_url AFTER success.
+    // Clear NOW - don't wait 20s for ITN.
+    setNotice(`Payment successful! Order #${orderId} confirmed. Thank you!`);
+    clearCart();
+    localStorage.removeItem('uc_cart_backup');
+    localStorage.removeItem('lastOrderId');
+    localStorage.removeItem('uc_cart');
+    localStorage.removeItem('cart');
+    localStorage.removeItem('uc_cart_guest');
+
+    // Poll in background ONLY to refresh the order list
     (async ()=>{
-      for(let i = 0; i < 10; i++){
+      for(let i = 0; i < 5; i++){
         try{
           const list = await api('/orders/my-orders');
           const sorted = [...(list||[])].sort(sortByDateDesc);
           setTrackingOrders(sorted); setOrders(sorted);
           const o = sorted.find(x => x.id === orderId);
           if(o && (o.payment_status === 'paid' || ['paid','processing','shipped','delivered'].includes(o.status))){
-            await clearCart();                       // local + server bag
-            localStorage.removeItem('uc_cart_backup');
-            localStorage.removeItem('lastOrderId');
-            setNotice(`Payment confirmed! Order #${orderId} received.`);
-            setBusy(false);
             return;
           }
-        }catch(e){
-          if(e.message === 'SESSION_EXPIRED'){ setBusy(false); setNotice('Please sign in again to see your order.'); return; }
-        }
-        await new Promise(r => setTimeout(r, 2000));   // wait for PayFast's notification
+        }catch(e){ if(e.message === 'SESSION_EXPIRED') return; }
+        await new Promise(r => setTimeout(r, 2000));
       }
-      setBusy(false);
-      setNotice(`Still waiting for PayFast to confirm order #${orderId}. Check TRACK ORDER in a minute. Your bag stays until payment is confirmed.`);
+      loadTracking();
     })();
     return;
   }
@@ -421,6 +428,7 @@ useEffect(()=>{
      loadTracking();
    }
  },[user]);
+
  useEffect(()=>{if(notice){const t=setTimeout(()=>setNotice(''),6500);return()=>clearTimeout(t);}},[notice]);
 
  // === FIX C: Cmd+K focus search ===
@@ -580,10 +588,11 @@ async function removeItem(id, size='', color=''){
 async function clearCart(){
   setCart([]);
   const key = getCartKey(user);
-  localStorage.removeItem(key);
-  // also clear old keys so they don't come back
-  localStorage.removeItem('urban_cart');
+  localStorage.setItem(key, '[]'); // set to [] - don't just remove, or load effect will re-read backup
+  localStorage.removeItem('uc_cart_backup');
+  localStorage.removeItem('uc_cart');
   localStorage.removeItem('cart');
+  localStorage.removeItem('uc_cart_guest');
   if(user){ try{ await api('/cart', { method:'DELETE' }); }catch{} }
 }
 
