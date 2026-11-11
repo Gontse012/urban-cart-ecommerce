@@ -166,9 +166,14 @@ const pfEncode = v => encodeURIComponent(String(v).trim())
 
 function pfSignature(body, passphrase) {
   const { signature, ...rest } = body;               // ITN: keep fields in received order
-  let s = Object.entries(rest).map(([k, v]) => `${k}=${pfEncode(v)}`).join('&');
-  if (passphrase) s += `&passphrase=${pfEncode(passphrase)}`;
-  return { s, sig: crypto.createHash('md5').update(s).digest('hex'), given: String(signature || '') };
+  const base = Object.entries(rest).map(([k, v]) => `${k}=${pfEncode(v)}`).join('&');
+  const pass = String(passphrase || '').trim();
+  const signed = pass ? `${base}&passphrase=${pfEncode(pass)}` : base;
+  return {
+    base,                                              // sent to PayFast's validate endpoint (no passphrase)
+    sig: crypto.createHash('md5').update(signed).digest('hex'),
+    given: String(signature || '')
+  };
 }
 
 async function pfIpOk(ip) {
@@ -183,7 +188,7 @@ async function pfIpOk(ip) {
  * expectedAmount = order.total from YOUR database (never from the request).
  */
 export async function verifyPayfastItn({ body, ip, expectedAmount, sandbox, passphrase }) {
-  const { s, sig, given } = pfSignature(body, passphrase);
+  const { base, sig, given } = pfSignature(body, passphrase);
   if (sig.length !== given.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(given)))
     return { ok: false, reason: 'bad signature' };
   if (!(await pfIpOk(ip))) return { ok: false, reason: 'ip not from PayFast' };
@@ -191,7 +196,7 @@ export async function verifyPayfastItn({ body, ip, expectedAmount, sandbox, pass
     return { ok: false, reason: 'amount mismatch' };
   const host = sandbox ? 'sandbox.payfast.co.za' : 'www.payfast.co.za';
   const r = await fetch(`https://${host}/eng/query/validate`, {
-    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: s
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: base
   });
   if ((await r.text()).trim() !== 'VALID') return { ok: false, reason: 'server validation failed' };
   return { ok: true };
