@@ -80,6 +80,41 @@ async function api(path, options={}) {
 
 
 function getCartKey(user){ return `uc_cart_${user?.id || 'guest'}`; }
+
+function normCartItem(r){
+  const size = r.selectedSize ?? r.selected_size ?? r.size ?? '';
+  const color = r.selectedColor ?? r.selected_color ?? r.color ?? '';
+  return {
+    ...r,
+    id: r.product_id || r.id,
+    product_id: r.product_id || r.id,
+    quantity: Number(r.quantity || 1),
+    // ✅ always save BOTH names so every part of your code finds it
+    selectedSize: size,
+    selected_size: size,
+    size: size,
+    selectedColor: color,
+    selected_color: color,
+    color: color,
+  };
+}
+
+// Merge duplicates: same product + same size + same colour = ONE line, quantities summed
+function dedupeCart(list){
+  const map = new Map();
+  for(const raw of (list || [])){
+    const item = normCartItem(raw);
+    const key = `${item.product_id || item.id}|${item.selectedSize || ''}|${item.selectedColor || ''}`;
+    if(map.has(key)){
+      const old = map.get(key);
+      map.set(key, { ...old, quantity: old.quantity + item.quantity });
+    } else {
+      map.set(key, item);
+    }
+  }
+  return [...map.values()];
+}
+
 function effectivePrice(p){ return p.on_sale && p.sale_price ? Number(p.sale_price) : Number(p.price); }
 
 function getProductImages(p){
@@ -236,7 +271,8 @@ useEffect(()=>{
   if(user){
     api('/cart/mine').then(dbRows=>{
       if(Array.isArray(dbRows) && dbRows.length){
-        const mapped = dbRows.map(r=>({
+        // ✅ normalise size/colour + merge duplicate DB rows
+        const mapped = dedupeCart(dbRows.map(r=>({
           id: r.product_id,
           product_id: r.product_id,
           quantity: r.quantity,
@@ -250,11 +286,11 @@ useEffect(()=>{
           category: r.category || 'Tech',
           stock: r.stock ?? 99,
           is_active: r.is_active ?? true,
-          selectedSize: r.selectedSize || r.selected_size || '',
-          selectedColor: r.selectedColor || r.selected_color || '',
+          selectedSize: r.selectedSize || r.selected_size || r.size || '',
+          selectedColor: r.selectedColor || r.selected_color || r.color || '',
           unit: r.unit || 'none',
           unit_value: r.unit_value || ''
-        }));
+        })));
         setCart(mapped);
         localStorage.setItem(key, JSON.stringify(mapped));
       } else if(Array.isArray(dbRows)){
@@ -265,9 +301,19 @@ useEffect(()=>{
       setCartLoaded(true);
     }).catch(()=>{
       // Keep the local bag - don't wipe it on 401 / network error
+      // ✅ also dedupe the local bag, so refresh doesn't stack it
+      try{
+        const saved = JSON.parse(localStorage.getItem(key) || '[]');
+        setCart(dedupeCart(saved));
+      }catch{}
       setCartLoaded(true);
     });
   } else {
+    // ✅ guest: dedupe local bag too
+    try{
+      const saved = JSON.parse(localStorage.getItem(key) || '[]');
+      setCart(dedupeCart(saved));
+    }catch{ setCart([]); }
     setCartLoaded(true);
   }
 },[user]);
