@@ -1358,35 +1358,31 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
           <button className="btn-ghost" onClick={()=>{setShowAll(false); setIndexFilter('All'); setIndexSort('featured'); window.scrollTo(0,0)}}><X size={14}/> BACK TO HOME</button>
         </div>
 
-        {/* === FILTER BAR === */}
-        <div className="index-filters">
-          <div className="filter-pills">
-            {categories.map(c => (
-              <button
-                key={c}
-                className={indexFilter===c ? 'filter-pill active' : 'filter-pill'}
-                onClick={()=>setIndexFilter(c)}
-              >
-                {c}
-                <span className="filter-count">
-                  {c==='All' ? products.length : products.filter(p=>(p.category||'').toLowerCase()===c.toLowerCase()).length}
-                </span>
-              </button>
-            ))}
-          </div>
+          {/* === FILTER BAR === */}
+          <div className="index-filters">
+            <div className="filter-pills">
+              {categories.map(c => (
+                <button
+                  key={c}
+                  className={indexFilter===c ? 'filter-pill active' : 'filter-pill'}
+                  onClick={()=>setIndexFilter(c)}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
 
-          <select
-            className="filter-sort"
-            style={{borderRadius: 0}}
-            value={indexSort}
-            onChange={e=>setIndexSort(e.target.value)}
-          >
-            <option value="featured">Featured</option>
-            <option value="price-low">Price: Low to High</option>
-            <option value="price-high">Price: High to Low</option>
-            <option value="name">Name: A to Z</option>
-          </select>
-        </div>
+            <select
+              className="filter-sort"
+              value={indexSort}
+              onChange={e=>setIndexSort(e.target.value)}
+            >
+              <option value="featured">Featured</option>
+              <option value="price-low">Price: Low to High</option>
+              <option value="price-high">Price: High to Low</option>
+              <option value="name">Name: A to Z</option>
+            </select>
+          </div>
 
         {visibleAll.length===0 && (
           <div style={{padding:'40px 16px', textAlign:'center', fontWeight:700, opacity:.6}}>
