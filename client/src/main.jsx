@@ -1485,7 +1485,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
       </button>
       <button>
         <img height='20px' width='40px' src='https://clipart-library.com/images_k/facebook-transparent-icon/facebook-transparent-icon-15.jpg' alt='facebook profile link' />
-      <a href='https://www.facebook.com/profile.php?id=61554440545838'>Stay Updated: Instagram</a>
+      <a href='https://www.facebook.com/profile.php?id=61554440545838'>Stay Updated: facebook</a>
       </button>
     </div>
 
