@@ -487,6 +487,7 @@ async function ensureSchema() {
       'ADD COLUMN active TINYINT(1) DEFAULT 1',
       'ADD COLUMN images JSON NULL',
       'ADD COLUMN colors TEXT NULL',
+      'ADD COLUMN sizes TEXT NULL', 
       'ADD COLUMN is_active TINYINT(1) DEFAULT 1'
     ];
     for (const c of prodAlters) { try { await pool.query(`ALTER TABLE products ${c}`); } catch {} }
@@ -602,7 +603,7 @@ app.get('/api/products', wrap(async (req, res) => {
   const q = String(req.query.q || '').slice(0, 100).replace(/[\\%_]/g, '\\$&');
   const category = asInt(req.query.category || 0, 0, 2147483647) || 0;
   const [rows] = await pool.query(
-    `SELECT p.id,p.name,p.description,p.price,p.is_bestseller,p.sale_price,p.colors,p.unit,p.unit_value,p.on_sale,p.stock,p.image_url,p.images,p.active,p.is_active,c.name AS category
+    `SELECT p.id,p.name,p.description,p.price,p.is_bestseller,p.sale_price,p.colors,p.sizes,p.unit,p.unit_value,p.on_sale,p.stock,p.image_url,p.images,p.active,p.is_active,c.name AS category
      FROM products p
      LEFT JOIN categories c ON c.id=p.category_id
      WHERE (p.active=1 OR p.active IS NULL)
@@ -786,7 +787,7 @@ const cartSelect = `SELECT c.product_id, c.quantity, c.selected_size, c.selected
 
 app.get('/api/cart/mine', auth, wrap(async (req, res) => {
   const [rows] = await pool.execute(`
-    SELECT c.product_id, c.quantity, c.selected_size, c.selected_color, p.name, p.description, p.price, p.sale_price, p.on_sale, p.image_url, p.stock, p.is_active, cat.name AS category
+    SELECT c.product_id, c.quantity, c.selected_size, c.selected_color, p.name, p.description, p.price, p.sale_price, p.on_sale, p.image_url, p.stock, p.is_active, p.unit, p.unit_value, cat.name AS category
     FROM carts c JOIN products p ON p.id=c.product_id LEFT JOIN categories cat ON cat.id=p.category_id
     WHERE c.user_id=? ORDER BY c.updated_at DESC`, [req.user.id]);
   res.json(rows);
@@ -1070,6 +1071,7 @@ async function parseProductBody(body = {}) {
     name, price: money(price), sale: sale !== null ? money(sale) : null, stock, image_url, images, catId,
     description: multiline(body.description, 5000),
     colors: body.colors ? cleanText(body.colors, 500) : null,
+    sizes: body.sizes ? cleanText(body.sizes, 500) : null,
     on_sale: body.on_sale ? 1 : 0,
     is_bestseller: body.is_bestseller ? 1 : 0,
     unit: cleanText(body.unit || 'none', 20) || 'none',
@@ -1081,9 +1083,9 @@ app.post('/api/admin/products', wrap(async (req, res) => {
   const d = await parseProductBody(req.body);
   const { active = 1, is_active = true } = req.body || {};
   const [r] = await pool.execute(
-    'INSERT INTO products(name,description,price,sale_price,colors,on_sale,is_bestseller,stock,category_id,active,is_active,image_url,unit,unit_value) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-    [d.name, d.description, d.price, d.sale, d.colors, d.on_sale, d.is_bestseller, d.stock, d.catId, active ? 1 : 0, is_active ? 1 : 0, d.image_url, d.unit, d.unit_value]);
-  const [rows] = await pool.query('SELECT p.id,p.name,p.description,p.unit,p.unit_value,p.price,p.sale_price,p.colors,p.on_sale,p.is_bestseller,p.stock,p.image_url,p.active,p.is_active,c.name AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?', [r.insertId]);
+  'INSERT INTO products(name,description,price,sale_price,colors,sizes,on_sale,is_bestseller,stock,category_id,active,is_active,image_url,unit,unit_value) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+  [d.name, d.description, d.price, d.sale, d.colors, d.sizes, d.on_sale, d.is_bestseller, d.stock, d.catId, active ? 1 : 0, is_active ? 1 : 0, d.image_url, d.unit, d.unit_value]);
+  const [rows] = await pool.query('SELECT p.id,p.name,p.description,p.unit,p.unit_value,p.price,p.sale_price,p.colors,p.sizes,p.on_sale,p.is_bestseller,p.stock,p.image_url,p.active,p.is_active,c.name AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?', [r.insertId]);
   res.status(201).json(rows[0]);
 }));
 
@@ -1094,10 +1096,10 @@ app.put('/api/admin/products/:id', wrap(async (req, res) => {
   let { is_active = true, active } = req.body || {};
   if (active === undefined) active = is_active ? 1 : 0;
   const [r] = await pool.execute(
-    'UPDATE products SET name=?, description=?, price=?, sale_price=?, colors=?, on_sale=?, is_bestseller=?, image_url=?, images=?, stock=?, category_id=?, active=?, is_active=?, unit=?, unit_value=? WHERE id=?',
-    [d.name, d.description, d.price, d.sale, d.colors, d.on_sale, d.is_bestseller, d.image_url, d.images ? JSON.stringify(d.images) : null, d.stock, d.catId, active ? 1 : 0, is_active ? 1 : 0, d.unit, d.unit_value, id]);
+  'UPDATE products SET name=?, description=?, price=?, sale_price=?, colors=?, sizes=?, on_sale=?, is_bestseller=?, image_url=?, images=?, stock=?, category_id=?, active=?, is_active=?, unit=?, unit_value=? WHERE id=?',
+  [d.name, d.description, d.price, d.sale, d.colors, d.sizes, d.on_sale, d.is_bestseller, d.image_url, d.images ? JSON.stringify(d.images) : null, d.stock, d.catId, active ? 1 : 0, is_active ? 1 : 0, d.unit, d.unit_value, id]);
   if (!r.affectedRows) return res.status(404).json({ error: 'Product not found.' });
-  const [rows] = await pool.query('SELECT p.id,p.name,p.description,p.unit,p.unit_value,p.price,p.sale_price,p.colors,p.on_sale,p.is_bestseller,p.image_url,p.images,p.stock,p.active,p.is_active,c.name AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?', [id]);
+  const [rows] = await pool.query('SELECT p.id,p.name,p.description,p.unit,p.unit_value,p.price,p.sale_price,p.colors,p.sizes,p.on_sale,p.is_bestseller,p.image_url,p.images,p.stock,p.active,p.is_active,c.name AS category FROM products p LEFT JOIN categories c ON c.id=p.category_id WHERE p.id=?', [id]);
   res.json(rows[0]);
 }));
 

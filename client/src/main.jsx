@@ -209,7 +209,7 @@ function App(){
  const [termsTab,setTermsTab]=useState('Shipping');
  const [termsFromSignup,setTermsFromSignup]=useState(false);
  const [adminTab,setAdminTab]=useState('dashboard');
- const [prodForm,setProdForm]=useState({name:'',category:'Tech',price:'',sale_price:'',is_bestseller: 0, on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:'', colors:''});
+ const [prodForm,setProdForm]=useState({name:'',category:'Tech',price:'',sale_price:'',is_bestseller: 0, on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:'', colors:'', sizes:'', has_colors:false, has_sizes:false});
  const [editingId,setEditingId]=useState(null);
  const [orderFilter,setOrderFilter]=useState('all');
  const [userSearch,setUserSearch]=useState('');
@@ -552,7 +552,7 @@ async function add(p){
     // CLEAR old error first
     setVariantError('');
 
-    if(p.unit==='size' && !size){ 
+    if(p.sizes && !size){ 
       setVariantError('⚠ Please select a size first');
       setNotice(`⚠ ${p.name} needs a size — tap the product to choose one`);
       return; 
@@ -901,23 +901,24 @@ async function placeOrder(e) {
         images: prodForm.images.filter(Boolean).slice(0,4), 
         price:Number(prodForm.price), 
         colors: prodForm.has_colors ? prodForm.colors : '',
+        sizes: prodForm.has_sizes ? prodForm.sizes : '',
         sale_price: prodForm.sale_price?Number(prodForm.sale_price):null,
         stock:Number(prodForm.stock), on_sale: Boolean(prodForm.on_sale),
-         is_active: Boolean(prodForm.is_active)};
+        is_active: Boolean(prodForm.is_active)};
 
       const p = await api('/admin/products',{method:'POST', body:JSON.stringify(payload)});
       setProducts(old=>[p,...old]); setNotice('Product created'); 
-      setProdForm({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:''});
+      setProdForm({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:'',colors:'',sizes:'',has_colors:false,has_sizes:false});
     }catch(err){setNotice(err.message)}
   }
 
   async function saveEdit(e){
     e.preventDefault();
     try{
-      const payload={...prodForm, colors: prodForm.has_colors ? prodForm.colors : '', images: prodForm.images.filter(Boolean).slice(0,4), price:Number(prodForm.price), sale_price: prodForm.sale_price?Number(prodForm.sale_price):null, stock:Number(prodForm.stock), on_sale: Boolean(prodForm.on_sale), is_active: Boolean(prodForm.is_active)};
+      const payload={...prodForm, colors: prodForm.has_colors ? prodForm.colors : '', sizes: prodForm.has_sizes ? prodForm.sizes : '', images: prodForm.images.filter(Boolean).slice(0,4), price:Number(prodForm.price), sale_price: prodForm.sale_price?Number(prodForm.sale_price):null, stock:Number(prodForm.stock), on_sale: Boolean(prodForm.on_sale), is_active: Boolean(prodForm.is_active)};
       const p = await api(`/admin/products/${editingId}`,{method:'PUT', body:JSON.stringify(payload)});
       setProducts(old=>old.map(x=>x.id===editingId? p : x));
-      setEditingId(null); setProdForm({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:''}); setNotice('Product updated');
+      setEditingId(null); setProdForm({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:'',colors:'',sizes:'',has_colors:false,has_sizes:false}); setNotice('Product updated');
     }catch(err){setNotice(err.message)}
   }
 
@@ -934,6 +935,8 @@ async function placeOrder(e) {
       sale_price: p.sale_price?String(p.sale_price):'', 
       colors: p.colors || '',
       has_colors: !!(p.colors),
+      sizes: p.sizes || '',
+      has_sizes: !!(p.sizes),
       on_sale: !!p.on_sale, 
       stock:String(p.stock), 
       description:p.description, 
@@ -1330,7 +1333,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
                 setVariantError('⚠ Please select a colour first');
                 return;
               }
-              add({...selectedProduct, selectedSize: selectedProduct.unit==='size' ? selectedSize : null, selectedColor: selectedProduct.colors ? selectedColor : null});
+              add({...selectedProduct, selectedSize: selectedProduct.unit==='size' ? selectedSize : '', selectedColor: selectedProduct.colors ? selectedColor : ''});
             }} style={{opacity: isOutOfStock(selectedProduct)?0.4:1}}>
               {isOutOfStock(selectedProduct) ? 'OUT OF STOCK' : `ADD TO BAG — ${fmt(effectivePrice(selectedProduct))}`} <ArrowUpRight size={16}/>
             </button>
@@ -2316,7 +2319,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
             <textarea placeholder="Description" value={prodForm.description} onChange={e=>setProdForm(f=>({...f,description:e.target.value}))} style={{minHeight:80, border:'2px solid var(--ink)', padding:12, fontFamily:'Syne'}}/>
               <button type="button" onClick={() => {
                 setEditingId(null);
-                setProdForm({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:''});
+                setProdForm({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:'',colors:'',has_colors:false});
               }} style={{height:44, border:'2px solid #121212', background:'#fff', fontWeight:800, cursor:'pointer'}}>CANCEL</button>
               <button type="submit" className="btn-black full">{editingId ? 'SAVE CHANGES' : 'CREATE PRODUCT'}
               </button>
