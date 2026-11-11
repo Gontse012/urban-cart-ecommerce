@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Search, ShoppingBag, ArrowUpRight, Plus, Minus, X, Menu, Check, ShieldCheck, Truck, RotateCcw, PackageCheck, UserRound, MapPin, Clock, FileText, AlertTriangle, Bell, Tag, Ban, MessageCircle, Printer, TrendingUp, DollarSign, Users, Crown, Eye, Archive, Strikethrough } from 'lucide-react';
 import './styles.css';
-import { FreeDeliveryBar, TrackProgress, TopLoader } from './ProgressBars.jsx';
+import { FreeDeliveryBar, TrackProgress, TopLoader, RedirectOverlay } from './ProgressBars.jsx';
 
 const RAW = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
 const API = RAW.includes('/api') ? RAW : RAW + '/api';
@@ -151,6 +151,7 @@ function App(){
  const [cancelReason,setCancelReason]=useState('');
  const [cartLoaded, setCartLoaded] = useState(false);
  const [lightboxImg,setLightboxImg]=useState(null);
+ const [redirecting, setRedirecting] = useState(false);
  const [editData,setEditData]=useState({delivery_status:'Order Placed', current_location:'Warehouse - Lephalale', eta:'1-2 business days', tracking_note:''});
  const [form,setForm]=useState(
   {full_name:'',
@@ -416,6 +417,12 @@ async function handleResetSubmit(e){
    window.addEventListener('keydown', onKey);
    return ()=>window.removeEventListener('keydown', onKey);
  },[]);
+
+ useEffect(() => {
+  const onShow = (e) => { if (e.persisted) setRedirecting(false); };
+  window.addEventListener('pageshow', onShow);
+  return () => window.removeEventListener('pageshow', onShow);
+}, []);
 
  const visible=useMemo(()=>products.filter(p=>(category==='All'|| (p.category||'').toLowerCase()===category.toLowerCase())&& `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())).sort((a,b)=>(b.is_bestseller?1:0)-(a.is_bestseller?1:0) || b.id-a.id),[products,category,search]);
  const visibleAll=useMemo(()=>{
@@ -704,7 +711,6 @@ async function loadTracking(){
 async function placeOrder(e) {
   e.preventDefault();
   if(!user){ setAuthError('Please sign in first'); setAccountOpen(true); return; }
-  
 
   // --- VALIDATION - FORCES CORRECT ADDRESS ---
   if(!form.full_name.trim()||!form.email.trim()||!form.phone.trim()){
@@ -723,14 +729,11 @@ async function placeOrder(e) {
     setCheckoutError('Please fill all: Address, Suburb, City, Province, Postal Code'); return;
   }
   if(!isValidSAphone(form.phone)){ setCheckoutError('Invalid SA phone.'); return; }
-  setCheckoutError('');
-
   if(!/^[0-9]{4}$/.test(form.postal_code.trim())){ setCheckoutError('Postal code must be 4 digits (SA) e.g. 2196'); return; }
   if(!cart.length){ setCheckoutError('Your bag is empty.'); return; }
-
   if(!(form.province === 'LIMPOPO' && ['0555','0556','0557'].includes(form.postal_code.trim()))){
-  setCheckoutError('Sorry — delivery is Lephalale / Ellisras only for now (0555, 0556, 0557). Coming Soon to your area.');
-  return;
+    setCheckoutError('Sorry — delivery is Lephalale / Ellisras only for now (0555, 0556, 0557). Coming Soon to your area.');
+    return;
   }
 
   setBusy(true); setCheckoutError('');
@@ -738,7 +741,6 @@ async function placeOrder(e) {
     const order = await api('/orders',{method:'POST',body:JSON.stringify({
       phoneVerifiedToken: phoneVerifiedToken,
       full_name: form.full_name, customer_name: form.full_name, email: form.email, phone: form.phone,
-      // --- NEW ADDRESS FIELDS ---
       address_type: form.address_type,
       complex_name: form.complex_name,
       unit_number: form.unit_number,
@@ -752,17 +754,41 @@ async function placeOrder(e) {
       customer_id: user?.id,
       items: cart.map(p => ({ id: p.id, product_id: p.id, quantity: p.quantity, price: effectivePrice(p), selectedSize: p.selectedSize, selectedColor: p.selectedColor, unit: p.unit, unit_value: p.unit_value }))
     })});
+
     const pay = await api('/payfast/checkout',{method:'POST',body:JSON.stringify({ orderId: order.orderId })});
     if (!pay.action || !pay.fields) throw new Error('PayFast is not configured yet on server');
+
     localStorage.setItem('lastOrderId', order.orderId);
     // BACKUP cart before leaving for PayFast - so we can restore on cancel
     localStorage.setItem('uc_cart_backup', JSON.stringify(cart));
     localStorage.setItem(getCartKey(user), JSON.stringify(cart));
-    const formEl = document.createElement('form'); formEl.method='POST'; formEl.action=pay.action; formEl.style.display='none';
-    Object.entries(pay.fields).forEach(([name, value]) => { const input=document.createElement('input'); input.type='hidden'; input.name=name; input.value=String(value ?? ''); formEl.appendChild(input); });
-    document.body.appendChild(formEl); setCheckoutOpen(false); formEl.submit();
-  } catch (err) { setCheckoutError(err.message || 'Could not start PayFast checkout.'); } finally { setBusy(false); }
- }
+
+    // 1) build the form FIRST
+    const formEl = document.createElement('form');
+    formEl.method = 'POST';
+    formEl.action = pay.action;
+    formEl.style.display = 'none';
+    Object.entries(pay.fields).forEach(([name, value]) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = name;
+      input.value = String(value ?? '');
+      formEl.appendChild(input);
+    });
+    document.body.appendChild(formEl);
+
+    // 2) then show the redirect screen and submit
+    setCheckoutOpen(false);
+    setRedirecting(true);
+    setTimeout(() => setRedirecting(false), 30000); // safety: never leave the user stuck
+    formEl.submit();
+  } catch (err) {
+    setRedirecting(false);
+    setCheckoutError(err.message || 'Could not start PayFast checkout.');
+  } finally {
+    setBusy(false);
+  }
+}
  
  async function createProduct(e){
     e.preventDefault();
@@ -1046,7 +1072,8 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
 }
 
  return <div className="app">
-  <TopLoader active={loading || busy} />
+  <TopLoader active={loading || busy || redirecting} />
+  <RedirectOverlay active={redirecting} />
   <div className="ticker" role="marquee" aria-label="Free delivery over R1,000. Secure PayFast. Curated in SA. Everyday elevated.">
   <div className="ticker-track">
     <span>● FREE DELIVERY OVER R1,000 &nbsp;●&nbsp; SECURE PAYFAST &nbsp;●&nbsp; EVERYDAY ELEVATED &nbsp;●&nbsp; CURATED IN SA</span>
