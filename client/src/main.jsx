@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Search, ShoppingBag, ArrowUpRight, Plus, Minus, X, Menu, Check, ShieldCheck, Truck, RotateCcw, PackageCheck, UserRound, MapPin, Clock, FileText, AlertTriangle, Bell, Tag, Ban, MessageCircle, Printer, TrendingUp, DollarSign, Users, Crown, Eye, Archive, Strikethrough } from 'lucide-react';
 import './styles.css';
+import { FreeDeliveryBar, TrackProgress, TopLoader } from './ProgressBars.jsx';
 
 const RAW = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
 const API = RAW.includes('/api') ? RAW : RAW + '/api';
@@ -1036,6 +1037,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
 }
 
  return <div className="app">
+  <TopLoader active={loading || busy} />
   <div className="ticker" role="marquee" aria-label="Free delivery over R1,000. Secure PayFast. Curated in SA. Everyday elevated.">
   <div className="ticker-track">
     <span>● FREE DELIVERY OVER R1,000 &nbsp;●&nbsp; SECURE PAYFAST &nbsp;●&nbsp; EVERYDAY ELEVATED &nbsp;●&nbsp; CURATED IN SA</span>
@@ -1080,6 +1082,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
               <span style={{fontSize:11}}>{new Date(o.created_at).toLocaleDateString()} • {o.province} {o.postal_code}</span>
             </div>
             <div style={{padding:14}}>
+              <TrackProgress order={o} />
               <p style={{fontSize:12}}><MapPin size={12} style={{display:'inline'}}/> <b>Deliver to:</b> {o.delivery_address}, {o.province}, {o.postal_code}</p>
               <p style={{fontSize:12}}><Truck size={12} style={{display:'inline'}}/> <b>Current:</b> {o.current_location} | <Clock size={12} style={{display:'inline'}}/> <b>ETA:</b> {o.eta}</p>
               <div style={{marginTop:14, borderLeft:'3px solid #121212', paddingLeft:14}}>
@@ -1518,6 +1521,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
         </div>
         
         <div className="cart-foot">
+          <FreeDeliveryBar total={total} />
           <div className="sum"><span>SUBTOTAL ({count} items)</span><b>{fmt(total)}</b></div>
           <button className="btn-black full" onClick={handleCheckoutClick}>CHECKOUT — {fmt(total)} <ArrowUpRight size={14}/></button>
           {!user && <p style={{fontSize:11, color:'#ff3b30', textAlign:'center', marginTop:8}}>⚠ You must sign in to checkout</p>}
@@ -1749,11 +1753,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
                     <span>DELIVERY {isLephalale ? '(Lephalale / Ellisras)' : ''}</span>
                     <span>{!isLephalale ? '—' : deliveryFee === 0 ? 'FREE' : fmt(deliveryFee)}</span>
                   </div>
-                  {isLephalale && total < 1000 && (
-                    <div style={{fontSize:11, background:'#FEF3C7', padding:'8px 10px', marginTop:6, fontWeight:700}}>
-                      Add {fmt(1000 - total)} more for FREE delivery
-                    </div>
-                  )}
+                  {isLephalale && <FreeDeliveryBar total={total} />}
                   {!isLephalale && form.postal_code && (
                     <div style={{fontSize:11, background:'#FEE2E2', padding:'8px 10px', marginTop:6, fontWeight:700, color:'#991B1B'}}>
                       ⚠ Delivery not available in this area yet — Lephalale / Ellisras only (0555, 0556, 0557). Coming Soon.
