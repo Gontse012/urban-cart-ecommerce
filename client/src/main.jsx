@@ -231,6 +231,7 @@ function App(){
 
  // === FIX A: Forgot password states ===
  const [forgotOpen,setForgotOpen]=useState(false);
+ const [adminLoading, setAdminLoading] = useState(false);
  const [forgotEmail,setForgotEmail]=useState('');
  const [forgotMessage,setForgotMessage]=useState('');
  const categories=['All','Tech','Home','Lifestyle','Accessories'];
@@ -969,6 +970,7 @@ async function placeOrder(e) {
   }
 
  async function showAdmin(){
+   setAdminLoading(true);
    try{
      const ordersData=await api('/admin/orders');
      setAdminOrders(ordersData);
@@ -980,7 +982,11 @@ async function placeOrder(e) {
      setAdminOpen(true);
      setAdminTab('dashboard');
    }catch(e){setNotice(e.message);}
+   finally{
+     setTimeout(() => setAdminLoading(false), 400);
+   }
  }
+ 
  // === FIX B: updateStatus with safe mapping + amber catch ===
  async function updateStatus(id,status){
    if(status==='cancelled'){ setCancelModal(id); return; }
@@ -1179,6 +1185,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
 }
 
  return <div className="app">
+  <TopLoader active={adminLoading} />
   <TopLoader active={loading || busy || redirecting} />
   <RedirectOverlay active={redirecting} />
   <div className="ticker" role="marquee" aria-label="Free delivery over R1,000. Secure PayFast. Curated in SA. Everyday elevated.">
