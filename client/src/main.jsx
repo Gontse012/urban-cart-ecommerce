@@ -1246,7 +1246,8 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
                 ))}
               </div>
               <div style={{marginTop:14}}>
-                {o.items?.map((it, idx)=><div key={idx} style={{fontSize:11, borderTop:'1px solid #ddd', padding:'8px 0', display:'flex', gap:8, alignItems:'center'}}><img src={it.image_url || it.image} style={{width:48,height:48,objectFit:'cover', border:'1px solid #121212'}}/><span>{it.name} {it.selected_size ? `(Size: ${it.selected_size})` : ''} {it.selected_color ? `(Colour: ${it.selected_color})` : ''} x {it.quantity} - {fmt(it.price)}</span></div>)}
+                {o.items?.map((it, idx)=><div key={idx} style={{fontSize:11, borderTop:'1px solid #ddd', padding:'8px 0', display:'flex', gap:8, alignItems:'center'}}>
+                <img src={it.image_url || it.image} style={{width:48,height:48,objectFit:'cover', border:'1px solid #121212'}}/><span>{it.name} {it.selected_size ? `(Size: ${it.selected_size})` : ''} {it.selected_color ? `(Colour: ${it.selected_color})` : ''} x {it.quantity} - {fmt(it.price)}</span></div>)}
               </div>
               <div style={{marginTop:12, display:'flex', gap:8}}>
                 <button className="btn-ghost" style={{height:36, fontSize:11}} onClick={()=>printInvoice(o,'invoice')}><Printer size={12}/> INVOICE</button>
@@ -1562,7 +1563,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
           <div className="hero-manifesto">
             <h1>FIND<br/>YOUR<br/>KIND<br/><em>OF GOOD.</em></h1>
             <div className="hero-actions">
-              <a href="#shop" className="btn-black">SHOP THE INDEX <ArrowUpRight size={16}/></a>
+              <a onClick={()=>{handleViewEverything()}} className="btn-black">SHOP THE INDEX <ArrowUpRight size={16}/></a>
             </div>
           </div>
           <div className="hero-cards">
