@@ -73,7 +73,11 @@ export function makeAuth(pool) {
       if (!rows.length) return res.status(401).json({ error: 'Please sign in again.' });
       if (rows[0].is_blocked) return res.status(403).json({ error: 'Account blocked.' });
       user = rows[0];
-    } catch {
+    } catch (err) {
+      // FIX: Don't turn a DB outage into a fake "sign in again"
+      if (err.code === 'ECONNREFUSED' || err.code === 'ER_NO_SUCH_TABLE' || err.code === 'ETIMEDOUT' || err.code === 'PROTOCOL_CONNECTION_LOST') {
+        return res.status(503).json({ error: 'Service temporarily unavailable.' });
+      }
       return res.status(401).json({ error: 'Please sign in again.' });
     }
     req.user = user;

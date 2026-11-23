@@ -210,6 +210,9 @@ function App(){
  const [termsFromSignup,setTermsFromSignup]=useState(false);
  const [adminTab,setAdminTab]=useState('dashboard');
  const [prodForm,setProdForm]=useState({name:'',category:'Tech',price:'',sale_price:'',is_bestseller: 0, on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:'', colors:'', sizes:'', has_colors:false, has_sizes:false});
+ const [categories, setCategories] = useState([]);
+const [catName, setCatName] = useState('');
+const [editingCatId, setEditingCatId] = useState(null);
  const [editingId,setEditingId]=useState(null);
  const [orderFilter,setOrderFilter]=useState('all');
  const [userSearch,setUserSearch]=useState('');
@@ -234,7 +237,7 @@ function App(){
  const [adminLoading, setAdminLoading] = useState(false);
  const [forgotEmail,setForgotEmail]=useState('');
  const [forgotMessage,setForgotMessage]=useState('');
- const categories=['All','Tech','Home','Lifestyle','Accessories'];
+ const categoryOptions = ['All', ...categories.map(c => c.name)];
  const [indexFilter, setIndexFilter] = useState('All');
  const [indexSort, setIndexSort] = useState('featured');
  const [resetToken, setResetToken] = useState(null);
@@ -255,6 +258,8 @@ function App(){
       setForgotOpen(false);
     }
   },[]);
+
+useEffect(()=>{ loadCategories(); },[]);
 
 useEffect(()=>{
   const params = new URLSearchParams(window.location.search);
@@ -465,6 +470,13 @@ useEffect(()=>{
 },[user]);
 
  useEffect(()=>{api('/products').then((rows)=>{ if(Array.isArray(rows)&&rows.length) setProducts(rows); }).catch(()=>{}).finally(()=>setLoading(false));},[]);
+ 
+ useEffect(()=>{
+  api('/categories').then(rows=>{
+    if(Array.isArray(rows)) setCategories(rows);
+  }).catch(()=>{});
+},[]);
+ 
  useEffect(()=>{
    if(user){
      setForm(f=>({...f, full_name: user.name || f.full_name, email: user.email || f.email }));
@@ -544,7 +556,7 @@ useEffect(()=>{
    });
    const best = Object.values(salesMap).sort((a,b)=>b.qty-a.qty).slice(0,5);
    return {todayRev, monthRev, totalRev, pending, failed, best, totalOrders: adminOrders.length};
- },[adminOrders]);
+  },[adminOrders]);
 
 async function add(p){
     const size = p.selectedSize || selectedSize || '';
@@ -553,7 +565,7 @@ async function add(p){
     // CLEAR old error first
     setVariantError('');
 
-    if(p.sizes && !size){ 
+    if(p.unit === 'size' && !size){ 
       setVariantError('⚠ Please select a size first');
       setNotice(`⚠ ${p.name} needs a size — tap the product to choose one`);
       return; 
@@ -590,15 +602,31 @@ async function changeQty(id, d, size='', color=''){
   else{ setCart(old=>old.map(p=>(p.id===id && (p.selectedSize||'')===(size||'') && (p.selectedColor||'')===(color||'')) ? {...p, quantity:newQty} : p)); }
   if(user){
     try{
-      if(newQty<=0) await api(`/cart/${id}`,{method:'DELETE'});
-      else await api(`/cart/${id}`,{method:'PATCH', body:JSON.stringify({quantity:newQty})});
+      const q = `?selected_size=${encodeURIComponent(size||'')}&selected_color=${encodeURIComponent(color||'')}`;
+      if(newQty<=0) await api(`/cart/${id}${q}`,{method:'DELETE'});
+      else await api(`/cart/${id}${q}`,{method:'PATCH', body:JSON.stringify({quantity:newQty})});
     }catch{}
   }
 }
 
-const changeSize = (id, newSize, color='') => {
-  setCart(cart.map(item => (item.id===id && (item.selectedColor||'')===(color||'')) ? {...item, selectedSize: newSize} : item));
-};
+async function changeSize(id, newSize, color='', oldSize=''){
+  const prev = cart.find(x=>x.id===id && (x.selectedSize||'')===(oldSize||'') && (x.selectedColor||'')===(color||''));
+  if(!prev) return;
+  // If new size already exists, merge — don't create a duplicate line
+  setCart(old=>{
+    const without = old.filter(x=>!(x.id===id && (x.selectedSize||'')===(oldSize||'') && (x.selectedColor||'')===(color||'')));
+    const existing = without.find(x=>x.id===id && (x.selectedSize||'')===(newSize||'') && (x.selectedColor||'')===(color||''));
+    if(existing) return without.map(x=>x===existing ? {...x, quantity: x.quantity + prev.quantity} : x);
+    return [...without, {...prev, selectedSize: newSize, selected_size: newSize}];
+  });
+  if(user){
+    try{
+      const qOld = `?selected_size=${encodeURIComponent(oldSize||'')}&selected_color=${encodeURIComponent(color||'')}`;
+      await api(`/cart/${id}${qOld}`,{method:'DELETE'});
+      await api('/cart',{method:'POST', body:JSON.stringify({product_id:id, quantity:prev.quantity, selectedSize:newSize, selectedColor:color, selected_size:newSize, selected_color:color})});
+    }catch{}
+  }
+}
 
 async function removeItem(id, size='', color=''){
   const s = size || '';
@@ -909,7 +937,7 @@ async function placeOrder(e) {
 
       const p = await api('/admin/products',{method:'POST', body:JSON.stringify(payload)});
       setProducts(old=>[p,...old]); setNotice('Product created'); 
-      setProdForm({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:'',colors:'',sizes:'',has_colors:false,has_sizes:false});
+      setProdForm({name:'',category:'Tech',price:'',sale_price:'',is_bestseller:0,on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:'',colors:'',sizes:'',has_colors:false,has_sizes:false});
     }catch(err){setNotice(err.message)}
   }
 
@@ -919,7 +947,7 @@ async function placeOrder(e) {
       const payload={...prodForm, colors: prodForm.has_colors ? prodForm.colors : '', sizes: prodForm.has_sizes ? prodForm.sizes : '', images: prodForm.images.filter(Boolean).slice(0,4), price:Number(prodForm.price), sale_price: prodForm.sale_price?Number(prodForm.sale_price):null, stock:Number(prodForm.stock), on_sale: Boolean(prodForm.on_sale), is_active: Boolean(prodForm.is_active)};
       const p = await api(`/admin/products/${editingId}`,{method:'PUT', body:JSON.stringify(payload)});
       setProducts(old=>old.map(x=>x.id===editingId? p : x));
-      setEditingId(null); setProdForm({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:'',colors:'',sizes:'',has_colors:false,has_sizes:false}); setNotice('Product updated');
+      setEditingId(null); setProdForm({name:'',category:'Tech',price:'',sale_price:'',is_bestseller:0,on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:'',colors:'',sizes:'',has_colors:false,has_sizes:false}); setNotice('Product updated');
     }catch(err){setNotice(err.message)}
   }
 
@@ -969,11 +997,20 @@ async function placeOrder(e) {
     }catch(e){ setNotice(e.message); }
   }
 
+
+  async function loadCategories(){
+  try {
+    const rows = await api('/categories');
+    if (Array.isArray(rows)) setCategories(rows);
+  } catch {}
+  }
+
  async function showAdmin(){
    setAdminLoading(true);
    try{
      const ordersData=await api('/admin/orders');
      setAdminOrders(ordersData);
+     await loadCategories();
      try{ const rev = await api('/admin/reviews'); setAdminReviews(rev); }catch{ setAdminReviews([]); }
      try{
        const usersData=await api('/admin/users');
@@ -1136,53 +1173,6 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
    return adminUsers.filter(u=> `${u.name} ${u.email} ${u.phone||''}`.toLowerCase().includes(userSearch.toLowerCase()));
  },[adminUsers, userSearch]);
 
- // === FIX A: handle forgot password ===
- async function handleForgot(e){
-   e?.preventDefault();
-   if(!forgotEmail.trim()){ setForgotMessage('Enter your email'); return; }
-   setBusy(true); setForgotMessage('Sending...');
-   try{
-     const data = await api('/auth/forgot-password',{method:'POST', body:JSON.stringify({email: forgotEmail})});
-     setForgotMessage(data.message || 'Reset link sent! Check your inbox.');
-     setTimeout(()=>{ setForgotOpen(false); setForgotMessage(''); }, 3000);
-   }catch(err){
-     // fallback if endpoint 404
-     if(err.message.includes('404') || err.message.includes('Request failed')){
-       setForgotMessage('Password reset: Contact support at support@urbancart.co.za or use email link. Your email will receive reset instructions. (Sandbox: check server logs for token)');
-       setTimeout(()=>{ setForgotOpen(false); setForgotMessage(''); }, 4000);
-     } else {
-       setForgotMessage(err.message);
-     }
-   } finally { setBusy(false); }
- }
-
- async function handleResetPassword(e){
-  e?.preventDefault();
-  if(!newPassword || newPassword.length < 6){
-    setResetMessage('Password must be at least 6 characters');
-    return;
-  }
-  setBusy(true); setResetMessage('Resetting...');
-  try{
-    const data = await api('/auth/reset-password', {
-      method:'POST', 
-      body: JSON.stringify({ token: resetToken, newPassword })
-    });
-    setResetMessage(data.message || 'Password reset! You can now login.');
-    setTimeout(()=>{
-      setResetOpen(false);
-      setResetToken(null);
-      setNewPassword('');
-      setResetMessage('');
-      window.history.replaceState({}, '', window.location.pathname); // clean URL
-      setAuthMode('login');
-    }, 2000);
-  }catch(err){
-    setResetMessage(err.message || 'Invalid or expired link');
-  }finally{
-    setBusy(false);
-  }
-}
 
  return <div className="app">
   <TopLoader active={adminLoading} />
@@ -1519,15 +1509,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
           {/* === FILTER BAR === */}
           <div className="index-filters">
             <div className="filter-pills">
-              {categories.map(c => (
-                <button
-                  key={c}
-                  className={indexFilter===c ? 'filter-pill active' : 'filter-pill'}
-                  onClick={()=>setIndexFilter(c)}
-                >
-                  {c}
-                </button>
-              ))}
+              {categoryOptions.map(c=><button key={c} className={category===c?'active':''} onClick={()=>setCategory(c)}>{c.toUpperCase()}</button>)}
             </div>
 
             <select
@@ -1583,7 +1565,15 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
           <div className="shop-head">
             <h2>INDEX <span>({visible.length})</span></h2>
             <div className="tabs">
-              {categories.map(c=><button key={c} className={category===c?'active':''} onClick={()=>setCategory(c)}>{c.toUpperCase()}</button>)}
+              {categoryOptions.map(c => (
+                <button
+                  key={c}
+                  className={indexFilter===c ? 'filter-pill active' : 'filter-pill'}
+                  onClick={()=>setIndexFilter(c)}
+                >
+                  {c}
+                </button>
+              ))}
             </div>
             <button className="view-all" onClick={()=>{handleViewEverything()}}>VIEW EVERYTHING <ArrowUpRight size={14}/></button>
           </div>
@@ -1625,17 +1615,12 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
   </main>
   <footer className="footer">
     <div className="foot-links">
-      <button onClick={()=>{ setActiveTab('track'); loadTracking(); 
-        window.scrollTo({top:0, behavior:'smooth'}); }}>
-          TRACK ORDER
-      </button>
-      <button onClick={()=>{ setAccountOpen(true); }}>MY ACCOUNT</button>
       <button>
         <img height='20px' width='40px' src='https://logos-world.net/wp-content/uploads/2020/04/Instagram-icon-Logo-2016-present.png' alt='instagram profile link' />
       <a href='https://www.instagram.com/realurban_cart?mdxt=MTNhdm91Z3Jxb3E2Yw%3D%3D&utm_source=qr'>Stay Updated: Instagram</a>
       </button>
       <button>
-        <img height='20px' width='40px' src='https://clipart-library.com/images_k/facebook-transparent-icon/facebook-transparent-icon-15.jpg' alt='facebook profile link' />
+        <img height='20px' width='40px' src='https://img.freepik.com/premium-vector/social-media-icon-illustration-facebook-facebook-icon-vector-illustration_561158-2134.jpg' alt='facebook profile link' />
       <a href='https://www.facebook.com/profile.php?id=61554440545838'>Stay Updated: facebook</a>
       </button>
     </div>
@@ -1659,7 +1644,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
           <h4>{p.name} {p.on_sale&&<span style={{background:'#F59E0B',fontSize:8,padding:'2px 4px'}}>SALE</span>}</h4>
           {p.unit && p.unit !== 'none' && (
             p.unit === 'size' ? (
-              <select value={p.selectedSize || ''} onChange={e=>changeSize(p.id, e.target.value, p.selectedColor)} style={{fontSize:11, padding:'4px 6px', border:'1px solid #121212', marginTop:4}}>
+              <select value={p.selectedSize || ''} onChange={e=>changeSize(p.id, e.target.value, p.selectedColor, p.selectedSize)} style={{fontSize:11, padding:'4px 6px', border:'1px solid #121212', marginTop:4}}>
                 {(p.unit_value || '').split(',').map(s => <option key={s.trim()} value={s.trim()}>{s.trim()}</option>)}
               </select>
             ) : (
@@ -2128,6 +2113,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
         <button className={adminTab==='dashboard'?'on':''} onClick={()=>setAdminTab('dashboard')}><TrendingUp size={12} style={{display:'inline'}}/> DASHBOARD</button>
         <button className={adminTab==='orders'?'on':''} onClick={()=>setAdminTab('orders')}>ORDERS ({adminOrders.length})</button>
         <button className={adminTab==='products'?'on':''} onClick={()=>setAdminTab('products')}>PRODUCTS ({products.length})</button>
+        <button className={adminTab==='categories'?'on':''} onClick={()=>setAdminTab('categories')}>CATEGORIES ({categories.length})</button>
         <button className={adminTab==='customers'?'on':''} onClick={()=>setAdminTab('customers')}><Users size={12} style={{display:'inline'}}/> CUSTOMERS ({adminUsers.length})</button>
         <button className={adminTab==='staff'?'on':''} onClick={()=>setAdminTab('staff')}><Crown size={12} style={{display:'inline'}}/> STAFF</button>
                 <button className={adminTab==='reviews'?'on':''} onClick={()=>setAdminTab('reviews')}>⭐ REVIEWS ({adminReviews.length})</button>
@@ -2213,7 +2199,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
         </div>
       )}
 
-            {adminTab==='reviews' && (
+      {adminTab==='reviews' && (
         <div>
           <div style={{background:'#FEF3C7', border:'2px solid #121212', padding:10, marginBottom:12, fontSize:11}}>
             <b>⭐ Reviews:</b> You also get an email for every new review. Delete spam / rude reviews here. Deleted reviews disappear from the product page instantly.
@@ -2254,13 +2240,65 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
         </div>
       )}
 
+      {adminTab==='categories' && (
+        <div style={{ background: '#fff', borderRadius: 16, padding: 20, marginBottom: 20 }}>
+          <h3 style={{ margin: '0 0 12px' }}>Categories</h3>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              value={catName}
+              onChange={e => setCatName(e.target.value)}
+              placeholder="New category name, e.g. Earrings"
+              style={{ flex: 1, padding: '12px 14px', borderRadius: 10, border: '1px solid #E5D5B7' }}
+            />
+            <button
+              onClick={async () => {
+                if (!catName.trim()) return;
+                try {
+                  if (editingCatId) {
+                    const updated = await api(`/admin/categories/${editingCatId}`, { method: 'PUT', body: JSON.stringify({ name: catName.trim() }) });
+                    setCategories(old => old.map(c => c.id === editingCatId ? updated : c));
+                  } else {
+                    const created = await api('/admin/categories', { method: 'POST', body: JSON.stringify({ name: catName.trim() }) });
+                    setCategories(old => [...old, created]);
+                  }
+                  setCatName(''); setEditingCatId(null);
+                  setNotice('Category saved');
+                } catch (e) { setNotice(e.message); }
+              }}
+              style={{ background: '#121212', color: '#fff', border: 'none', padding: '12px 20px', borderRadius: 10, fontWeight: 700 }}
+            >
+              {editingCatId ? 'Save Category' : '+ Add Category'}
+            </button>
+            {editingCatId && <button onClick={() => { setEditingCatId(null); setCatName(''); }}>Cancel</button>}
+          </div>
+
+          <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {categories.map(c => (
+              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#FFFCF8', border: '1px solid #E5D5B7', padding: '8px 10px', borderRadius: 20 }}>
+                <span>{c.name}</span>
+                <button onClick={() => { setEditingCatId(c.id); setCatName(c.name); }}>Edit</button>
+                <button onClick={async () => {
+                  if (!confirm(`Delete "${c.name}"? Products in it will become Uncategorized.`)) return;
+                  try {
+                    await api(`/admin/categories/${c.id}`, { method: 'DELETE' });
+                    setCategories(old => old.filter(x => x.id !== c.id));
+                    setNotice('Category deleted');
+                  } catch (e) { setNotice(e.message); }
+                }}>✕</button>
+              </div>
+            ))}
+            {!categories.length && <div style={{ padding: 12, opacity: 0.6 }}>No categories yet — add one above.</div>}
+          </div>
+        </div>
+      )}
+
       {adminTab==='products' && (
         <div>
           <form onSubmit={editingId? saveEdit : createProduct} className="auth-form" style={{padding:16, border:'2px solid var(--ink)', background:'#fff'}}>
             <h3 style={{fontFamily:'Anton', margin:'0 0 8px'}}>{editingId? `EDIT #${editingId}` : 'CREATE NEW PRODUCT'}</h3>
             <input required placeholder="Name" value={prodForm.name} onChange={e=>setProdForm(f=>({...f,name:e.target.value}))}/>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8}}>
-              <select value={prodForm.category} onChange={e=>setProdForm(f=>({...f,category:e.target.value}))}>{['Tech','Home','Lifestyle','Accessories'].map(c=><option key={c}>{c}</option>)}</select>
+              <select value={prodForm.category} onChange={e=>setProdForm(f=>({...f,category:e.target.value}))}>{categoryOptions.filter(c=>c!=='All').map(c=><option key={c}>{c}</option>)}</select>
               <input required type="number" step="0.01" placeholder="Price ZAR" value={prodForm.price} onChange={e=>setProdForm(f=>({...f,price:e.target.value}))}/>
               <input required type="number" placeholder="Stock" value={prodForm.stock} onChange={e=>setProdForm(f=>({...f,stock:e.target.value}))}/>
             </div>
@@ -2327,7 +2365,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
             <textarea placeholder="Description" value={prodForm.description} onChange={e=>setProdForm(f=>({...f,description:e.target.value}))} style={{minHeight:80, border:'2px solid var(--ink)', padding:12, fontFamily:'Syne'}}/>
               <button type="button" onClick={() => {
                 setEditingId(null);
-                setProdForm({name:'',category:'Tech',price:'',sale_price:'',on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:'',colors:'',has_colors:false});
+                setProdForm({name:'',category:'Tech',price:'',sale_price:'',is_bestseller:0,on_sale:false,stock:'',description:'',image_url:'',images:['','','',''],is_active:true,unit:'none',unit_value:'',colors:'',sizes:'',has_colors:false,has_sizes:false});
               }} style={{height:44, border:'2px solid #121212', background:'#fff', fontWeight:800, cursor:'pointer'}}>CANCEL</button>
               <button type="submit" className="btn-black full">{editingId ? 'SAVE CHANGES' : 'CREATE PRODUCT'}
               </button>

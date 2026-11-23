@@ -438,6 +438,13 @@ app.use('/api/admin', auth, adminOnly); // every admin route is protected from t
 /* ================= SCHEMA (move to a migration script when you can) ================= */
 async function ensureSchema() {
   await pool.execute(`
+  CREATE TABLE IF NOT EXISTS categories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  await pool.execute(`
     CREATE TABLE IF NOT EXISTS phone_otps (
       id INT AUTO_INCREMENT PRIMARY KEY,
       phone VARCHAR(20) NOT NULL,
@@ -639,6 +646,46 @@ app.get('/api/products', wrap(async (req, res) => {
 app.get('/api/categories', wrap(async (_req, res) => {
   const [rows] = await pool.query('SELECT id,name FROM categories ORDER BY name');
   res.json(rows);
+}));
+
+// ----- categories (admin) -----
+// These are AFTER app.use('/api/admin', auth, adminOnly) so only admin can use them
+app.post('/api/admin/categories', wrap(async (req, res) => {
+  const name = cleanText(req.body.name, 100);
+  if (!name) return res.status(400).json({ error: 'Category name is required.' });
+  try {
+    const [r] = await pool.execute('INSERT INTO categories (name) VALUES (?)', [name]);
+    const [rows] = await pool.query('SELECT id, name FROM categories WHERE id = ?', [r.insertId]);
+    res.status(201).json(rows[0]);
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Category already exists.' });
+    throw e;
+  }
+}));
+
+app.put('/api/admin/categories/:id', wrap(async (req, res) => {
+  const id = asId(req.params.id);
+  const name = cleanText(req.body.name, 100);
+  if (!id || !name) return res.status(400).json({ error: 'Valid id and name required.' });
+  try {
+    const [r] = await pool.execute('UPDATE categories SET name = ? WHERE id = ?', [name, id]);
+    if (!r.affectedRows) return res.status(404).json({ error: 'Category not found.' });
+    const [rows] = await pool.query('SELECT id, name FROM categories WHERE id = ?', [id]);
+    res.json(rows[0]);
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: 'Category already exists.' });
+    throw e;
+  }
+}));
+
+app.delete('/api/admin/categories/:id', wrap(async (req, res) => {
+  const id = asId(req.params.id);
+  if (!id) return res.status(400).json({ error: 'Invalid id' });
+  // Don't delete a category that still has products - set those products to no category instead
+  await pool.execute('UPDATE products SET category_id = NULL WHERE category_id = ?', [id]);
+  const [r] = await pool.execute('DELETE FROM categories WHERE id = ?', [id]);
+  if (!r.affectedRows) return res.status(404).json({ error: 'Category not found.' });
+  res.json({ ok: true, id });
 }));
 
 /* ================= AUTH ================= */
