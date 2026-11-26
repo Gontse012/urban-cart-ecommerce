@@ -510,8 +510,7 @@ useEffect(()=>{
   return () => window.removeEventListener('pageshow', onShow);
 }, []);
 
- const visible=useMemo(()=>products.filter(p=>(category==='All'|| (p.category||'').toLowerCase()===category.toLowerCase())&& `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())).sort((a,b)=>(b.is_bestseller?1:0)-(a.is_bestseller?1:0) || b.id-a.id),[products,category,search]);
- const visibleAll=useMemo(()=>{
+ const visible=useMemo(()=>{
   let list = products.filter(p => 
     (indexFilter==='All' || (p.category||'').toLowerCase()===indexFilter.toLowerCase()) &&
     `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())
@@ -698,12 +697,13 @@ function closeProduct(){
   window.scrollTo({top:0, behavior:'smooth'});
 }
 
- function handleViewEverything(){ setCategory('All'); setSearch(''); setShowAll(true); setSelectedProduct(null); setActiveTab('shop'); window.scrollTo({top:0, behavior:'smooth'}); }
+ function handleViewEverything(){ setCategory('All'); setIndexFilter('All'); setSearch(''); setShowAll(true); setSelectedProduct(null); setActiveTab('shop'); window.scrollTo({top:0, behavior:'smooth'}); }
   function handleHome(){ 
     setReturnToFullIndex(false); 
     setShowAll(false); 
     setSelectedProduct(null); 
     setCategory('All'); 
+    setIndexFilter('All');
     setSearch(''); 
     setActiveTab('shop'); 
     window.scrollTo({top:0, behavior:'smooth'}); 
@@ -1569,7 +1569,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
                 <button
                   key={c}
                   className={indexFilter===c ? 'filter-pill active' : 'filter-pill'}
-                  onClick={()=>setIndexFilter(c)}
+                  onClick={()=>{ setIndexFilter(c); setCategory(c); }}
                 >
                   {c}
                 </button>
@@ -1578,15 +1578,17 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
             <button className="view-all" onClick={()=>{handleViewEverything()}}>VIEW EVERYTHING <ArrowUpRight size={14}/></button>
           </div>
           {loading&&<div className="loading">LOADING INDEX...</div>}
-          {!loading&&!visible.length&&<div className="empty">NO RESULTS FOR "{search}" <button onClick={()=>{setSearch('');setCategory('All')}}>CLEAR</button></div>}
+          {!loading&&!visible.length&&<div className="empty">NO RESULTS FOR "{search}" <button onClick={()=>{setSearch('');setCategory('All');setIndexFilter('All')}}>CLEAR</button></div>}
           <div className="grid">
             {visible.map((p,i)=>
-              <article key={p.id} className={i===0?"card big":"card"} onClick={()=>openProduct(p)} style={{opacity: isOutOfStock(p)?0.55:1}}>
+              <article key={p.id} className={p.is_bestseller?"card big":"card"} onClick={()=>openProduct(p)} style={{opacity: isOutOfStock(p)?0.55:1}}>
                 <div className="card-img"><img src={p.image_url} alt={p.name} loading="lazy"/><span className="tag" style={{background: isOutOfStock(p)?'#ff3b30': p.on_sale?'#F59E0B':undefined, color: isOutOfStock(p)||p.on_sale?'#fff':undefined}}>{isOutOfStock(p)?'OUT OF STOCK': p.is_bestseller?'BESTSELLER': p.on_sale?'SALE':p.category}</span>
-                  <button className="add" onClick={e=>{e.stopPropagation(); 
-                    if((p.unit==='size' && !p.selectedSize) || (p.colors && !p.selectedColor)){
+                  <button className="add" onClick={e=>{e.stopPropagation();
+                    const needsSize = p.unit === 'size';
+                    const needsColor = !!p.colors;
+                    if(needsSize || needsColor){
                       openProduct(p);
-                      setNotice(`Please select ${p.unit==='size' ? 'a size' : ''}${p.unit==='size' && p.colors ? ' and ' : ''}${p.colors ? 'a colour' : ''} for ${p.name}`);
+                      setNotice(`Please select ${needsSize ? 'a size' : ''}${needsSize && needsColor ? ' and ' : ''}${needsColor ? 'a colour' : ''} for ${p.name}`);
                     } else {
                       add(p);
                     }
