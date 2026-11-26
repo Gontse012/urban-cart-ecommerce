@@ -522,6 +522,26 @@ useEffect(()=>{
   return list;
  },[products,search,indexFilter,indexSort]);
 
+ // Full Index uses category, Home uses indexFilter — keep them as ONE list
+ const visibleAll = useMemo(()=>{
+  let list = products.filter(p =>
+    (category==='All' || (p.category||'').toLowerCase()===category.toLowerCase()) &&
+    `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(search.toLowerCase())
+  );
+  if(indexSort==='price-low') list.sort((a,b)=>effectivePrice(a)-effectivePrice(b));
+  else if(indexSort==='price-high') list.sort((a,b)=>effectivePrice(b)-effectivePrice(a));
+  else if(indexSort==='name') list.sort((a,b)=>a.name.localeCompare(b.name));
+  else list.sort((a,b)=>(b.is_bestseller?1:0)-(a.is_bestseller?1:0) || b.id-a.id);
+  return list;
+ },[products,search,category,indexSort]);
+
+  if(indexSort==='price-low') list.sort((a,b)=>effectivePrice(a)-effectivePrice(b));
+  else if(indexSort==='price-high') list.sort((a,b)=>effectivePrice(b)-effectivePrice(a));
+  else if(indexSort==='name') list.sort((a,b)=>a.name.localeCompare(b.name));
+  else list.sort((a,b)=>(b.is_bestseller?1:0)-(a.is_bestseller?1:0) || b.id-a.id);
+  return list;
+ },[products,search,indexFilter,indexSort]);
+
  const count = cart.reduce((s,p)=>s+p.quantity,0), total=cart.reduce((s,p)=>s+effectivePrice(p)*p.quantity,0);  
  const isLephalaleDelivery = form.province === 'LIMPOPO' && ['0555','0556','0557'].includes((form.postal_code || '').trim());
  const deliveryFee = !isLephalaleDelivery ? 0 : total >= 1000 ? 0 : 60;
@@ -1509,7 +1529,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
           {/* === FILTER BAR === */}
           <div className="index-filters">
             <div className="filter-pills">
-              {categoryOptions.map(c=><button key={c} className={category===c?'active':''} onClick={()=>setCategory(c)}>{c.toUpperCase()}</button>)}
+              {categoryOptions.map(c=><button key={c} className={category===c?'active':''} onClick={()=>{ setCategory(c); setIndexFilter(c); }}>{c.toUpperCase()}</button>)}
             </div>
 
             <select
@@ -1526,7 +1546,7 @@ const itemsHtml = (o.items||[]).map(it=>`<tr><td>${it.name}${getVariantLabel(it)
 
         {visibleAll.length===0 && (
           <div style={{padding:'40px 16px', textAlign:'center', fontWeight:700, opacity:.6}}>
-            No items in {indexFilter} — try another filter.
+            No items in {category} — try another filter.
           </div>
         )}
 
